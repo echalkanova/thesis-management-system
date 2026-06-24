@@ -1,22 +1,39 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Thesis Management System API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: users
+    description: User management
+  - name: theses
+    description: Thesis management
+  - name: files
+    description: File uploads
+  - name: reviews
+    description: Thesis reviews
+  - name: grades
+    description: Grades
+  - name: defenses
+    description: Defense schedule
+  - name: notifications
+    description: Notifications
+  - name: dashboard
+    description: Dashboard and reports
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +41,765 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a user (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: Created user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /theses:
+    get:
+      operationId: listTheses
+      tags: [theses]
+      summary: List theses
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: studentId
+          in: query
+          schema:
+            type: integer
+        - name: supervisorId
+          in: query
+          schema:
+            type: integer
+        - name: reviewerId
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of theses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Thesis"
+    post:
+      operationId: createThesis
+      tags: [theses]
+      summary: Create a thesis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThesisInput"
+      responses:
+        "201":
+          description: Created thesis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Thesis"
+
+  /theses/{id}:
+    get:
+      operationId: getThesis
+      tags: [theses]
+      summary: Get thesis by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Thesis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Thesis"
+    patch:
+      operationId: updateThesis
+      tags: [theses]
+      summary: Update thesis
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThesisUpdate"
+      responses:
+        "200":
+          description: Updated thesis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Thesis"
+    delete:
+      operationId: deleteThesis
+      tags: [theses]
+      summary: Delete thesis
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /theses/{id}/submit:
+    post:
+      operationId: submitThesis
+      tags: [theses]
+      summary: Submit thesis for review
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Thesis submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Thesis"
+
+  /theses/{id}/status:
+    patch:
+      operationId: updateThesisStatus
+      tags: [theses]
+      summary: Update thesis status (admin/supervisor)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThesisStatusUpdate"
+      responses:
+        "200":
+          description: Updated thesis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Thesis"
+
+  /theses/{id}/assign:
+    post:
+      operationId: assignThesis
+      tags: [theses]
+      summary: Assign supervisor or reviewer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThesisAssignment"
+      responses:
+        "200":
+          description: Assignment updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Thesis"
+
+  /theses/{id}/files:
+    get:
+      operationId: listThesisFiles
+      tags: [files]
+      summary: List files for a thesis
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of files
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ThesisFile"
+    post:
+      operationId: uploadThesisFile
+      tags: [files]
+      summary: Upload a file to a thesis
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThesisFileInput"
+      responses:
+        "201":
+          description: File uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThesisFile"
+
+  /files/{id}:
+    delete:
+      operationId: deleteFile
+      tags: [files]
+      summary: Delete a file
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /theses/{id}/reviews:
+    get:
+      operationId: listThesisReviews
+      tags: [reviews]
+      summary: List reviews for a thesis
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Review"
+    post:
+      operationId: createReview
+      tags: [reviews]
+      summary: Create a review
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewInput"
+      responses:
+        "201":
+          description: Review created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+
+  /reviews/{id}:
+    get:
+      operationId: getReview
+      tags: [reviews]
+      summary: Get review by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+    patch:
+      operationId: updateReview
+      tags: [reviews]
+      summary: Update a review
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewUpdate"
+      responses:
+        "200":
+          description: Updated review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+
+  /theses/{id}/grades:
+    get:
+      operationId: listThesisGrades
+      tags: [grades]
+      summary: List grades for a thesis
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Grades
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Grade"
+    post:
+      operationId: createGrade
+      tags: [grades]
+      summary: Submit a grade
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GradeInput"
+      responses:
+        "201":
+          description: Grade submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Grade"
+
+  /grades/{id}:
+    patch:
+      operationId: updateGrade
+      tags: [grades]
+      summary: Update a grade
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GradeUpdate"
+      responses:
+        "200":
+          description: Updated grade
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Grade"
+
+  /defenses:
+    get:
+      operationId: listDefenses
+      tags: [defenses]
+      summary: List defense sessions
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+        - name: to
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Defense sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DefenseSession"
+    post:
+      operationId: createDefense
+      tags: [defenses]
+      summary: Schedule a defense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DefenseInput"
+      responses:
+        "201":
+          description: Scheduled defense
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DefenseSession"
+
+  /defenses/{id}:
+    get:
+      operationId: getDefense
+      tags: [defenses]
+      summary: Get defense session by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Defense session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DefenseSession"
+    patch:
+      operationId: updateDefense
+      tags: [defenses]
+      summary: Update defense session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DefenseUpdate"
+      responses:
+        "200":
+          description: Updated defense session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DefenseSession"
+    delete:
+      operationId: deleteDefense
+      tags: [defenses]
+      summary: Delete defense session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications for current user
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Notification updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+
+  /notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      summary: Mark all notifications as read
+      responses:
+        "200":
+          description: All marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get dashboard statistics
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /reports/theses:
+    get:
+      operationId: getThesesReport
+      tags: [dashboard]
+      summary: Get thesis statistics report
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+        - name: to
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Report data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThesesReport"
+
+  /reports/grades:
+    get:
+      operationId: getGradesReport
+      tags: [dashboard]
+      summary: Get grades report
+      responses:
+        "200":
+          description: Grades report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GradesReport"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +810,580 @@ components:
       required:
         - status
 
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+          enum: [student, supervisor, reviewer, committee_member, admin]
+        faculty:
+          type: ["string", "null"]
+        department:
+          type: ["string", "null"]
+        phoneNumber:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - email
+        - firstName
+        - lastName
+        - role
+        - createdAt
+
+    RegisterInput:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+          enum: [student, supervisor, reviewer, committee_member, admin]
+        faculty:
+          type: string
+        department:
+          type: string
+        phoneNumber:
+          type: string
+      required:
+        - email
+        - password
+        - firstName
+        - lastName
+        - role
+
+    LoginInput:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+      required:
+        - user
+        - token
+
+    UserInput:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+          enum: [student, supervisor, reviewer, committee_member, admin]
+        faculty:
+          type: string
+        department:
+          type: string
+        phoneNumber:
+          type: string
+      required:
+        - email
+        - password
+        - firstName
+        - lastName
+        - role
+
+    UserUpdate:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        faculty:
+          type: string
+        department:
+          type: string
+        phoneNumber:
+          type: string
+        avatarUrl:
+          type: string
+        role:
+          type: string
+          enum: [student, supervisor, reviewer, committee_member, admin]
+
+    Thesis:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [draft, submitted, under_review, approved, rejected, defended]
+        studentId:
+          type: integer
+        supervisorId:
+          type: ["integer", "null"]
+        reviewerId:
+          type: ["integer", "null"]
+        defenseId:
+          type: ["integer", "null"]
+        keywords:
+          type: ["string", "null"]
+        field:
+          type: ["string", "null"]
+        submittedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        student:
+          $ref: "#/components/schemas/User"
+        supervisor:
+          type: ["object", "null"]
+        reviewer:
+          type: ["object", "null"]
+      required:
+        - id
+        - title
+        - status
+        - studentId
+        - createdAt
+        - updatedAt
+        - student
+
+    ThesisInput:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        keywords:
+          type: string
+        field:
+          type: string
+      required:
+        - title
+
+    ThesisUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        keywords:
+          type: string
+        field:
+          type: string
+
+    ThesisStatusUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [draft, submitted, under_review, approved, rejected, defended]
+        comment:
+          type: string
+      required:
+        - status
+
+    ThesisAssignment:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [supervisor, reviewer]
+        userId:
+          type: integer
+      required:
+        - role
+        - userId
+
+    ThesisFile:
+      type: object
+      properties:
+        id:
+          type: integer
+        thesisId:
+          type: integer
+        fileName:
+          type: string
+        fileUrl:
+          type: string
+        fileType:
+          type: string
+        fileSize:
+          type: integer
+        uploadedBy:
+          type: integer
+        createdAt:
+          type: string
+      required:
+        - id
+        - thesisId
+        - fileName
+        - fileUrl
+        - fileType
+        - fileSize
+        - uploadedBy
+        - createdAt
+
+    ThesisFileInput:
+      type: object
+      properties:
+        fileName:
+          type: string
+        fileUrl:
+          type: string
+        fileType:
+          type: string
+        fileSize:
+          type: integer
+      required:
+        - fileName
+        - fileUrl
+        - fileType
+        - fileSize
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: integer
+        thesisId:
+          type: integer
+        reviewerId:
+          type: integer
+        content:
+          type: string
+        recommendation:
+          type: string
+          enum: [approve, reject, revise]
+        isPublished:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        reviewer:
+          $ref: "#/components/schemas/User"
+      required:
+        - id
+        - thesisId
+        - reviewerId
+        - content
+        - recommendation
+        - isPublished
+        - createdAt
+        - updatedAt
+        - reviewer
+
+    ReviewInput:
+      type: object
+      properties:
+        content:
+          type: string
+        recommendation:
+          type: string
+          enum: [approve, reject, revise]
+        isPublished:
+          type: boolean
+      required:
+        - content
+        - recommendation
+
+    ReviewUpdate:
+      type: object
+      properties:
+        content:
+          type: string
+        recommendation:
+          type: string
+          enum: [approve, reject, revise]
+        isPublished:
+          type: boolean
+
+    Grade:
+      type: object
+      properties:
+        id:
+          type: integer
+        thesisId:
+          type: integer
+        graderId:
+          type: integer
+        value:
+          type: number
+        comment:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        grader:
+          $ref: "#/components/schemas/User"
+      required:
+        - id
+        - thesisId
+        - graderId
+        - value
+        - createdAt
+        - grader
+
+    GradeInput:
+      type: object
+      properties:
+        value:
+          type: number
+        comment:
+          type: string
+      required:
+        - value
+
+    GradeUpdate:
+      type: object
+      properties:
+        value:
+          type: number
+        comment:
+          type: string
+
+    DefenseSession:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        scheduledAt:
+          type: string
+        location:
+          type: ["string", "null"]
+        roomOrLink:
+          type: ["string", "null"]
+        thesisIds:
+          type: array
+          items:
+            type: integer
+        committeeIds:
+          type: array
+          items:
+            type: integer
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - title
+        - scheduledAt
+        - thesisIds
+        - committeeIds
+        - createdAt
+
+    DefenseInput:
+      type: object
+      properties:
+        title:
+          type: string
+        scheduledAt:
+          type: string
+        location:
+          type: string
+        roomOrLink:
+          type: string
+        thesisIds:
+          type: array
+          items:
+            type: integer
+        committeeIds:
+          type: array
+          items:
+            type: integer
+        notes:
+          type: string
+      required:
+        - title
+        - scheduledAt
+
+    DefenseUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        scheduledAt:
+          type: string
+        location:
+          type: string
+        roomOrLink:
+          type: string
+        thesisIds:
+          type: array
+          items:
+            type: integer
+        committeeIds:
+          type: array
+          items:
+            type: integer
+        notes:
+          type: string
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        title:
+          type: string
+        message:
+          type: string
+        type:
+          type: string
+          enum: [info, success, warning, error]
+        isRead:
+          type: boolean
+        relatedThesisId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - userId
+        - title
+        - message
+        - type
+        - isRead
+        - createdAt
+
+    DashboardStats:
+      type: object
+      properties:
+        totalTheses:
+          type: integer
+        thesesByStatus:
+          type: object
+          additionalProperties:
+            type: integer
+        totalStudents:
+          type: integer
+        totalSupervisors:
+          type: integer
+        totalReviewers:
+          type: integer
+        upcomingDefenses:
+          type: integer
+        pendingReviews:
+          type: integer
+        averageGrade:
+          type: number
+        recentTheses:
+          type: array
+          items:
+            $ref: "#/components/schemas/Thesis"
+        upcomingDefenseList:
+          type: array
+          items:
+            $ref: "#/components/schemas/DefenseSession"
+      required:
+        - totalTheses
+        - thesesByStatus
+        - totalStudents
+        - totalSupervisors
+        - totalReviewers
+        - upcomingDefenses
+        - pendingReviews
+        - averageGrade
+        - recentTheses
+        - upcomingDefenseList
+
+    ThesesReport:
+      type: object
+      properties:
+        totalCount:
+          type: integer
+        byStatus:
+          type: object
+          additionalProperties:
+            type: integer
+        byField:
+          type: object
+          additionalProperties:
+            type: integer
+        byMonth:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: string
+              count:
+                type: integer
+            required:
+              - month
+              - count
+      required:
+        - totalCount
+        - byStatus
+        - byField
+        - byMonth
+
+    GradesReport:
+      type: object
+      properties:
+        averageGrade:
+          type: number
+        gradeDistribution:
+          type: object
+          additionalProperties:
+            type: integer
+        topTheses:
+          type: array
+          items:
+            $ref: "#/components/schemas/Thesis"
+        passingRate:
+          type: number
+      required:
+        - averageGrade
+        - gradeDistribution
+        - topTheses
+        - passingRate

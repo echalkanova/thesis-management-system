@@ -1,0 +1,345 @@
+import { useState } from "react";
+import { useParams, Link, useLocation } from "wouter";
+import {
+  useGetThesis, getGetThesisQueryKey,
+  useListThesisFiles, getListThesisFilesQueryKey,
+  useListThesisReviews, getListThesisReviewsQueryKey,
+  useListThesisGrades, getListThesisGradesQueryKey,
+  useListUsers, getListUsersQueryKey,
+  useSubmitThesis, useUpdateThesisStatus, useAssignThesis,
+  useUploadThesisFile, useDeleteFile,
+  useCreateReview, useCreateGrade,
+  getListThesesQueryKey
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/lib/auth";
+import { formatStatus, getStatusColor, formatRole } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft, FileText, UserCheck, Star, Paperclip, Trash2 } from "lucide-react";
+
+const gradeLabel = (v: number) => {
+  if (v >= 5.5) return "Отличен";
+  if (v >= 4.5) return "Много добър";
+  if (v >= 3.5) return "Добър";
+  if (v >= 2.5) return "Среден";
+  return "Слаб";
+};
+
+export default function ThesisDetail() {
+  const { id } = useParams<{ id: string }>();
+  const thesisId = Number(id);
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
+
+  const { data: thesis, isLoading } = useGetThesis(thesisId, { query: { queryKey: getGetThesisQueryKey(thesisId) } });
+  const { data: files } = useListThesisFiles(thesisId, { query: { queryKey: getListThesisFilesQueryKey(thesisId) } });
+  const { data: reviews } = useListThesisReviews(thesisId, { query: { queryKey: getListThesisReviewsQueryKey(thesisId) } });
+  const { data: grades } = useListThesisGrades(thesisId, { query: { queryKey: getListThesisGradesQueryKey(thesisId) } });
+  const { data: users } = useListUsers({}, { query: { queryKey: getListUsersQueryKey({}) } });
+
+  const submitThesis = useSubmitThesis();
+  const updateStatus = useUpdateThesisStatus();
+  const assignThesis = useAssignThesis();
+  const uploadFile = useUploadThesisFile();
+  const deleteFile = useDeleteFile();
+  const createReview = useCreateReview();
+  const createGrade = useCreateGrade();
+
+  const [reviewContent, setReviewContent] = useState("");
+  const [reviewRecommendation, setReviewRecommendation] = useState("approve");
+  const [gradeValue, setGradeValue] = useState("");
+  const [gradeComment, setGradeComment] = useState("");
+  const [newFileUrl, setNewFileUrl] = useState("");
+  const [newFileName, setNewFileName] = useState("");
+  const [assignRole, setAssignRole] = useState<"supervisor" | "reviewer">("supervisor");
+  const [assignUserId, setAssignUserId] = useState("");
+  const [statusToSet, setStatusToSet] = useState("");
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: getGetThesisQueryKey(thesisId) });
+    queryClient.invalidateQueries({ queryKey: getListThesesQueryKey() });
+  };
+
+  if (isLoading) return <div className="p-8 text-center text-slate-500">Зареждане...</div>;
+  if (!thesis) return <div className="p-8 text-center text-slate-500">Дипломната работа не е намерена.</div>;
+
+  const isStudent = user?.role === "student";
+  const isAdmin = user?.role === "admin";
+  const isSupervisor = user?.role === "supervisor";
+  const isReviewer = user?.role === "reviewer";
+  const isOwner = thesis.studentId === user?.id;
+  const isAssignedReviewer = thesis.reviewerId === user?.id;
+
+  const supervisors = users?.filter(u => u.role === "supervisor") ?? [];
+  const reviewers = users?.filter(u => u.role === "reviewer") ?? [];
+
+  const avgGrade = grades && grades.length > 0 ? grades.reduce((s, g) => s + g.value, 0) / grades.length : null;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <Link href="/theses" data-testid="link-back-theses">
+          <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
+        </Link>
+        <div className="flex-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold text-[#0a192f]">{thesis.title}</h1>
+            <Badge className={getStatusColor(thesis.status)} variant="outline" data-testid="status-thesis">
+              {formatStatus(thesis.status)}
+            </Badge>
+          </div>
+          <p className="text-slate-500 text-sm mt-1">
+            Студент: <span className="font-medium">{thesis.student?.firstName} {thesis.student?.lastName}</span>
+            {thesis.field && <> &bull; Област: <span className="font-medium">{thesis.field}</span></>}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <Card>
+            <CardHeader><CardTitle>Описание</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-slate-700 leading-relaxed">{thesis.description || <span className="text-slate-400 italic">Няма добавено описание</span>}</p>
+              {thesis.keywords && <p className="mt-3 text-sm text-slate-500">Ключови думи: <span className="font-medium text-slate-700">{thesis.keywords}</span></p>}
+            </CardContent>
+          </Card>
+
+          {files && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2"><Paperclip className="h-4 w-4" /> Файлове ({files.length})</CardTitle>
+                  {(isOwner || isSupervisor || isAdmin) && (
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button size="sm" variant="outline" data-testid="button-add-file">Добави файл</Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader><DialogTitle>Добавяне на файл</DialogTitle></DialogHeader>
+                        <div className="space-y-4 pt-2">
+                          <div className="space-y-2">
+                            <Label>Име на файл</Label>
+                            <Input value={newFileName} onChange={e => setNewFileName(e.target.value)} placeholder="дипломна-работа.pdf" data-testid="input-file-name" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>URL адрес</Label>
+                            <Input value={newFileUrl} onChange={e => setNewFileUrl(e.target.value)} placeholder="https://..." data-testid="input-file-url" />
+                          </div>
+                          <Button className="w-full bg-[#0a192f] text-white" disabled={uploadFile.isPending} data-testid="button-upload-file"
+                            onClick={() => {
+                              if (!newFileName || !newFileUrl) return;
+                              uploadFile.mutate({ id: thesisId, data: { fileName: newFileName, fileUrl: newFileUrl, fileType: "application/pdf", fileSize: 0 } }, {
+                                onSuccess: () => {
+                                  queryClient.invalidateQueries({ queryKey: getListThesisFilesQueryKey(thesisId) });
+                                  setNewFileName(""); setNewFileUrl("");
+                                  toast({ title: "Файлът е добавен" });
+                                }
+                              });
+                            }}>
+                            {uploadFile.isPending ? "Качване..." : "Добави"}
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {files.length === 0 ? (
+                  <p className="text-slate-400 text-sm italic">Няма прикачени файлове</p>
+                ) : (
+                  <div className="space-y-2">
+                    {files.map(f => (
+                      <div key={f.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100" data-testid={`file-item-${f.id}`}>
+                        <a href={f.fileUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-blue-600 hover:underline">
+                          <FileText className="h-4 w-4" />
+                          {f.fileName}
+                        </a>
+                        {(isAdmin || f.uploadedBy === user?.id) && (
+                          <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-600" data-testid={`button-delete-file-${f.id}`}
+                            onClick={() => deleteFile.mutate({ id: f.id }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListThesisFilesQueryKey(thesisId) }) })}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-4 w-4" /> Рецензии ({reviews?.length ?? 0})</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              {reviews?.map(r => (
+                <div key={r.id} className="p-4 bg-slate-50 rounded-lg border border-slate-100" data-testid={`review-item-${r.id}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-sm text-[#0a192f]">{r.reviewer?.firstName} {r.reviewer?.lastName}</span>
+                    <Badge variant="outline" className={r.recommendation === "approve" ? "bg-green-50 text-green-700 border-green-200" : r.recommendation === "reject" ? "bg-red-50 text-red-700 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"}>
+                      {r.recommendation === "approve" ? "Одобрявам" : r.recommendation === "reject" ? "Не одобрявам" : "Препоръчвам корекции"}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-slate-700 leading-relaxed">{r.content}</p>
+                  <p className="text-xs text-slate-400 mt-2">{new Date(r.createdAt).toLocaleDateString("bg")}</p>
+                </div>
+              ))}
+              {(isAssignedReviewer || isAdmin) && thesis.status === "under_review" && (
+                <div className="border-t pt-4 space-y-3">
+                  <Label className="font-semibold">Добавяне на рецензия</Label>
+                  <Textarea value={reviewContent} onChange={e => setReviewContent(e.target.value)} rows={4} placeholder="Вашата рецензия..." data-testid="input-review-content" />
+                  <Select value={reviewRecommendation} onValueChange={setReviewRecommendation}>
+                    <SelectTrigger data-testid="select-review-recommendation"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="approve">Одобрявам</SelectItem>
+                      <SelectItem value="reject">Не одобрявам</SelectItem>
+                      <SelectItem value="revise">Препоръчвам корекции</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button className="bg-[#0a192f] text-white" disabled={createReview.isPending || !reviewContent} data-testid="button-submit-review"
+                    onClick={() => createReview.mutate({ id: thesisId, data: { content: reviewContent, recommendation: reviewRecommendation as "approve" | "reject" | "revise", isPublished: true } }, {
+                      onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListThesisReviewsQueryKey(thesisId) }); setReviewContent(""); toast({ title: "Рецензията е добавена" }); }
+                    })}>
+                    {createReview.isPending ? "Запазване..." : "Добави рецензия"}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2"><Star className="h-4 w-4 text-amber-500" /> Оценки ({grades?.length ?? 0})</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              {avgGrade !== null && (
+                <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  <span className="text-2xl font-bold text-amber-700">{avgGrade.toFixed(2)}</span>
+                  <span className="text-amber-600 font-medium">{gradeLabel(avgGrade)}</span>
+                </div>
+              )}
+              {grades?.map(g => (
+                <div key={g.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100" data-testid={`grade-item-${g.id}`}>
+                  <div>
+                    <span className="font-medium text-sm text-[#0a192f]">{g.grader?.firstName} {g.grader?.lastName}</span>
+                    {g.comment && <p className="text-xs text-slate-500 mt-0.5">{g.comment}</p>}
+                  </div>
+                  <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-200 text-base font-bold px-3">{g.value}</Badge>
+                </div>
+              ))}
+              {(user?.role === "committee_member" || isAdmin) && thesis.status === "defended" && (
+                <div className="border-t pt-4 space-y-3">
+                  <Label className="font-semibold">Добавяне на оценка</Label>
+                  <Input type="number" step="0.25" min="2" max="6" value={gradeValue} onChange={e => setGradeValue(e.target.value)} placeholder="2 - 6" data-testid="input-grade-value" />
+                  <Input value={gradeComment} onChange={e => setGradeComment(e.target.value)} placeholder="Коментар (по избор)" data-testid="input-grade-comment" />
+                  <Button className="bg-[#0a192f] text-white" disabled={createGrade.isPending || !gradeValue} data-testid="button-submit-grade"
+                    onClick={() => createGrade.mutate({ id: thesisId, data: { value: Number(gradeValue), comment: gradeComment || undefined } }, {
+                      onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListThesisGradesQueryKey(thesisId) }); setGradeValue(""); setGradeComment(""); toast({ title: "Оценката е добавена" }); }
+                    })}>
+                    {createGrade.isPending ? "Запазване..." : "Добави оценка"}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-4">
+          <Card>
+            <CardHeader><CardTitle>Информация</CardTitle></CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div><span className="text-slate-500">Студент:</span><p className="font-medium text-[#0a192f]">{thesis.student?.firstName} {thesis.student?.lastName}</p></div>
+              <div><span className="text-slate-500">Научен ръководител:</span><p className="font-medium text-[#0a192f]">{thesis.supervisor ? `${(thesis.supervisor as any).firstName} ${(thesis.supervisor as any).lastName}` : <span className="text-slate-400 italic">Не е назначен</span>}</p></div>
+              <div><span className="text-slate-500">Рецензент:</span><p className="font-medium text-[#0a192f]">{thesis.reviewer ? `${(thesis.reviewer as any).firstName} ${(thesis.reviewer as any).lastName}` : <span className="text-slate-400 italic">Не е назначен</span>}</p></div>
+              {thesis.submittedAt && <div><span className="text-slate-500">Подадена на:</span><p className="font-medium text-[#0a192f]">{new Date(thesis.submittedAt).toLocaleDateString("bg")}</p></div>}
+              <div><span className="text-slate-500">Създадена:</span><p className="font-medium text-[#0a192f]">{new Date(thesis.createdAt).toLocaleDateString("bg")}</p></div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>Действия</CardTitle></CardHeader>
+            <CardContent className="space-y-2">
+              {isOwner && thesis.status === "draft" && (
+                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white" disabled={submitThesis.isPending} data-testid="button-submit-thesis"
+                  onClick={() => submitThesis.mutate({ id: thesisId }, { onSuccess: () => { invalidate(); toast({ title: "Дипломната работа е подадена" }); } })}>
+                  {submitThesis.isPending ? "Подаване..." : "Подай за рецензия"}
+                </Button>
+              )}
+              {(isAdmin || isSupervisor) && thesis.status !== "draft" && (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full" data-testid="button-change-status">Промени статус</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader><DialogTitle>Промяна на статус</DialogTitle></DialogHeader>
+                    <div className="space-y-4 pt-2">
+                      <Select value={statusToSet} onValueChange={setStatusToSet}>
+                        <SelectTrigger data-testid="select-status"><SelectValue placeholder="Изберете статус" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="under_review">В рецензия</SelectItem>
+                          <SelectItem value="approved">Одобрена</SelectItem>
+                          <SelectItem value="rejected">Отхвърлена</SelectItem>
+                          <SelectItem value="defended">Защитена</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button className="w-full bg-[#0a192f] text-white" disabled={updateStatus.isPending || !statusToSet} data-testid="button-confirm-status"
+                        onClick={() => updateStatus.mutate({ id: thesisId, data: { status: statusToSet as any } }, {
+                          onSuccess: () => { invalidate(); toast({ title: "Статусът е обновен" }); setStatusToSet(""); }
+                        })}>
+                        {updateStatus.isPending ? "Запазване..." : "Потвърди"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+              {(isAdmin || isSupervisor) && (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full flex items-center gap-2" data-testid="button-assign">
+                      <UserCheck className="h-4 w-4" /> Назначи
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader><DialogTitle>Назначаване</DialogTitle></DialogHeader>
+                    <div className="space-y-4 pt-2">
+                      <Select value={assignRole} onValueChange={v => setAssignRole(v as any)}>
+                        <SelectTrigger data-testid="select-assign-role"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="supervisor">Научен ръководител</SelectItem>
+                          <SelectItem value="reviewer">Рецензент</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={assignUserId} onValueChange={setAssignUserId}>
+                        <SelectTrigger data-testid="select-assign-user"><SelectValue placeholder="Изберете потребител" /></SelectTrigger>
+                        <SelectContent>
+                          {(assignRole === "supervisor" ? supervisors : reviewers).map(u => (
+                            <SelectItem key={u.id} value={String(u.id)}>{u.firstName} {u.lastName}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button className="w-full bg-[#0a192f] text-white" disabled={assignThesis.isPending || !assignUserId} data-testid="button-confirm-assign"
+                        onClick={() => assignThesis.mutate({ id: thesisId, data: { role: assignRole, userId: Number(assignUserId) } }, {
+                          onSuccess: () => { invalidate(); toast({ title: "Назначението е запазено" }); setAssignUserId(""); }
+                        })}>
+                        {assignThesis.isPending ? "Запазване..." : "Назначи"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
