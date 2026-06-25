@@ -25,13 +25,14 @@ export default function Users() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
   const [editUser, setEditUser] = useState<any>(null);
   const [editRole, setEditRole] = useState("");
 
+  const activeRole = roleFilter === "all" ? undefined : roleFilter;
   const { data: users, isLoading } = useListUsers(
-    { search: search || undefined, role: roleFilter || undefined },
-    { query: { queryKey: getListUsersQueryKey({ search: search || undefined, role: roleFilter || undefined }) } }
+    { search: search || undefined, role: activeRole },
+    { query: { queryKey: getListUsersQueryKey({ search: search || undefined, role: activeRole }) } }
   );
 
   const updateUser = useUpdateUser();
@@ -76,7 +77,7 @@ export default function Users() {
             <SelectValue placeholder="Всички роли" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Всички роли</SelectItem>
+            <SelectItem value="all">Всички роли</SelectItem>
             <SelectItem value="student">Студент</SelectItem>
             <SelectItem value="supervisor">Научен ръководител</SelectItem>
             <SelectItem value="reviewer">Рецензент</SelectItem>
