@@ -3,10 +3,11 @@ import { useAuth } from "@/lib/auth";
 import {
   BookOpen, Calendar, LayoutDashboard, Users, FileText,
   BarChart2, LogOut, Bell, UserCircle, GraduationCap,
-  ChevronRight, HelpCircle, Settings
+  ChevronRight
 } from "lucide-react";
 import { formatRole } from "@/lib/utils";
 import { useListNotifications, getListNotificationsQueryKey } from "@workspace/api-client-react";
+import { useNotificationStream } from "@/hooks/use-notification-stream";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Табло", icon: LayoutDashboard, roles: ["student", "supervisor", "reviewer", "committee_member", "admin"] },
@@ -133,6 +134,7 @@ export function Header() {
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
+  useNotificationStream(user?.id);
 
   if (isLoading) {
     return (

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, thesesTable, usersTable, notificationsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
+import { pushNotification } from "../sse";
 
 const router = Router();
 
@@ -53,7 +54,8 @@ async function formatThesis(thesis: typeof thesesTable.$inferSelect) {
 }
 
 async function sendNotification(userId: number, title: string, message: string, type: string, relatedThesisId?: number) {
-  await db.insert(notificationsTable).values({ userId, title, message, type, relatedThesisId: relatedThesisId ?? null });
+  const [row] = await db.insert(notificationsTable).values({ userId, title, message, type, relatedThesisId: relatedThesisId ?? null }).returning();
+  pushNotification(userId, { id: row.id, title, message, type, isRead: false, relatedThesisId: relatedThesisId ?? null, createdAt: row.createdAt.toISOString() });
 }
 
 router.get("/", requireAuth, async (req: AuthRequest, res) => {

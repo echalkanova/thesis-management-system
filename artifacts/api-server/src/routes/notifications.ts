@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { db, notificationsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
-import { requireAuth, type AuthRequest } from "../middlewares/auth";
+import { requireAuth, verifyToken, type AuthRequest } from "../middlewares/auth";
+import { addSseClient, removeSseClient } from "../sse";
 
 const router = Router();
 
-function formatNotification(n: typeof notificationsTable.$inferSelect) {
+export function formatNotification(n: typeof notificationsTable.$inferSelect) {
   return {
     id: n.id,
     userId: n.userId,
@@ -17,6 +18,37 @@ function formatNotification(n: typeof notificationsTable.$inferSelect) {
     createdAt: n.createdAt.toISOString(),
   };
 }
+
+/* SSE stream — token passed as query param because EventSource can't set headers */
+router.get("/stream", async (req, res) => {
+  const token = req.query.token as string | undefined;
+  if (!token) { res.status(401).end(); return; }
+
+  const payload = verifyToken(token);
+  if (!payload || typeof payload.userId !== "number") { res.status(401).end(); return; }
+
+  const userId = payload.userId as number;
+
+  res.set({
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+  res.flushHeaders();
+
+  /* Heartbeat every 25 s to survive proxy timeouts */
+  const heartbeat = setInterval(() => {
+    try { res.write(": ping\n\n"); } catch { clearInterval(heartbeat); }
+  }, 25_000);
+
+  addSseClient(userId, res);
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    removeSseClient(userId, res);
+  });
+});
 
 router.get("/", requireAuth, async (req: AuthRequest, res) => {
   const notifications = await db.select().from(notificationsTable)
