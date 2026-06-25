@@ -1,11 +1,22 @@
 import { useAuth } from "@/lib/auth";
-import { useGetDashboardStats, getGetDashboardStatsQueryKey } from "@workspace/api-client-react";
+import {
+  useGetDashboardStats, getGetDashboardStatsQueryKey,
+  useListTheses, getListThesesQueryKey,
+  useListDefenses, getListDefensesQueryKey,
+  useListNotifications, getListNotificationsQueryKey,
+} from "@workspace/api-client-react";
 import { formatStatus, getStatusColor } from "@/lib/utils";
-import { BookOpen, Calendar, Clock, FileText, TrendingUp, ArrowUpRight, MapPin, GraduationCap, ArrowDownRight } from "lucide-react";
+import {
+  BookOpen, Calendar, Clock, FileText, TrendingUp,
+  ArrowUpRight, ArrowDownRight, MapPin, CheckCircle2,
+  CircleDot, Circle, ChevronRight, Plus, Bell, Star,
+  User, GraduationCap, AlertCircle,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
+/* ─── Shared static chart data ─── */
 const activityData = [
   { month: "Яну", подадени: 4, защитени: 2 }, { month: "Фев", подадени: 7, защитени: 4 },
   { month: "Мар", подадени: 5, защитени: 3 }, { month: "Апр", подадени: 9, защитени: 6 },
@@ -14,13 +25,292 @@ const activityData = [
   { month: "Сеп", подадени: 14, защитени: 10 }, { month: "Окт", подадени: 11, защитени: 7 },
   { month: "Ное", подадени: 16, защитени: 12 }, { month: "Дек", подадени: 22, защитени: 18 },
 ];
-
 const facultyData = [
   { dept: "ФМИ", count: 14 }, { dept: "ФТФ", count: 9 }, { dept: "ФХФ", count: 7 },
   { dept: "ПФ", count: 11 }, { dept: "ФФ", count: 6 },
 ];
 
-export default function Dashboard() {
+/* ─── Thesis progress steps ─── */
+const STEPS = [
+  { key: "draft",        label: "Чернова" },
+  { key: "submitted",    label: "Подадена" },
+  { key: "under_review", label: "В рецензия" },
+  { key: "approved",     label: "Одобрена" },
+  { key: "defended",     label: "Защитена" },
+];
+
+function stepIndex(status: string) {
+  return STEPS.findIndex(s => s.key === status);
+}
+
+/* ═══════════════════════════════════════════════════
+   STUDENT DASHBOARD
+═══════════════════════════════════════════════════ */
+function StudentDashboard() {
+  const { user } = useAuth();
+
+  const { data: thesesList, isLoading: thesesLoading } = useListTheses(
+    { studentId: user?.id } as any,
+    { query: { queryKey: getListThesesQueryKey({ studentId: user?.id } as any) } }
+  );
+
+  const { data: allDefenses } = useListDefenses(
+    { query: { queryKey: getListDefensesQueryKey() } }
+  );
+
+  const { data: notifications } = useListNotifications(
+    { query: { queryKey: getListNotificationsQueryKey() } }
+  );
+
+  const thesis = thesesList?.[0] ?? null;
+  const currentStep = thesis ? stepIndex(thesis.status) : -1;
+
+  // Find defense for this thesis
+  const myDefense = allDefenses?.find(d =>
+    thesis && (d.thesisIds as number[])?.includes(thesis.id)
+  ) ?? null;
+
+  const recentNotifs = notifications?.slice(0, 4) ?? [];
+
+  if (thesesLoading) {
+    return (
+      <div className="space-y-5 animate-pulse">
+        <div className="h-8 w-56 bg-slate-200 rounded-lg" />
+        <div className="h-28 bg-slate-200 rounded-2xl" />
+        <div className="grid grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => <div key={i} className="h-28 bg-slate-200 rounded-2xl" />)}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
+          Добре дошъл, {user?.firstName}!
+        </h1>
+        <p className="text-sm text-slate-400 mt-0.5">Ето актуалното състояние на твоята дипломна работа.</p>
+      </div>
+
+      {/* No thesis yet */}
+      {!thesis && (
+        <div className="bg-white rounded-2xl border border-dashed border-indigo-200 p-10 flex flex-col items-center text-center shadow-sm">
+          <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center mb-4">
+            <BookOpen size={24} className="text-indigo-500" />
+          </div>
+          <h2 className="font-bold text-slate-800 text-lg mb-1">Нямаш дипломна работа</h2>
+          <p className="text-sm text-slate-400 mb-5 max-w-sm">
+            Все още не си регистрирал дипломна работа. Започни сега, за да следиш напредъка си.
+          </p>
+          <Link href="/theses/new">
+            <button className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 shadow-sm shadow-indigo-200 transition-colors">
+              <Plus size={15} /> Регистрирай дипломна работа
+            </button>
+          </Link>
+        </div>
+      )}
+
+      {/* Thesis exists */}
+      {thesis && (
+        <>
+          {/* Progress stepper */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-slate-800">Напредък на дипломната работа</h2>
+              <Badge className={`text-xs ${getStatusColor(thesis.status)}`} variant="outline">
+                {formatStatus(thesis.status)}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-0">
+              {STEPS.map((step, i) => {
+                const done = i < currentStep;
+                const active = i === currentStep;
+                const future = i > currentStep;
+                return (
+                  <div key={step.key} className="flex items-center flex-1 min-w-0">
+                    <div className="flex flex-col items-center flex-shrink-0">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
+                        done   ? "bg-indigo-600 border-indigo-600 text-white" :
+                        active ? "bg-white border-indigo-600 text-indigo-600" :
+                                 "bg-white border-slate-200 text-slate-300"
+                      }`}>
+                        {done ? <CheckCircle2 size={16} /> : active ? <CircleDot size={16} /> : <Circle size={16} />}
+                      </div>
+                      <span className={`text-[10px] font-medium mt-1.5 text-center leading-tight ${
+                        done ? "text-indigo-600" : active ? "text-slate-800" : "text-slate-400"
+                      }`}>{step.label}</span>
+                    </div>
+                    {i < STEPS.length - 1 && (
+                      <div className={`h-0.5 flex-1 mx-1 mb-5 rounded ${i < currentStep ? "bg-indigo-600" : "bg-slate-200"}`} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Thesis card + stats row */}
+          <div className="grid grid-cols-3 gap-4">
+            {/* Thesis details */}
+            <div className="col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                  <BookOpen size={18} className="text-indigo-600" />
+                </div>
+                <Link href={`/theses/${thesis.id}`}>
+                  <button className="text-xs text-indigo-600 font-semibold hover:text-indigo-700 flex items-center gap-0.5">
+                    Виж детайли <ChevronRight size={13} />
+                  </button>
+                </Link>
+              </div>
+              <h3 className="font-bold text-slate-800 text-base leading-snug mb-3 line-clamp-2">{thesis.title}</h3>
+
+              <div className="space-y-2">
+                {thesis.supervisor && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-6 h-6 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0">
+                      <User size={11} className="text-violet-600" />
+                    </div>
+                    <span className="text-slate-400 text-xs">Научен ръководител:</span>
+                    <span className="text-slate-700 font-medium text-xs">
+                      {(thesis.supervisor as any).firstName} {(thesis.supervisor as any).lastName}
+                    </span>
+                  </div>
+                )}
+                {thesis.reviewer && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                      <FileText size={11} className="text-amber-600" />
+                    </div>
+                    <span className="text-slate-400 text-xs">Рецензент:</span>
+                    <span className="text-slate-700 font-medium text-xs">
+                      {(thesis.reviewer as any).firstName} {(thesis.reviewer as any).lastName}
+                    </span>
+                  </div>
+                )}
+                {!thesis.supervisor && (
+                  <div className="flex items-center gap-2">
+                    <AlertCircle size={14} className="text-amber-500 flex-shrink-0" />
+                    <span className="text-xs text-amber-600">Няма назначен научен ръководител</span>
+                  </div>
+                )}
+                {thesis.submittedAt && (
+                  <div className="flex items-center gap-2 text-xs text-slate-400 pt-1">
+                    <Clock size={12} />
+                    Подадена на {new Date(thesis.submittedAt).toLocaleDateString("bg")}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Quick stats */}
+            <div className="flex flex-col gap-4">
+              {/* Defense card */}
+              {myDefense ? (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex-1">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center mb-3">
+                    <Calendar size={16} className="text-emerald-600" />
+                  </div>
+                  <div className="text-xs text-slate-400 mb-0.5">Защита насрочена</div>
+                  <div className="font-bold text-slate-800 text-sm">
+                    {new Date(myDefense.scheduledAt).toLocaleDateString("bg", { day: "numeric", month: "long" })}
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+                    <Clock size={11} />
+                    {new Date(myDefense.scheduledAt).toLocaleTimeString("bg", { hour: "2-digit", minute: "2-digit" })}
+                    {myDefense.roomOrLink && <> · {myDefense.roomOrLink}</>}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-4 flex-1 flex flex-col items-center justify-center text-center">
+                  <Calendar size={20} className="text-slate-300 mb-2" />
+                  <div className="text-xs text-slate-400">Защитата не е насрочена</div>
+                </div>
+              )}
+
+              {/* Field badge */}
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex-1">
+                <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center mb-3">
+                  <GraduationCap size={16} className="text-amber-600" />
+                </div>
+                <div className="text-xs text-slate-400 mb-0.5">Направление</div>
+                <div className="font-semibold text-slate-800 text-sm">
+                  {thesis.field ?? "Не е посочено"}
+                </div>
+                {thesis.keywords && (
+                  <div className="text-xs text-slate-400 mt-1 line-clamp-1">{thesis.keywords}</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Action banner if in draft */}
+          {thesis.status === "draft" && (
+            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                  <AlertCircle size={16} className="text-indigo-600" />
+                </div>
+                <div>
+                  <div className="font-semibold text-indigo-800 text-sm">Дипломната работа е в чернова</div>
+                  <div className="text-xs text-indigo-500">Прегледай и подай дипломната си работа, когато е готова.</div>
+                </div>
+              </div>
+              <Link href={`/theses/${thesis.id}`}>
+                <button className="flex-shrink-0 px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-xl hover:bg-indigo-700 transition-colors">
+                  Виж и подай
+                </button>
+              </Link>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Notifications */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center">
+              <Bell size={14} className="text-slate-500" />
+            </div>
+            <h2 className="font-semibold text-slate-800">Последни известия</h2>
+          </div>
+          <Link href="/notifications" className="text-xs text-indigo-600 font-semibold hover:text-indigo-700">
+            Всички →
+          </Link>
+        </div>
+        {recentNotifs.length === 0 ? (
+          <div className="text-sm text-slate-400 text-center py-6 flex flex-col items-center gap-2">
+            <Bell size={24} className="text-slate-300" />
+            Няма известия
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {recentNotifs.map(n => (
+              <div key={n.id} className={`flex items-start gap-3 p-3 rounded-xl transition-colors ${n.isRead ? "bg-slate-50" : "bg-indigo-50 border border-indigo-100"}`}>
+                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${n.isRead ? "bg-slate-300" : "bg-indigo-500"}`} />
+                <div className="min-w-0 flex-1">
+                  <div className={`text-sm font-medium ${n.isRead ? "text-slate-600" : "text-slate-800"}`}>{n.title}</div>
+                  <div className="text-xs text-slate-400 mt-0.5 truncate">{n.message}</div>
+                </div>
+                <div className="text-[10px] text-slate-300 flex-shrink-0 mt-0.5">
+                  {new Date(n.createdAt).toLocaleDateString("bg")}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════
+   ADMIN / SUPERVISOR DASHBOARD
+═══════════════════════════════════════════════════ */
+function AdminDashboard() {
   const { user } = useAuth();
   const { data: stats, isLoading } = useGetDashboardStats({
     query: { queryKey: getGetDashboardStatsQueryKey() }
@@ -33,62 +323,20 @@ export default function Dashboard() {
         <div className="grid grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => <div key={i} className="h-32 bg-slate-200 rounded-2xl" />)}
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="h-64 bg-slate-200 rounded-2xl" />
-          <div className="h-64 bg-slate-200 rounded-2xl" />
-        </div>
       </div>
     );
   }
-
   if (!stats) return null;
 
   const metrics = [
-    {
-      label: "Дипломни работи",
-      value: stats.totalTheses,
-      change: `${stats.totalTheses} общо`,
-      up: true,
-      icon: BookOpen,
-      iconBg: "bg-indigo-50",
-      iconColor: "text-indigo-600",
-      changeColor: "text-emerald-600",
-    },
-    {
-      label: "Предстоящи защити",
-      value: stats.upcomingDefenses,
-      change: stats.upcomingDefenses > 0 ? `${stats.upcomingDefenses} насрочени` : "Няма насрочени",
-      up: stats.upcomingDefenses > 0,
-      icon: Calendar,
-      iconBg: "bg-violet-50",
-      iconColor: "text-violet-600",
-      changeColor: stats.upcomingDefenses > 0 ? "text-emerald-600" : "text-slate-400",
-    },
-    {
-      label: "Чакащи рецензии",
-      value: stats.pendingReviews,
-      change: stats.pendingReviews > 0 ? `${stats.pendingReviews} за рецензия` : "Всички прегледани",
-      up: false,
-      icon: FileText,
-      iconBg: "bg-amber-50",
-      iconColor: "text-amber-600",
-      changeColor: stats.pendingReviews > 0 ? "text-rose-500" : "text-emerald-600",
-    },
-    {
-      label: "Среден успех",
-      value: stats.averageGrade > 0 ? stats.averageGrade.toFixed(2) : "—",
-      change: stats.averageGrade > 0 ? gradeLabel(stats.averageGrade) : "Няма оценки",
-      up: stats.averageGrade >= 4,
-      icon: TrendingUp,
-      iconBg: "bg-emerald-50",
-      iconColor: "text-emerald-600",
-      changeColor: stats.averageGrade >= 4 ? "text-emerald-600" : stats.averageGrade > 0 ? "text-rose-500" : "text-slate-400",
-    },
+    { label: "Дипломни работи", value: stats.totalTheses, change: `${stats.totalTheses} общо`, up: true, icon: BookOpen, iconBg: "bg-indigo-50", iconColor: "text-indigo-600", changeColor: "text-emerald-600" },
+    { label: "Предстоящи защити", value: stats.upcomingDefenses, change: stats.upcomingDefenses > 0 ? `${stats.upcomingDefenses} насрочени` : "Няма насрочени", up: stats.upcomingDefenses > 0, icon: Calendar, iconBg: "bg-violet-50", iconColor: "text-violet-600", changeColor: stats.upcomingDefenses > 0 ? "text-emerald-600" : "text-slate-400" },
+    { label: "Чакащи рецензии", value: stats.pendingReviews, change: stats.pendingReviews > 0 ? `${stats.pendingReviews} за рецензия` : "Всички прегледани", up: false, icon: FileText, iconBg: "bg-amber-50", iconColor: "text-amber-600", changeColor: stats.pendingReviews > 0 ? "text-rose-500" : "text-emerald-600" },
+    { label: "Среден успех", value: stats.averageGrade > 0 ? stats.averageGrade.toFixed(2) : "—", change: stats.averageGrade > 0 ? gradeLabel(stats.averageGrade) : "Няма оценки", up: stats.averageGrade >= 4, icon: TrendingUp, iconBg: "bg-emerald-50", iconColor: "text-emerald-600", changeColor: stats.averageGrade >= 4 ? "text-emerald-600" : stats.averageGrade > 0 ? "text-rose-500" : "text-slate-400" },
   ];
 
   return (
     <div className="space-y-5">
-      {/* Page title */}
       <div>
         <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Табло</h1>
         <p className="text-sm text-slate-400 mt-0.5">Добре дошли, {user?.firstName}. Ето обобщение на дипломния процес.</p>
@@ -113,9 +361,8 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Charts row */}
+      {/* Charts */}
       <div className="grid grid-cols-5 gap-4">
-        {/* Dual-line area chart */}
         <div className="col-span-3 bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -123,14 +370,8 @@ export default function Dashboard() {
               <p className="text-xs text-slate-400 mt-0.5">Подадени vs Защитени — 2025/2026</p>
             </div>
             <div className="flex items-center gap-4 text-xs text-slate-500">
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-sm bg-indigo-500 inline-block" />
-                Подадени
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" />
-                Защитени
-              </span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-indigo-500 inline-block" />Подадени</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" />Защитени</span>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={180}>
@@ -148,16 +389,13 @@ export default function Dashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{ borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 12, boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)" }}
-              />
+              <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 12, boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)" }} />
               <Area type="monotone" dataKey="подадени" stroke="#6366f1" strokeWidth={2.5} fill="url(#indigoGrad)" dot={false} />
               <Area type="monotone" dataKey="защитени" stroke="#10b981" strokeWidth={2.5} fill="url(#emeraldGrad)" dot={false} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Faculty bar chart */}
         <div className="col-span-2 bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
           <div className="mb-4">
             <h2 className="font-semibold text-slate-800">По факултет</h2>
@@ -168,10 +406,7 @@ export default function Dashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis dataKey="dept" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12, boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)" }}
-                formatter={(v: number) => [v, "Работи"]}
-              />
+              <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12, boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)" }} formatter={(v: number) => [v, "Работи"]} />
               <Bar dataKey="count" name="Брой" fill="#6366f1" radius={[5, 5, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -180,13 +415,10 @@ export default function Dashboard() {
 
       {/* Recent theses + Defenses */}
       <div className="grid grid-cols-2 gap-4">
-        {/* Recent theses */}
         <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-slate-800">Последни дипломни работи</h2>
-            <Link href="/theses" className="text-xs text-indigo-600 font-semibold hover:text-indigo-700">
-              Всички →
-            </Link>
+            <Link href="/theses" className="text-xs text-indigo-600 font-semibold hover:text-indigo-700">Всички →</Link>
           </div>
           <div className="space-y-2">
             {stats.recentTheses?.slice(0, 5).map(thesis => (
@@ -204,20 +436,16 @@ export default function Dashboard() {
             ))}
             {(!stats.recentTheses || stats.recentTheses.length === 0) && (
               <div className="text-sm text-slate-400 text-center py-6 flex flex-col items-center gap-2">
-                <BookOpen size={28} className="text-slate-300" />
-                Няма намерени дипломни работи
+                <BookOpen size={28} className="text-slate-300" />Няма намерени дипломни работи
               </div>
             )}
           </div>
         </div>
 
-        {/* Upcoming defenses */}
         <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-slate-800">Предстоящи защити</h2>
-            <Link href="/defenses" className="text-xs text-indigo-600 font-semibold hover:text-indigo-700">
-              Всички →
-            </Link>
+            <Link href="/defenses" className="text-xs text-indigo-600 font-semibold hover:text-indigo-700">Всички →</Link>
           </div>
           <div className="space-y-2">
             {stats.upcomingDefenseList?.slice(0, 5).map(defense => {
@@ -232,14 +460,8 @@ export default function Dashboard() {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-sm text-slate-800 truncate">{defense.title}</p>
                       <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-                        <Clock size={11} />
-                        {d.toLocaleTimeString("bg", { hour: "2-digit", minute: "2-digit" })}
-                        {defense.roomOrLink && (
-                          <>
-                            <MapPin size={11} />
-                            <span className="truncate">{defense.roomOrLink}</span>
-                          </>
-                        )}
+                        <Clock size={11} />{d.toLocaleTimeString("bg", { hour: "2-digit", minute: "2-digit" })}
+                        {defense.roomOrLink && <><MapPin size={11} /><span className="truncate">{defense.roomOrLink}</span></>}
                       </div>
                     </div>
                   </div>
@@ -248,8 +470,7 @@ export default function Dashboard() {
             })}
             {(!stats.upcomingDefenseList || stats.upcomingDefenseList.length === 0) && (
               <div className="text-sm text-slate-400 text-center py-6 flex flex-col items-center gap-2">
-                <Calendar size={28} className="text-slate-300" />
-                Няма предстоящи защити
+                <Calendar size={28} className="text-slate-300" />Няма предстоящи защити
               </div>
             )}
           </div>
@@ -257,6 +478,15 @@ export default function Dashboard() {
       </div>
     </div>
   );
+}
+
+/* ═══════════════════════════════════════════════════
+   ROUTER — picks view by role
+═══════════════════════════════════════════════════ */
+export default function Dashboard() {
+  const { user } = useAuth();
+  if (user?.role === "student") return <StudentDashboard />;
+  return <AdminDashboard />;
 }
 
 function gradeLabel(v: number) {
