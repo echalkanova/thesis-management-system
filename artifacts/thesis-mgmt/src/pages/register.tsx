@@ -39,10 +39,15 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a192f] p-4 py-12">
-      <Card className="w-full max-w-lg bg-white">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 py-12">
+      <Card className="w-full max-w-lg bg-white shadow-sm border-slate-100">
         <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-bold text-[#0a192f]">Регистрация</CardTitle>
+          <div className="flex justify-center mb-2">
+            <div className="w-11 h-11 rounded-xl bg-indigo-600 flex items-center justify-center shadow-sm shadow-indigo-200">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            </div>
+          </div>
+          <CardTitle className="text-2xl font-bold text-slate-800">Регистрация</CardTitle>
           <CardDescription>
             Създайте нов профил в Системата за управление на дипломни работи
           </CardDescription>
@@ -110,11 +115,11 @@ export default function Register() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button className="w-full bg-[#0a192f] hover:bg-[#112240] text-white" type="submit" disabled={loading} data-testid="button-submit-register">
+            <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-200" type="submit" disabled={loading} data-testid="button-submit-register">
               {loading ? "Зареждане..." : "Регистрация"}
             </Button>
             <div className="text-sm text-center text-slate-500">
-              Вече имате акаунт? <Link href="/login" className="text-amber-600 hover:underline" data-testid="link-login">Вход</Link>
+              Вече имате акаунт? <Link href="/login" className="text-indigo-600 font-medium hover:text-indigo-700 hover:underline" data-testid="link-login">Вход</Link>
             </div>
           </CardFooter>
         </form>

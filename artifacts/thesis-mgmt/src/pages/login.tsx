@@ -33,10 +33,15 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a192f] p-4">
-      <Card className="w-full max-w-md bg-white">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+      <Card className="w-full max-w-md bg-white shadow-sm border-slate-100">
         <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-bold text-[#0a192f]">Вход в системата</CardTitle>
+          <div className="flex justify-center mb-2">
+            <div className="w-11 h-11 rounded-xl bg-indigo-600 flex items-center justify-center shadow-sm shadow-indigo-200">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            </div>
+          </div>
+          <CardTitle className="text-2xl font-bold text-slate-800">Вход в системата</CardTitle>
           <CardDescription>
             Въведете вашите данни за достъп до TMS
           </CardDescription>
@@ -68,11 +73,11 @@ export default function Login() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button className="w-full bg-[#0a192f] hover:bg-[#112240] text-white" type="submit" disabled={loading} data-testid="button-submit-login">
+            <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-200" type="submit" disabled={loading} data-testid="button-submit-login">
               {loading ? "Зареждане..." : "Вход"}
             </Button>
             <div className="text-sm text-center text-slate-500">
-              Нямате акаунт? <Link href="/register" className="text-amber-600 hover:underline" data-testid="link-register">Регистрация</Link>
+              Нямате акаунт? <Link href="/register" className="text-indigo-600 font-medium hover:text-indigo-700 hover:underline" data-testid="link-register">Регистрация</Link>
             </div>
           </CardFooter>
         </form>
