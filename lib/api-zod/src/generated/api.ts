@@ -184,6 +184,23 @@ export const DeleteUserResponse = zod.object({
 
 
 /**
+ * @summary Change own password
+ */
+export const ChangePasswordParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ChangePasswordBody = zod.object({
+  "currentPassword": zod.string(),
+  "newPassword": zod.string()
+})
+
+export const ChangePasswordResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
  * @summary List theses
  */
 export const ListThesesQueryParams = zod.object({

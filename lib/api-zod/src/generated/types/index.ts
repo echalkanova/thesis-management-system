@@ -7,6 +7,7 @@
  */
 
 export * from './authResponse';
+export * from './changePasswordInput';
 export * from './dashboardStats';
 export * from './dashboardStatsThesesByStatus';
 export * from './defenseInput';

@@ -92,6 +92,27 @@ router.patch("/:id", requireAuth, async (req: AuthRequest, res) => {
   res.json(formatUser(user));
 });
 
+router.post("/:id/change-password", requireAuth, async (req: AuthRequest, res) => {
+  const id = Number(req.params.id);
+  if (req.userId !== id) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    res.status(400).json({ error: "Missing fields" });
+    return;
+  }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+  if (user.passwordHash !== hashPassword(currentPassword)) {
+    res.status(400).json({ error: "Incorrect current password" });
+    return;
+  }
+  await db.update(usersTable).set({ passwordHash: hashPassword(newPassword) }).where(eq(usersTable.id, id));
+  res.json({ message: "Password changed" });
+});
+
 router.delete("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   const id = Number(req.params.id);
   await db.delete(usersTable).where(eq(usersTable.id, id));

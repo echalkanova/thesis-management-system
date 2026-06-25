@@ -95,6 +95,11 @@ export interface UserInput {
   phoneNumber?: string;
 }
 
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export type UserUpdateRole = typeof UserUpdateRole[keyof typeof UserUpdateRole];
 
 
