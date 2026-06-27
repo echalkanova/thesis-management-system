@@ -373,8 +373,8 @@ export default function ThesisDetail() {
                 </Dialog>
               )}
 
-              {/* ADMIN / SUPERVISOR: Assign */}
-              {(isAdmin || isSupervisor) && (
+              {/* ADMIN: Assign */}
+              {isAdmin && (
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button variant="outline" className="w-full flex items-center gap-2" data-testid="button-assign">
