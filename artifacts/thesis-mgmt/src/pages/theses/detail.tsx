@@ -6,7 +6,7 @@ import {
   useListThesisReviews, getListThesisReviewsQueryKey,
   useListThesisGrades, getListThesisGradesQueryKey,
   useListUsers, getListUsersQueryKey,
-  useSubmitThesis, useUpdateThesisStatus, useAssignThesis,
+  useSubmitThesis, useAssignThesis,
   useDeleteFile,
   useCreateReview, useCreateGrade,
   getListThesesQueryKey
@@ -49,7 +49,6 @@ export default function ThesisDetail() {
   const { data: users } = useListUsers({}, { query: { queryKey: getListUsersQueryKey({}) } });
 
   const submitThesis = useSubmitThesis();
-  const updateStatus = useUpdateThesisStatus();
   const assignThesis = useAssignThesis();
   const deleteFile = useDeleteFile();
   const createReview = useCreateReview();
@@ -62,6 +61,43 @@ export default function ThesisDetail() {
   const [assignRole, setAssignRole] = useState<"supervisor" | "reviewer">("supervisor");
   const [assignUserId, setAssignUserId] = useState("");
   const [statusToSet, setStatusToSet] = useState("");
+  const [returnComment, setReturnComment] = useState("");
+  const [actionPending, setActionPending] = useState<string | null>(null);
+
+  const thesisAction = async (action: string, body?: Record<string, unknown>) => {
+    setActionPending(action);
+    try {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch(`/api/theses/${thesisId}/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Грешка");
+      invalidate();
+      return data;
+    } finally {
+      setActionPending(null);
+    }
+  };
+
+  const adminStatusChange = async (status: string) => {
+    setActionPending("status");
+    try {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch(`/api/theses/${thesisId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Грешка");
+      invalidate();
+    } finally {
+      setActionPending(null);
+    }
+  };
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: getGetThesisQueryKey(thesisId) });
@@ -236,39 +272,105 @@ export default function ThesisDetail() {
           <Card>
             <CardHeader><CardTitle>Действия</CardTitle></CardHeader>
             <CardContent className="space-y-2">
+
+              {/* STUDENT: Submit */}
               {isOwner && thesis.status === "draft" && (
                 <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white" disabled={submitThesis.isPending} data-testid="button-submit-thesis"
                   onClick={() => submitThesis.mutate({ id: thesisId }, { onSuccess: () => { invalidate(); toast({ title: "Дипломната работа е подадена" }); } })}>
                   {submitThesis.isPending ? "Подаване..." : "Подай за рецензия"}
                 </Button>
               )}
-              {(isAdmin || isSupervisor) && thesis.status !== "draft" && (
+
+              {/* SUPERVISOR: Approve */}
+              {isSupervisor && thesis.supervisorId === user?.id && ["submitted", "pending_supervisor_approval", "returned_for_revision"].includes(thesis.status) && (
+                <Button className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={actionPending === "approve"} data-testid="button-approve"
+                  onClick={() => thesisAction("approve").then(() => toast({ title: "Дипломната работа е одобрена" })).catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}>
+                  {actionPending === "approve" ? "Одобряване..." : "✓ Одобри"}
+                </Button>
+              )}
+
+              {/* SUPERVISOR: Return for revision */}
+              {isSupervisor && thesis.supervisorId === user?.id && ["submitted", "pending_supervisor_approval", "under_review"].includes(thesis.status) && (
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full" data-testid="button-change-status">Промени статус</Button>
+                    <Button variant="outline" className="w-full border-orange-300 text-orange-700 hover:bg-orange-50" data-testid="button-return">
+                      ↩ Върни за корекции
+                    </Button>
                   </DialogTrigger>
                   <DialogContent>
-                    <DialogHeader><DialogTitle>Промяна на статус</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle>Връщане за корекции</DialogTitle></DialogHeader>
                     <div className="space-y-4 pt-2">
-                      <Select value={statusToSet} onValueChange={setStatusToSet}>
-                        <SelectTrigger data-testid="select-status"><SelectValue placeholder="Изберете статус" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="under_review">В рецензия</SelectItem>
-                          <SelectItem value="approved">Одобрена</SelectItem>
-                          <SelectItem value="rejected">Отхвърлена</SelectItem>
-                          <SelectItem value="defended">Защитена</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button className="w-full bg-[#0a192f] text-white" disabled={updateStatus.isPending || !statusToSet} data-testid="button-confirm-status"
-                        onClick={() => updateStatus.mutate({ id: thesisId, data: { status: statusToSet as any } }, {
-                          onSuccess: () => { invalidate(); toast({ title: "Статусът е обновен" }); setStatusToSet(""); }
-                        })}>
-                        {updateStatus.isPending ? "Запазване..." : "Потвърди"}
+                      <Label>Коментар (по избор)</Label>
+                      <Textarea value={returnComment} onChange={e => setReturnComment(e.target.value)} rows={3} placeholder="Опишете какво трябва да се коригира..." data-testid="input-return-comment" />
+                      <Button className="w-full bg-orange-600 hover:bg-orange-700 text-white" disabled={actionPending === "return"} data-testid="button-confirm-return"
+                        onClick={() => thesisAction("return", returnComment ? { comment: returnComment } : undefined)
+                          .then(() => { toast({ title: "Работата е върната за корекции" }); setReturnComment(""); })
+                          .catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}>
+                        {actionPending === "return" ? "Изпращане..." : "Потвърди"}
                       </Button>
                     </div>
                   </DialogContent>
                 </Dialog>
               )}
+
+              {/* ADMIN: Send to review */}
+              {isAdmin && thesis.status === "approved_by_supervisor" && (
+                <Button className="w-full bg-amber-600 hover:bg-amber-700 text-white" disabled={actionPending === "send-to-review"} data-testid="button-send-to-review"
+                  onClick={() => thesisAction("send-to-review").then(() => toast({ title: "Изпратена за рецензия" })).catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}>
+                  {actionPending === "send-to-review" ? "Изпращане..." : "Изпрати за рецензия"}
+                </Button>
+              )}
+
+              {/* ADMIN: Approve for defense */}
+              {isAdmin && thesis.status === "reviewed" && (
+                <Button className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={actionPending === "approve-for-defense"} data-testid="button-approve-for-defense"
+                  onClick={() => thesisAction("approve-for-defense").then(() => toast({ title: "Допусната до защита" })).catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}>
+                  {actionPending === "approve-for-defense" ? "Обработка..." : "Допусни до защита"}
+                </Button>
+              )}
+
+              {/* COMMISSION / ADMIN: Mark defended */}
+              {(user?.role === "committee_member" || isAdmin) && thesis.status === "scheduled_for_defense" && (
+                <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white" disabled={actionPending === "mark-defended"} data-testid="button-mark-defended"
+                  onClick={() => thesisAction("mark-defended").then(() => toast({ title: "Маркирана като защитена" })).catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}>
+                  {actionPending === "mark-defended" ? "Обработка..." : "Маркирай като защитена"}
+                </Button>
+              )}
+
+              {/* ADMIN: Manual status override */}
+              {isAdmin && (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full" data-testid="button-change-status">Промени статус ръчно</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader><DialogTitle>Ръчна промяна на статус</DialogTitle></DialogHeader>
+                    <div className="space-y-4 pt-2">
+                      <Select value={statusToSet} onValueChange={setStatusToSet}>
+                        <SelectTrigger data-testid="select-status"><SelectValue placeholder="Изберете статус" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="draft">Чернова</SelectItem>
+                          <SelectItem value="submitted">Подадена</SelectItem>
+                          <SelectItem value="pending_supervisor_approval">Изчаква одобрение</SelectItem>
+                          <SelectItem value="returned_for_revision">Върната за корекции</SelectItem>
+                          <SelectItem value="approved_by_supervisor">Одобрена от ръководител</SelectItem>
+                          <SelectItem value="under_review">В рецензия</SelectItem>
+                          <SelectItem value="reviewed">Рецензирана</SelectItem>
+                          <SelectItem value="approved_for_defense">Допусната до защита</SelectItem>
+                          <SelectItem value="scheduled_for_defense">Насрочена защита</SelectItem>
+                          <SelectItem value="defended">Защитена</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button className="w-full bg-[#0a192f] text-white" disabled={actionPending === "status" || !statusToSet} data-testid="button-confirm-status"
+                        onClick={() => adminStatusChange(statusToSet).then(() => { toast({ title: "Статусът е обновен" }); setStatusToSet(""); }).catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}>
+                        {actionPending === "status" ? "Запазване..." : "Потвърди"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+
+              {/* ADMIN / SUPERVISOR: Assign */}
               {(isAdmin || isSupervisor) && (
                 <Dialog>
                   <DialogTrigger asChild>
@@ -304,6 +406,7 @@ export default function ThesisDetail() {
                   </DialogContent>
                 </Dialog>
               )}
+
             </CardContent>
           </Card>
         </div>
