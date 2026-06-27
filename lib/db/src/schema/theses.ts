@@ -7,7 +7,18 @@ export const thesesTable = pgTable("theses", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
-  status: text("status").notNull().default("draft"),
+  status: text("status").notNull().default("draft").$type<
+    | "draft"
+    | "submitted"
+    | "pending_supervisor_approval"
+    | "returned_for_revision"
+    | "approved_by_supervisor"
+    | "under_review"
+    | "reviewed"
+    | "approved_for_defense"
+    | "scheduled_for_defense"
+    | "defended"
+  >(),
   studentId: integer("student_id").notNull().references(() => usersTable.id),
   supervisorId: integer("supervisor_id").references(() => usersTable.id),
   reviewerId: integer("reviewer_id").references(() => usersTable.id),

@@ -168,20 +168,136 @@ router.post("/:id/submit", requireAuth, async (req: AuthRequest, res) => {
   res.json(await formatThesis(updated));
 });
 
-router.patch("/:id/status", requireAuth, async (req: AuthRequest, res) => {
+// Approve by supervisor
+router.post("/:id/approve", requireAuth, async (req: AuthRequest, res) => {
+  if (req.userRole !== "supervisor") {
+    res.status(403).json({ error: "Only supervisors can approve" });
+    return;
+  }
   const id = Number(req.params.id);
   const [thesis] = await db.select().from(thesesTable).where(eq(thesesTable.id, id)).limit(1);
-  if (!thesis) {
-    res.status(404).json({ error: "Thesis not found" });
+  if (!thesis) { res.status(404).json({ error: "Thesis not found" }); return; }
+  if (thesis.supervisorId !== req.userId) {
+    res.status(403).json({ error: "You are not the supervisor of this thesis" });
     return;
   }
+  if (!["submitted", "pending_supervisor_approval", "returned_for_revision"].includes(thesis.status)) {
+    res.status(400).json({ error: "Thesis cannot be approved at this stage" });
+    return;
+  }
+  const [updated] = await db.update(thesesTable)
+    .set({ status: "approved_by_supervisor" })
+    .where(eq(thesesTable.id, id)).returning();
+  await sendNotification(thesis.studentId, "Дипломната работа е одобрена",
+    `Научният ръководител одобри "${thesis.title}"`, "success", id);
+  res.json(await formatThesis(updated));
+});
+
+// Return for revision by supervisor
+router.post("/:id/return", requireAuth, async (req: AuthRequest, res) => {
+  if (req.userRole !== "supervisor") {
+    res.status(403).json({ error: "Only supervisors can return thesis" });
+    return;
+  }
+  const id = Number(req.params.id);
+  const [thesis] = await db.select().from(thesesTable).where(eq(thesesTable.id, id)).limit(1);
+  if (!thesis) { res.status(404).json({ error: "Thesis not found" }); return; }
+  if (thesis.supervisorId !== req.userId) {
+    res.status(403).json({ error: "You are not the supervisor of this thesis" });
+    return;
+  }
+  const { comment } = req.body;
+  const [updated] = await db.update(thesesTable)
+    .set({ status: "returned_for_revision" })
+    .where(eq(thesesTable.id, id)).returning();
+  await sendNotification(thesis.studentId, "Дипломната работа е върната за корекции",
+    `${comment ? comment : "Научният ръководител върна работата ви за корекции."}`, "warning", id);
+  res.json(await formatThesis(updated));
+});
+
+// Submit for review (admin assigns reviewer)
+router.post("/:id/send-to-review", requireAuth, async (req: AuthRequest, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "Only admin can send to review" });
+    return;
+  }
+  const id = Number(req.params.id);
+  const [thesis] = await db.select().from(thesesTable).where(eq(thesesTable.id, id)).limit(1);
+  if (!thesis) { res.status(404).json({ error: "Thesis not found" }); return; }
+  if (thesis.status !== "approved_by_supervisor") {
+    res.status(400).json({ error: "Thesis must be approved by supervisor first" });
+    return;
+  }
+  const [updated] = await db.update(thesesTable)
+    .set({ status: "under_review" })
+    .where(eq(thesesTable.id, id)).returning();
+  if (thesis.reviewerId) {
+    await sendNotification(thesis.reviewerId, "Нова дипломна работа за рецензия",
+      `Назначени сте за рецензент на "${thesis.title}"`, "info", id);
+  }
+  await sendNotification(thesis.studentId, "Дипломната работа е изпратена за рецензия",
+    `"${thesis.title}" е изпратена за рецензия`, "info", id);
+  res.json(await formatThesis(updated));
+});
+
+// Approve for defense (admin)
+router.post("/:id/approve-for-defense", requireAuth, async (req: AuthRequest, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "Only admin can approve for defense" });
+    return;
+  }
+  const id = Number(req.params.id);
+  const [thesis] = await db.select().from(thesesTable).where(eq(thesesTable.id, id)).limit(1);
+  if (!thesis) { res.status(404).json({ error: "Thesis not found" }); return; }
+  if (thesis.status !== "reviewed") {
+    res.status(400).json({ error: "Thesis must be reviewed first" });
+    return;
+  }
+  const [updated] = await db.update(thesesTable)
+    .set({ status: "approved_for_defense" })
+    .where(eq(thesesTable.id, id)).returning();
+  await sendNotification(thesis.studentId, "Допуснати сте до защита!",
+    `"${thesis.title}" е допусната до защита`, "success", id);
+  res.json(await formatThesis(updated));
+});
+
+// Mark as defended (commission member)
+router.post("/:id/mark-defended", requireAuth, async (req: AuthRequest, res) => {
+  if (!["admin", "commission_member"].includes(req.userRole ?? "")) {
+    res.status(403).json({ error: "Only commission members can mark as defended" });
+    return;
+  }
+  const id = Number(req.params.id);
+  const [thesis] = await db.select().from(thesesTable).where(eq(thesesTable.id, id)).limit(1);
+  if (!thesis) { res.status(404).json({ error: "Thesis not found" }); return; }
+  if (thesis.status !== "scheduled_for_defense") {
+    res.status(400).json({ error: "Thesis must be scheduled for defense first" });
+    return;
+  }
+  const [updated] = await db.update(thesesTable)
+    .set({ status: "defended" })
+    .where(eq(thesesTable.id, id)).returning();
+  await sendNotification(thesis.studentId, "Защитата е приключена!",
+    `Защитата на "${thesis.title}" е успешно приключена`, "success", id);
+  res.json(await formatThesis(updated));
+});
+
+// Admin: update status manually
+router.patch("/:id/status", requireAuth, async (req: AuthRequest, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "Only admin can manually change status" });
+    return;
+  }
+  const id = Number(req.params.id);
+  const [thesis] = await db.select().from(thesesTable).where(eq(thesesTable.id, id)).limit(1);
+  if (!thesis) { res.status(404).json({ error: "Thesis not found" }); return; }
   const { status } = req.body;
-  if (!status) {
-    res.status(400).json({ error: "Status is required" });
-    return;
-  }
-  const [updated] = await db.update(thesesTable).set({ status }).where(eq(thesesTable.id, id)).returning();
-  await sendNotification(thesis.studentId, "Статус на дипломна работа е променен", `Статусът на "${thesis.title}" е променен на: ${status}`, "info", id);
+  if (!status) { res.status(400).json({ error: "Status is required" }); return; }
+  const [updated] = await db.update(thesesTable)
+    .set({ status })
+    .where(eq(thesesTable.id, id)).returning();
+  await sendNotification(thesis.studentId, "Статус променен",
+    `Статусът на "${thesis.title}" е променен на: ${status}`, "info", id);
   res.json(await formatThesis(updated));
 });
 
