@@ -1,3 +1,12 @@
+В проекта има файл artifacts/api-server/src/routes/files.ts който в момента 
+само записва метаданни в БД но не качва реални файлове.
+
+Направи следното:
+
+1. Инсталирай multer и @types/multer
+
+2. Замени съдържанието на artifacts/api-server/src/routes/files.ts с това:
+
 import { Router } from "express";
 import { db, thesisFilesTable, thesesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -104,3 +113,10 @@ filesRouter.get("/:id/download", requireAuth, async (req: AuthRequest, res) => {
   if (!fs.existsSync(filePath)) { res.status(404).json({ error: "File not found on disk" }); return; }
   res.download(filePath, file.fileName);
 });
+
+3. В artifacts/api-server/src/index.ts добави serving на uploads папката:
+   import express from "express";
+   app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+   (добави го след другите middleware-и)
+
+4. Рестартирай сървъра и провери дали работи.
