@@ -3,7 +3,7 @@ import { useAuth } from "@/lib/auth";
 import {
   BookOpen, Calendar, LayoutDashboard, Users, FileText,
   BarChart2, LogOut, Bell, UserCircle, GraduationCap,
-  ChevronRight
+  ChevronRight, Shield
 } from "lucide-react";
 import { formatRole } from "@/lib/utils";
 import { useListNotifications, getListNotificationsQueryKey } from "@workspace/api-client-react";
@@ -16,6 +16,7 @@ const NAV_LINKS = [
   { href: "/reviews", label: "Рецензии", icon: FileText, roles: ["reviewer", "admin"] },
   { href: "/reports", label: "Справки", icon: BarChart2, roles: ["admin", "supervisor"] },
   { href: "/users", label: "Потребители", icon: Users, roles: ["admin"] },
+  { href: "/audit-log", label: "Одит лог", icon: Shield, roles: ["admin"] },
 ];
 
 export function Sidebar() {

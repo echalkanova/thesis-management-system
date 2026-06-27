@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { db, reviewsTable, usersTable } from "@workspace/db";
+import { logAction } from "./auditLog";
 import { eq } from "drizzle-orm";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 
@@ -58,6 +59,7 @@ thesisReviewsRouter.post("/", requireAuth, async (req: AuthRequest, res) => {
     recommendation,
     isPublished: isPublished ?? false,
   }).returning();
+  await logAction(req.userId, isPublished ? "publish_review" : "create_review", "review", review.id, { thesisId, recommendation });
   res.status(201).json(await formatReview(review));
 });
 

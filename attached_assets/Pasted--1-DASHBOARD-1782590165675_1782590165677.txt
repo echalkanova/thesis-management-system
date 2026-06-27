@@ -1,0 +1,155 @@
+Подобри следните части на системата без да променяш 
+съществуващия дизайн:
+
+=== ЧАСТ 1: DASHBOARD (artifacts/thesis-mgmt/src/pages/dashboard.tsx) ===
+
+Увери се че dashboard.tsx използва САМО реални данни от 
+GET /api/dashboard/stats endpoint-а. 
+Премахни всички статични масиви и хардкоднати стойности.
+Покажи:
+- Общ брой дипломни работи (от totalTheses)
+- Брой по статус (от thesesByStatus) като цветни badges:
+  draft → сиво
+  submitted → синьо  
+  pending_supervisor_approval → жълто
+  returned_for_revision → оранжево
+  approved_by_supervisor → светлозелено
+  under_review → лилаво
+  reviewed → циан
+  approved_for_defense → зелено
+  scheduled_for_defense → индиго
+  defended → тъмнозелено
+- Брой предстоящи защити (от upcomingDefenses)
+- Средна оценка (от averageGrade)
+- Последни 5 дипломни работи (от recentTheses)
+- Предстоящи защити (от upcomingDefenseList)
+
+=== ЧАСТ 2: REPORTS (artifacts/thesis-mgmt/src/pages/reports.tsx) ===
+
+Увери се че reports.tsx използва реални данни от:
+- GET /api/dashboard/reports/theses
+- GET /api/dashboard/reports/grades
+
+Добави филтри по:
+- Статус (dropdown със всички статуси)
+- Поле/специалност
+
+Всички графики да използват реални данни.
+
+=== ЧАСТ 3: NOTIFICATIONS (artifacts/thesis-mgmt/src/pages/notifications.tsx) ===
+
+Добави функционалност за маркиране на известия като 
+прочетени/непрочетени:
+- Бутон "Маркирай като прочетено" за всяко известие
+- Бутон "Маркирай всички като прочетени"
+- Визуална разлика между прочетени и непрочетени 
+  (непрочетените да са по-тъмни/bold)
+- Брой непрочетени да се показва в навигацията като badge
+
+=== ЧАСТ 4: AUDIT LOG ===
+
+1. В lib/db/src/schema/ създай нов файл auditLog.ts:
+
+import { pgTable, serial, text, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { usersTable } from "./users";
+
+export const auditLogTable = pgTable("audit_log", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => usersTable.id),
+  action: text("action").notNull(),
+  entityType: text("entity_type").notNull(),
+  entityId: integer("entity_id"),
+  details: jsonb("details"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+2. Добави export в lib/db/src/schema/index.ts:
+   export * from "./auditLog";
+
+3. Пусни в базата данни:
+CREATE TABLE IF NOT EXISTS audit_log (
+  id serial PRIMARY KEY,
+  user_id integer REFERENCES users(id),
+  action text NOT NULL,
+  entity_type text NOT NULL,
+  entity_id integer,
+  details jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+4. Създай artifacts/api-server/src/routes/auditLog.ts:
+
+import { Router } from "express";
+import { db, auditLogTable, usersTable } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
+import { requireAuth, type AuthRequest } from "../middlewares/auth";
+
+const router = Router();
+
+export async function logAction(
+  userId: number | undefined,
+  action: string,
+  entityType: string,
+  entityId?: number,
+  details?: Record<string, unknown>
+) {
+  await db.insert(auditLogTable).values({
+    userId: userId ?? null,
+    action,
+    entityType,
+    entityId: entityId ?? null,
+    details: details ?? null,
+  });
+}
+
+router.get("/", requireAuth, async (req: AuthRequest, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "Only admin can view audit log" });
+    return;
+  }
+  const logs = await db.select().from(auditLogTable)
+    .orderBy(desc(auditLogTable.createdAt))
+    .limit(200);
+  
+  const formatted = await Promise.all(logs.map(async (log) => {
+    let user = null;
+    if (log.userId) {
+      const [u] = await db.select().from(usersTable)
+        .where(eq(usersTable.id, log.userId)).limit(1);
+      if (u) user = { id: u.id, firstName: u.firstName, lastName: u.lastName, email: u.email, role: u.role };
+    }
+    return {
+      id: log.id,
+      action: log.action,
+      entityType: log.entityType,
+      entityId: log.entityId,
+      details: log.details,
+      createdAt: log.createdAt.toISOString(),
+      user,
+    };
+  }));
+  res.json(formatted);
+});
+
+export default router;
+
+5. В artifacts/api-server/src/routes/index.ts регистрирай:
+   import auditLogRouter from "./auditLog";
+   app.use("/api/audit-log", auditLogRouter);
+
+6. Създай страница artifacts/thesis-mgmt/src/pages/audit-log.tsx
+   която показва таблица с всички записи (само за admin):
+   - Дата и час
+   - Потребител (име + роля)
+   - Действие
+   - Тип обект
+   - Детайли
+   Добави я в навигацията само за admin роля.
+
+7. Добави logAction извиквания в ключовите места:
+   - В theses.ts: при създаване, подаване, одобрение, връщане
+   - В grades.ts: при добавяне на оценка
+   - В reviews.ts: при публикуване на рецензия
+
+=== НАКРАЯ ===
+Рестартирай сървъра и провери че всичко работи.

@@ -3,6 +3,7 @@ import { db, thesesTable, usersTable, notificationsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { pushNotification } from "../sse";
+import { logAction } from "./auditLog";
 
 const router = Router();
 
@@ -103,6 +104,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
     studentId: req.userId!,
     status: "draft",
   }).returning();
+  await logAction(req.userId, "create_thesis", "thesis", thesis.id, { title: thesis.title });
   res.status(201).json(await formatThesis(thesis));
 });
 
@@ -164,6 +166,7 @@ router.post("/:id/submit", requireAuth, async (req: AuthRequest, res) => {
     return;
   }
   const [updated] = await db.update(thesesTable).set({ status: "submitted", submittedAt: new Date() }).where(eq(thesesTable.id, id)).returning();
+  await logAction(req.userId, "submit_thesis", "thesis", id, { title: thesis.title });
   if (thesis.supervisorId) {
     await sendNotification(thesis.supervisorId, "Нова подадена дипломна работа", `Студент е подал дипломна работа: "${thesis.title}"`, "info", id);
   }
@@ -190,6 +193,7 @@ router.post("/:id/approve", requireAuth, async (req: AuthRequest, res) => {
   const [updated] = await db.update(thesesTable)
     .set({ status: "approved_by_supervisor" })
     .where(eq(thesesTable.id, id)).returning();
+  await logAction(req.userId, "approve_thesis", "thesis", id, { title: thesis.title });
   await sendNotification(thesis.studentId, "Дипломната работа е одобрена",
     `Научният ръководител одобри "${thesis.title}"`, "success", id);
   res.json(await formatThesis(updated));
@@ -212,6 +216,7 @@ router.post("/:id/return", requireAuth, async (req: AuthRequest, res) => {
   const [updated] = await db.update(thesesTable)
     .set({ status: "returned_for_revision" })
     .where(eq(thesesTable.id, id)).returning();
+  await logAction(req.userId, "return_thesis", "thesis", id, { title: thesis.title, comment: comment ?? null });
   await sendNotification(thesis.studentId, "Дипломната работа е върната за корекции",
     `${comment ? comment : "Научният ръководител върна работата ви за корекции."}`, "warning", id);
   res.json(await formatThesis(updated));

@@ -19,6 +19,7 @@ import Users from "@/pages/users";
 import Profile from "@/pages/profile";
 import Notifications from "@/pages/notifications";
 import Reports from "@/pages/reports";
+import AuditLog from "@/pages/audit-log";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,6 +70,7 @@ function Router() {
       <Route path="/profile" component={withLayout(Profile)} />
       <Route path="/notifications" component={withLayout(Notifications)} />
       <Route path="/reports" component={withLayout(Reports, ["admin", "supervisor"])} />
+      <Route path="/audit-log" component={withLayout(AuditLog, ["admin"])} />
 
       <Route>
         <Layout>

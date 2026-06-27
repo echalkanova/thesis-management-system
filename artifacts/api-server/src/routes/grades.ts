@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { db, gradesTable, usersTable, thesesTable } from "@workspace/db";
+import { logAction } from "./auditLog";
 import { eq } from "drizzle-orm";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 
@@ -84,6 +85,7 @@ thesisGradesRouter.post("/", requireAuth, async (req: AuthRequest, res) => {
     comment: comment ?? null,
   }).returning();
   await recalculateFinalGrade(thesisId);
+  await logAction(req.userId, "create_grade", "grade", grade.id, { thesisId, value, comment: comment ?? null });
   res.status(201).json(await formatGrade(grade));
 });
 

@@ -9,6 +9,7 @@ import { thesisGradesRouter, gradesRouter } from "./grades";
 import defensesRouter from "./defenses";
 import notificationsRouter from "./notifications";
 import dashboardRouter from "./dashboard";
+import auditLogRouter from "./auditLog";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use("/defenses", defensesRouter);
 router.use("/notifications", notificationsRouter);
 router.use("/dashboard", dashboardRouter);
 router.use("/reports", dashboardRouter);
+router.use("/audit-log", auditLogRouter);
 
 export default router;
