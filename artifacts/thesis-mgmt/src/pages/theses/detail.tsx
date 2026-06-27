@@ -25,6 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, FileText, UserCheck, Star, Paperclip, Trash2 } from "lucide-react";
 import { FileUploadDialog } from "@/components/file-upload-dialog";
+import { ThesisTimeline } from "@/components/thesis-timeline";
 
 const gradeLabel = (v: number) => {
   if (v >= 5.5) return "Отличен";
@@ -138,6 +139,8 @@ export default function ThesisDetail() {
           </p>
         </div>
       </div>
+
+      <ThesisTimeline currentStatus={thesis.status} finalGrade={(thesis as any).finalGrade} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">

@@ -47,6 +47,8 @@ async function formatThesis(thesis: typeof thesesTable.$inferSelect) {
     submittedAt: thesis.submittedAt?.toISOString() ?? null,
     createdAt: thesis.createdAt.toISOString(),
     updatedAt: thesis.updatedAt.toISOString(),
+    finalGrade: thesis.finalGrade ?? null,
+    gradeCalculatedAt: thesis.gradeCalculatedAt?.toISOString() ?? null,
     student: student ? formatUser(student) : null,
     supervisor,
     reviewer,

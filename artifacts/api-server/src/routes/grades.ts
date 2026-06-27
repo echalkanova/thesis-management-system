@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, gradesTable, usersTable } from "@workspace/db";
+import { db, gradesTable, usersTable, thesesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 
@@ -31,6 +31,17 @@ async function formatGrade(grade: typeof gradesTable.$inferSelect) {
   };
 }
 
+async function recalculateFinalGrade(thesisId: number) {
+  const grades = await db.select().from(gradesTable).where(eq(gradesTable.thesisId, thesisId));
+  if (grades.length === 0) return;
+  const avg = grades.reduce((sum, g) => sum + g.value, 0) / grades.length;
+  const finalGrade = Math.round(avg * 100) / 100;
+  await db.update(thesesTable)
+    .set({ finalGrade, gradeCalculatedAt: new Date() })
+    .where(eq(thesesTable.id, thesisId));
+  return finalGrade;
+}
+
 export const thesisGradesRouter = Router({ mergeParams: true });
 
 thesisGradesRouter.get("/", requireAuth, async (req, res) => {
@@ -40,11 +51,30 @@ thesisGradesRouter.get("/", requireAuth, async (req, res) => {
   res.json(formatted);
 });
 
+thesisGradesRouter.get("/final", requireAuth, async (req, res) => {
+  const thesisId = Number(req.params.id);
+  const [thesis] = await db.select().from(thesesTable).where(eq(thesesTable.id, thesisId)).limit(1);
+  if (!thesis) { res.status(404).json({ error: "Thesis not found" }); return; }
+  res.json({
+    thesisId,
+    finalGrade: thesis.finalGrade ?? null,
+    gradeCalculatedAt: thesis.gradeCalculatedAt?.toISOString() ?? null,
+  });
+});
+
 thesisGradesRouter.post("/", requireAuth, async (req: AuthRequest, res) => {
   const thesisId = Number(req.params.id);
+  if (!["admin", "commission_member", "supervisor", "reviewer"].includes(req.userRole ?? "")) {
+    res.status(403).json({ error: "You do not have permission to grade" });
+    return;
+  }
   const { value, comment } = req.body;
   if (value === undefined) {
     res.status(400).json({ error: "Value is required" });
+    return;
+  }
+  if (value < 2 || value > 6) {
+    res.status(400).json({ error: "Grade must be between 2 and 6" });
     return;
   }
   const [grade] = await db.insert(gradesTable).values({
@@ -53,6 +83,7 @@ thesisGradesRouter.post("/", requireAuth, async (req: AuthRequest, res) => {
     value,
     comment: comment ?? null,
   }).returning();
+  await recalculateFinalGrade(thesisId);
   res.status(201).json(await formatGrade(grade));
 });
 
@@ -74,5 +105,6 @@ gradesRouter.patch("/:id", requireAuth, async (req: AuthRequest, res) => {
   if (value !== undefined) updates.value = value;
   if (comment !== undefined) updates.comment = comment;
   const [updated] = await db.update(gradesTable).set(updates).where(eq(gradesTable.id, id)).returning();
+  await recalculateFinalGrade(updated.thesisId);
   res.json(await formatGrade(updated));
 });

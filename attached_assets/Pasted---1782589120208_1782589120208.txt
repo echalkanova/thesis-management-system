@@ -1,0 +1,212 @@
+В проекта оценките се записват но няма автоматично изчисляване 
+на крайна оценка, и липсва визуален timeline на workflow-а.
+Направи следното:
+
+=== ЧАСТ 1: АВТОМАТИЧНО ИЗЧИСЛЯВАНЕ НА КРАЙНА ОЦЕНКА ===
+
+1. В lib/db/src/schema/theses.ts добави две нови колони 
+   след updatedAt:
+
+   finalGrade: real("final_grade"),
+   gradeCalculatedAt: timestamp("grade_calculated_at", { withTimezone: true }),
+
+2. Създай нова миграция или пусни директно в базата данни:
+   ALTER TABLE theses ADD COLUMN IF NOT EXISTS final_grade real;
+   ALTER TABLE theses ADD COLUMN IF NOT EXISTS grade_calculated_at timestamptz;
+
+3. В artifacts/api-server/src/routes/grades.ts:
+
+   а) Добави импорт на thesesTable:
+      import { db, gradesTable, usersTable, thesesTable } from "@workspace/db";
+
+   б) Добави тази helper функция преди thesisGradesRouter:
+
+async function recalculateFinalGrade(thesisId: number) {
+  const grades = await db.select().from(gradesTable)
+    .where(eq(gradesTable.thesisId, thesisId));
+  if (grades.length === 0) return;
+  const avg = grades.reduce((sum, g) => sum + g.value, 0) / grades.length;
+  const finalGrade = Math.round(avg * 100) / 100;
+  await db.update(thesesTable)
+    .set({ 
+      finalGrade, 
+      gradeCalculatedAt: new Date() 
+    })
+    .where(eq(thesesTable.id, thesisId));
+  return finalGrade;
+}
+
+   в) Замени thesisGradesRouter.post("/", ...) с:
+
+thesisGradesRouter.post("/", requireAuth, async (req: AuthRequest, res) => {
+  const thesisId = Number(req.params.id);
+  if (!["admin", "commission_member", "supervisor", "reviewer"].includes(req.userRole ?? "")) {
+    res.status(403).json({ error: "You do not have permission to grade" });
+    return;
+  }
+  const { value, comment } = req.body;
+  if (value === undefined) {
+    res.status(400).json({ error: "Value is required" });
+    return;
+  }
+  if (value < 2 || value > 6) {
+    res.status(400).json({ error: "Grade must be between 2 and 6" });
+    return;
+  }
+  const [grade] = await db.insert(gradesTable).values({
+    thesisId,
+    graderId: req.userId!,
+    value,
+    comment: comment ?? null,
+  }).returning();
+  await recalculateFinalGrade(thesisId);
+  res.status(201).json(await formatGrade(grade));
+});
+
+   г) В gradesRouter.patch("/:id", ...) добави след update:
+      await recalculateFinalGrade(grade.thesisId);
+
+4. В formatThesis в artifacts/api-server/src/routes/theses.ts
+   добави в return обекта:
+   finalGrade: thesis.finalGrade ?? null,
+   gradeCalculatedAt: thesis.gradeCalculatedAt?.toISOString() ?? null,
+
+5. Добави GET endpoint в thesisGradesRouter:
+
+thesisGradesRouter.get("/final", requireAuth, async (req, res) => {
+  const thesisId = Number(req.params.id);
+  const [thesis] = await db.select().from(thesesTable)
+    .where(eq(thesesTable.id, thesisId)).limit(1);
+  if (!thesis) { res.status(404).json({ error: "Thesis not found" }); return; }
+  res.json({ 
+    thesisId, 
+    finalGrade: thesis.finalGrade ?? null,
+    gradeCalculatedAt: thesis.gradeCalculatedAt?.toISOString() ?? null
+  });
+});
+
+=== ЧАСТ 2: ВИЗУАЛЕН TIMELINE НА WORKFLOW-А ===
+
+6. Създай нов компонент artifacts/client/src/components/ThesisTimeline.tsx:
+
+import { CheckCircle, Circle, Clock } from "lucide-react";
+
+const WORKFLOW_STEPS = [
+  { status: "draft", label: "Чернова", description: "Дипломната работа е създадена" },
+  { status: "submitted", label: "Подадена", description: "Изпратена за преглед" },
+  { status: "pending_supervisor_approval", label: "Очаква одобрение", description: "При научния ръководител" },
+  { status: "returned_for_revision", label: "Върната за корекции", description: "Необходими са корекции" },
+  { status: "approved_by_supervisor", label: "Одобрена от ръководител", description: "Научният ръководител одобри" },
+  { status: "under_review", label: "В рецензия", description: "При рецензента" },
+  { status: "reviewed", label: "Рецензирана", description: "Рецензията е готова" },
+  { status: "approved_for_defense", label: "Допусната до защита", description: "Одобрена за защита" },
+  { status: "scheduled_for_defense", label: "Насрочена защита", description: "Датата е определена" },
+  { status: "defended", label: "Защитена", description: "Успешно защитена" },
+];
+
+const STATUS_ORDER = WORKFLOW_STEPS.map(s => s.status);
+
+function getStepState(stepStatus: string, currentStatus: string): "completed" | "current" | "returned" | "pending" {
+  if (stepStatus === "returned_for_revision") {
+    return currentStatus === "returned_for_revision" ? "returned" : "pending";
+  }
+  const stepIndex = STATUS_ORDER.indexOf(stepStatus);
+  const currentIndex = STATUS_ORDER.indexOf(currentStatus);
+  if (stepIndex < currentIndex) return "completed";
+  if (stepIndex === currentIndex) return "current";
+  return "pending";
+}
+
+interface ThesisTimelineProps {
+  currentStatus: string;
+  finalGrade?: number | null;
+}
+
+export function ThesisTimeline({ currentStatus, finalGrade }: ThesisTimelineProps) {
+  const mainSteps = WORKFLOW_STEPS.filter(s => s.status !== "returned_for_revision");
+
+  return (
+    <div className="bg-card rounded-xl border p-6 space-y-4">
+      <h3 className="font-semibold text-lg">Прогрес на дипломната работа</h3>
+      
+      {/* Progress bar */}
+      <div className="w-full bg-muted rounded-full h-2">
+        <div
+          className="bg-primary h-2 rounded-full transition-all duration-500"
+          style={{
+            width: `${Math.min(100, (STATUS_ORDER.indexOf(currentStatus) / (STATUS_ORDER.length - 1)) * 100)}%`
+          }}
+        />
+      </div>
+
+      {/* Steps */}
+      <div className="space-y-3 mt-4">
+        {mainSteps.map((step, index) => {
+          const state = getStepState(step.status, currentStatus);
+          return (
+            <div key={step.status} className="flex items-start gap-3">
+              <div className="flex flex-col items-center">
+                <div className={`rounded-full p-1 ${
+                  state === "completed" ? "text-green-500" :
+                  state === "current" ? "text-primary" :
+                  "text-muted-foreground"
+                }`}>
+                  {state === "completed" ? (
+                    <CheckCircle className="w-5 h-5" />
+                  ) : state === "current" ? (
+                    <Clock className="w-5 h-5 animate-pulse" />
+                  ) : (
+                    <Circle className="w-5 h-5" />
+                  )}
+                </div>
+                {index < mainSteps.length - 1 && (
+                  <div className={`w-0.5 h-6 mt-1 ${
+                    state === "completed" ? "bg-green-500" : "bg-muted"
+                  }`} />
+                )}
+              </div>
+              <div className="pb-2">
+                <p className={`text-sm font-medium ${
+                  state === "current" ? "text-primary" :
+                  state === "completed" ? "text-foreground" :
+                  "text-muted-foreground"
+                }`}>
+                  {step.label}
+                </p>
+                {state === "current" && (
+                  <p className="text-xs text-muted-foreground">{step.description}</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Returned for revision badge */}
+      {currentStatus === "returned_for_revision" && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+          ⚠️ Работата е върната за корекции. Направете необходимите промени и я подайте отново.
+        </div>
+      )}
+
+      {/* Final grade */}
+      {finalGrade && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center justify-between">
+          <span className="text-sm font-medium text-green-800">Крайна оценка</span>
+          <span className="text-2xl font-bold text-green-700">{finalGrade.toFixed(2)}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+7. Намери страницата за детайли на дипломна работа в 
+   artifacts/client/src/pages/ (ThesisDetail.tsx или подобно)
+   и добави компонента там:
+   
+   import { ThesisTimeline } from "../components/ThesisTimeline";
+   
+   И постави <ThesisTimeline currentStatus={thesis.status} finalGrade={thesis.finalGrade} />
+   в горната част на страницата, под заглавието.
+
+8. Рестартирай след всички промени.
