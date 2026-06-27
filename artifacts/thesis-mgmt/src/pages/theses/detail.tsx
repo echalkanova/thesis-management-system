@@ -7,7 +7,7 @@ import {
   useListThesisGrades, getListThesisGradesQueryKey,
   useListUsers, getListUsersQueryKey,
   useSubmitThesis, useUpdateThesisStatus, useAssignThesis,
-  useUploadThesisFile, useDeleteFile,
+  useDeleteFile,
   useCreateReview, useCreateGrade,
   getListThesesQueryKey
 } from "@workspace/api-client-react";
@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, FileText, UserCheck, Star, Paperclip, Trash2 } from "lucide-react";
+import { FileUploadDialog } from "@/components/file-upload-dialog";
 
 const gradeLabel = (v: number) => {
   if (v >= 5.5) return "Отличен";
@@ -50,7 +51,6 @@ export default function ThesisDetail() {
   const submitThesis = useSubmitThesis();
   const updateStatus = useUpdateThesisStatus();
   const assignThesis = useAssignThesis();
-  const uploadFile = useUploadThesisFile();
   const deleteFile = useDeleteFile();
   const createReview = useCreateReview();
   const createGrade = useCreateGrade();
@@ -59,8 +59,6 @@ export default function ThesisDetail() {
   const [reviewRecommendation, setReviewRecommendation] = useState("approve");
   const [gradeValue, setGradeValue] = useState("");
   const [gradeComment, setGradeComment] = useState("");
-  const [newFileUrl, setNewFileUrl] = useState("");
-  const [newFileName, setNewFileName] = useState("");
   const [assignRole, setAssignRole] = useState<"supervisor" | "reviewer">("supervisor");
   const [assignUserId, setAssignUserId] = useState("");
   const [statusToSet, setStatusToSet] = useState("");
@@ -121,37 +119,7 @@ export default function ThesisDetail() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2"><Paperclip className="h-4 w-4" /> Файлове ({files.length})</CardTitle>
                   {(isOwner || isSupervisor || isAdmin) && (
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button size="sm" variant="outline" data-testid="button-add-file">Добави файл</Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader><DialogTitle>Добавяне на файл</DialogTitle></DialogHeader>
-                        <div className="space-y-4 pt-2">
-                          <div className="space-y-2">
-                            <Label>Име на файл</Label>
-                            <Input value={newFileName} onChange={e => setNewFileName(e.target.value)} placeholder="дипломна-работа.pdf" data-testid="input-file-name" />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>URL адрес</Label>
-                            <Input value={newFileUrl} onChange={e => setNewFileUrl(e.target.value)} placeholder="https://..." data-testid="input-file-url" />
-                          </div>
-                          <Button className="w-full bg-[#0a192f] text-white" disabled={uploadFile.isPending} data-testid="button-upload-file"
-                            onClick={() => {
-                              if (!newFileName || !newFileUrl) return;
-                              uploadFile.mutate({ id: thesisId, data: { fileName: newFileName, fileUrl: newFileUrl, fileType: "application/pdf", fileSize: 0 } }, {
-                                onSuccess: () => {
-                                  queryClient.invalidateQueries({ queryKey: getListThesisFilesQueryKey(thesisId) });
-                                  setNewFileName(""); setNewFileUrl("");
-                                  toast({ title: "Файлът е добавен" });
-                                }
-                              });
-                            }}>
-                            {uploadFile.isPending ? "Качване..." : "Добави"}
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                    <FileUploadDialog thesisId={thesisId} />
                   )}
                 </div>
               </CardHeader>
