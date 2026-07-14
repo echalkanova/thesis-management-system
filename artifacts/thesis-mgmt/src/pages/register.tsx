@@ -22,16 +22,18 @@ export default function Register() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
+  const needsFacultyNumber = role === "student" || role === "supervisor";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await register({ email, password, firstName, lastName, role, facultyNumber } as any);
+      await register({ email, password, firstName, lastName, role, facultyNumber: facultyNumber || undefined } as any);
       setLocation("/dashboard");
     } catch (err) {
       toast({
         title: "Грешка при регистрация",
-        description: "Моля, проверете въведените данни.",
+        description: err instanceof Error ? err.message : "Моля, проверете въведените данни.",
         variant: "destructive"
       });
     } finally {
@@ -114,22 +116,26 @@ export default function Register() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="facultyNumber">Факултетен номер</Label>
-              <Input
-                id="facultyNumber"
-                value={facultyNumber}
-                onChange={(e) => setFacultyNumber(e.target.value)}
-                placeholder={role === "student" ? "121222XXX" : "001212XXX"}
-                required
-                data-testid="input-faculty-number"
-              />
-              <p className="text-xs text-slate-400">
-                {role === "student"
-                  ? "Студентският номер започва с 121222"
-                  : "Служебният номер започва с 001212"}
-              </p>
-            </div>
+            {needsFacultyNumber && (
+              <div className="space-y-2">
+                <Label htmlFor="facultyNumber">
+                  Факултетен номер <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="facultyNumber"
+                  value={facultyNumber}
+                  onChange={(e) => setFacultyNumber(e.target.value)}
+                  placeholder={role === "student" ? "121222XXX" : "001212XXX"}
+                  required
+                  data-testid="input-faculty-number"
+                />
+                <p className="text-xs text-slate-400">
+                  {role === "student"
+                    ? "Студентският номер започва с 121222"
+                    : "Служебният номер започва с 001212"}
+                </p>
+              </div>
+            )}
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-200" type="submit" disabled={loading} data-testid="button-submit-register">

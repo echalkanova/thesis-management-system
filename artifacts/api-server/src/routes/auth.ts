@@ -38,16 +38,21 @@ router.post("/register", async (req, res) => {
   const { email, password, firstName, lastName, role, faculty, department, phoneNumber } = parsed.data;
   const facultyNumber: string | undefined = (req.body as any).facultyNumber;
 
-  // Faculty number validation
-  if (facultyNumber !== undefined && facultyNumber !== "") {
+  // Faculty number validation — only required for student and supervisor
+  const effectiveRole = role ?? "student";
+  const needsFacultyNumber = effectiveRole === "student" || effectiveRole === "supervisor";
+  if (needsFacultyNumber && (!facultyNumber || facultyNumber.trim() === "")) {
+    res.status(400).json({ error: "Факултетният номер е задължителен за студенти и ръководители" });
+    return;
+  }
+  if (facultyNumber && facultyNumber.trim() !== "") {
     const digits = /^\d{9}$/.test(facultyNumber);
     if (!digits) {
       res.status(400).json({ error: "Факултетният номер трябва да е точно 9 цифри" });
       return;
     }
-    const isStudent = (role ?? "student") === "student";
-    const expectedPrefix = isStudent ? "121222" : "001212";
-    if (!facultyNumber.startsWith(expectedPrefix)) {
+    const expectedPrefix = effectiveRole === "student" ? "121222" : "001212";
+    if ((effectiveRole === "student" || effectiveRole === "supervisor") && !facultyNumber.startsWith(expectedPrefix)) {
       res.status(400).json({ error: `Факултетният номер трябва да започва с "${expectedPrefix}"` });
       return;
     }
