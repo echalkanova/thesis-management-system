@@ -3,11 +3,12 @@ import { useAuth } from "@/lib/auth";
 import {
   BookOpen, Calendar, LayoutDashboard, Users, FileText,
   BarChart2, LogOut, Bell, UserCircle, GraduationCap,
-  ChevronRight, Shield, UserCheck, Inbox
+  ChevronRight, Shield, UserCheck, Inbox, MessageSquare
 } from "lucide-react";
 import { formatRole } from "@/lib/utils";
 import { useListNotifications, getListNotificationsQueryKey } from "@workspace/api-client-react";
 import { useNotificationStream } from "@/hooks/use-notification-stream";
+import { useQuery } from "@tanstack/react-query";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Табло", icon: LayoutDashboard, roles: ["student", "supervisor", "reviewer", "committee_member", "admin"] },
@@ -60,7 +61,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 py-2">Меню</div>
-        {visibleLinks.map(({ href, label, icon: Icon, roles }) => {
+        {visibleLinks.map(({ href, label, icon: Icon }) => {
           const active = location === href || (href !== "/dashboard" && location.startsWith(href));
           return (
             <Link
@@ -109,10 +110,39 @@ export function Header() {
   const { data: notifications } = useListNotifications({ query: { queryKey: getListNotificationsQueryKey() } });
   const unread = notifications?.filter(n => !n.isRead).length ?? 0;
 
+  const { data: msgData } = useQuery({
+    queryKey: ["messages-unread"],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch("/api/messages/unread-count", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      return res.json();
+    },
+    refetchInterval: 5000,
+    enabled: !!user,
+  });
+  const unreadMsgs = msgData?.count ?? 0;
+
   if (!user) return null;
 
   return (
-    <header className="h-14 bg-white border-b border-slate-100 px-6 flex items-center justify-end gap-3 flex-shrink-0">
+    <header className="h-14 bg-white border-b border-slate-100 px-6 flex items-center justify-end gap-2 flex-shrink-0">
+      {/* Messages */}
+      <Link
+        href="/messages"
+        data-testid="link-messages"
+        className="relative p-2 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-700 border border-slate-100 transition-colors"
+      >
+        <MessageSquare size={16} />
+        {unreadMsgs > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-indigo-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center border border-white">
+            {unreadMsgs > 9 ? "9+" : unreadMsgs}
+          </span>
+        )}
+      </Link>
+
+      {/* Notifications */}
       <Link
         href="/notifications"
         data-testid="link-notifications"
@@ -125,6 +155,7 @@ export function Header() {
           </span>
         )}
       </Link>
+
       <div className="flex items-center gap-2 pl-1">
         <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">
           {user.firstName[0]}{user.lastName[0]}

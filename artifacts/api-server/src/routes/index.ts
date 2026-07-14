@@ -11,6 +11,7 @@ import notificationsRouter from "./notifications";
 import dashboardRouter from "./dashboard";
 import auditLogRouter from "./auditLog";
 import supervisorRequestsRouter from "./supervisorRequests";
+import messagesRouter from "./messages";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use("/dashboard", dashboardRouter);
 router.use("/reports", dashboardRouter);
 router.use("/audit-log", auditLogRouter);
 router.use("/supervisor-requests", supervisorRequestsRouter);
+router.use("/messages", messagesRouter);
 
 export default router;
