@@ -30,7 +30,9 @@ export default function Supervisors() {
       const res = await fetch("/api/users/supervisors/list", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      return res.json();
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Грешка при зареждане на ръководителите");
+      return Array.isArray(json) ? json : [];
     },
   });
 
@@ -41,7 +43,9 @@ export default function Supervisors() {
       const res = await fetch("/api/supervisor-requests", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      return res.json();
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Грешка при зареждане на запитванията");
+      return Array.isArray(json) ? json : [];
     },
     enabled: isStudent,
   });
