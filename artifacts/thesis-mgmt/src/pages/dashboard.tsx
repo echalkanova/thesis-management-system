@@ -11,7 +11,7 @@ import {
   BookOpen, Calendar, Clock, FileText, TrendingUp,
   ArrowUpRight, ArrowDownRight, MapPin, CheckCircle2,
   CircleDot, Circle, ChevronRight, Plus, Bell, Star,
-  User, GraduationCap, AlertCircle,
+  User, GraduationCap, AlertCircle, ClipboardCheck, Hourglass,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
@@ -308,6 +308,156 @@ function StudentDashboard() {
 }
 
 /* ═══════════════════════════════════════════════════
+   REVIEWER DASHBOARD
+═══════════════════════════════════════════════════ */
+function ReviewerDashboard() {
+  const { user } = useAuth();
+
+  const { data: myTheses, isLoading } = useListTheses(
+    { reviewerId: user?.id } as any,
+    { query: { queryKey: getListThesesQueryKey({ reviewerId: user?.id } as any) } }
+  );
+
+  const { data: notifications } = useListNotifications(
+    { query: { queryKey: getListNotificationsQueryKey() } }
+  );
+
+  if (isLoading) {
+    return (
+      <div className="space-y-5 animate-pulse">
+        <div className="h-8 w-56 bg-slate-200 rounded-lg" />
+        <div className="grid grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => <div key={i} className="h-28 bg-slate-200 rounded-2xl" />)}
+        </div>
+      </div>
+    );
+  }
+
+  const theses = myTheses ?? [];
+  const pending = theses.filter(t => t.status === "under_review");
+  const completed = theses.filter(t => ["reviewed", "approved_for_defense", "scheduled_for_defense", "defended"].includes(t.status));
+  const recentNotifs = notifications?.slice(0, 4) ?? [];
+
+  const metrics = [
+    { label: "За рецензиране", value: pending.length, icon: Hourglass, iconBg: "bg-amber-50", iconColor: "text-amber-600" },
+    { label: "Приключени рецензии", value: completed.length, icon: ClipboardCheck, iconBg: "bg-emerald-50", iconColor: "text-emerald-600" },
+    { label: "Общо назначени", value: theses.length, icon: FileText, iconBg: "bg-indigo-50", iconColor: "text-indigo-600" },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Табло на рецензента</h1>
+        <p className="text-sm text-slate-400 mt-0.5">Добре дошли, {user?.firstName}. Ето дипломните работи, назначени за ваша рецензия.</p>
+      </div>
+
+      {/* Metric cards */}
+      <div className="grid grid-cols-3 gap-4">
+        {metrics.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
+          <div key={label} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+            <div className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center mb-4`}>
+              <Icon size={20} className={iconColor} />
+            </div>
+            <div className="text-3xl font-bold text-slate-800 mb-0.5">{value}</div>
+            <div className="text-xs text-slate-400">{label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Pending reviews — the reviewer's actual queue */}
+      <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-slate-800">Чакащи рецензия</h2>
+          <Link href="/reviews" className="text-xs text-indigo-600 font-semibold hover:text-indigo-700">Всички →</Link>
+        </div>
+        {pending.length === 0 ? (
+          <div className="text-sm text-slate-400 text-center py-6 flex flex-col items-center gap-2">
+            <CheckCircle2 size={28} className="text-slate-300" />Нямате дипломни работи, чакащи рецензия
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {pending.slice(0, 5).map(thesis => (
+              <Link key={thesis.id} href={`/theses/${thesis.id}`}>
+                <div className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer group">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm text-slate-800 truncate group-hover:text-indigo-700 transition-colors">{thesis.title}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Студент: {thesis.student?.firstName} {thesis.student?.lastName}</p>
+                  </div>
+                  <Badge className="ml-3 flex-shrink-0 text-xs bg-amber-50 text-amber-700 border-amber-200" variant="outline">
+                    Чака рецензия
+                  </Badge>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Recently completed */}
+      <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-slate-800">Последно рецензирани</h2>
+        </div>
+        {completed.length === 0 ? (
+          <div className="text-sm text-slate-400 text-center py-6 flex flex-col items-center gap-2">
+            <ClipboardCheck size={28} className="text-slate-300" />Все още нямате приключени рецензии
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {completed.slice(0, 5).map(thesis => (
+              <Link key={thesis.id} href={`/theses/${thesis.id}`}>
+                <div className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer group">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm text-slate-800 truncate group-hover:text-indigo-700 transition-colors">{thesis.title}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Студент: {thesis.student?.firstName} {thesis.student?.lastName}</p>
+                  </div>
+                  <Badge className={`ml-3 flex-shrink-0 text-xs ${getStatusColor(thesis.status)}`} variant="outline">
+                    {formatStatus(thesis.status)}
+                  </Badge>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Notifications */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center">
+              <Bell size={14} className="text-slate-500" />
+            </div>
+            <h2 className="font-semibold text-slate-800">Последни известия</h2>
+          </div>
+          <Link href="/notifications" className="text-xs text-indigo-600 font-semibold hover:text-indigo-700">Всички →</Link>
+        </div>
+        {recentNotifs.length === 0 ? (
+          <div className="text-sm text-slate-400 text-center py-6 flex flex-col items-center gap-2">
+            <Bell size={24} className="text-slate-300" />Няма известия
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {recentNotifs.map(n => (
+              <div key={n.id} className={`flex items-start gap-3 p-3 rounded-xl transition-colors ${n.isRead ? "bg-slate-50" : "bg-indigo-50 border border-indigo-100"}`}>
+                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${n.isRead ? "bg-slate-300" : "bg-indigo-500"}`} />
+                <div className="min-w-0 flex-1">
+                  <div className={`text-sm font-medium ${n.isRead ? "text-slate-600" : "text-slate-800"}`}>{n.title}</div>
+                  <div className="text-xs text-slate-400 mt-0.5 truncate">{n.message}</div>
+                </div>
+                <div className="text-[10px] text-slate-300 flex-shrink-0 mt-0.5">
+                  {new Date(n.createdAt).toLocaleDateString("bg")}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════
    ADMIN / SUPERVISOR DASHBOARD
 ═══════════════════════════════════════════════════ */
 function AdminDashboard() {
@@ -513,6 +663,7 @@ function AdminDashboard() {
 export default function Dashboard() {
   const { user } = useAuth();
   if (user?.role === "student") return <StudentDashboard />;
+  if (user?.role === "reviewer") return <ReviewerDashboard />;
   return <AdminDashboard />;
 }
 

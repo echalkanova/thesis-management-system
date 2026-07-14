@@ -279,8 +279,14 @@ export default function ThesisDetail() {
               {/* STUDENT: Submit */}
               {isOwner && thesis.status === "draft" && (
                 <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white" disabled={submitThesis.isPending} data-testid="button-submit-thesis"
-                  onClick={() => submitThesis.mutate({ id: thesisId }, { onSuccess: () => { invalidate(); toast({ title: "Дипломната работа е подадена" }); } })}>
-                  {submitThesis.isPending ? "Подаване..." : "Подай за рецензия"}
+                  onClick={() => {
+                    if (!files || files.length === 0) {
+                      toast({ title: "Няма прикачен файл", description: "Прикачете поне един файл на дипломната работа, преди да я предадете.", variant: "destructive" });
+                      return;
+                    }
+                    submitThesis.mutate({ id: thesisId }, { onSuccess: () => { invalidate(); toast({ title: "Дипломната работа е предадена на научния ръководител" }); } });
+                  }}>
+                  {submitThesis.isPending ? "Предаване..." : "Предай"}
                 </Button>
               )}
 
