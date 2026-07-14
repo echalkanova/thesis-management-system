@@ -4,13 +4,15 @@
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — стартиране на API сървъра (порт 5000)
-- `pnpm --filter @workspace/thesis-mgmt run dev` — стартиране на frontend (порт от env)
+- Workflow `API Server` — `cd artifacts/api-server && PORT=8080 pnpm run dev` (API на порт 8080, path `/api`)
+- Workflow `Web` — `cd artifacts/thesis-mgmt && PORT=21277 BASE_PATH=/ pnpm run dev` (frontend на порт 21277, root path)
 - `pnpm run typecheck` — пълна проверка на типовете
 - `pnpm run build` — typecheck + build на всички пакети
 - `pnpm --filter @workspace/api-spec run codegen` — регенериране на API hooks и Zod схеми от OpenAPI спецификацията
 - `pnpm --filter @workspace/db run push` — прилагане на DB схема (само за разработка)
 - Required env: `DATABASE_URL`, `SESSION_SECRET`
+
+**Import note (2026-07-14):** the project was re-imported from GitHub with `artifact.toml` files already on disk under `artifacts/*/.replit-artifact/`, but `listArtifacts()` came back empty — the platform's artifact registry didn't know about them (re-running `createArtifact` with the same slug just fails with `ARTIFACT_DIR_EXISTS`, it does not adopt existing files). Worked around it with two plain `configureWorkflow` workflows (`API Server`, `Web`) that `cd` into each artifact dir and set `PORT`/`BASE_PATH` inline. The app is reachable at the dev domain root but does not show up in `listArtifacts()` / the artifact preview dropdown or `Screenshot`'s `appPreview` source — use `externalUrl` with the dev domain instead. The dev database was empty after import (schema only, no rows) even though seed credentials were documented below; recreated them via the `/api/auth/register` endpoint.
 
 ## Stack
 

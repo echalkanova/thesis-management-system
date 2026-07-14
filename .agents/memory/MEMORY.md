@@ -1,0 +1,1 @@
+- [Imported project with pre-existing artifact.toml](imported-artifact-toml-not-registered.md) — `listArtifacts()`/workflows can be empty even when `artifacts/*/.replit-artifact/artifact.toml` already exists on disk after a GitHub re-import.
