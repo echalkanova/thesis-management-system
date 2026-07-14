@@ -15,6 +15,7 @@ export default function Register() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [role, setRole] = useState<RegisterInputRole>("student");
+  const [facultyNumber, setFacultyNumber] = useState("");
   
   const { register } = useAuth();
   const [, setLocation] = useLocation();
@@ -25,7 +26,7 @@ export default function Register() {
     e.preventDefault();
     setLoading(true);
     try {
-      await register({ email, password, firstName, lastName, role });
+      await register({ email, password, firstName, lastName, role, facultyNumber } as any);
       setLocation("/dashboard");
     } catch (err) {
       toast({
@@ -112,6 +113,22 @@ export default function Register() {
                   <SelectItem value="admin">Администратор</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="facultyNumber">Факултетен номер</Label>
+              <Input
+                id="facultyNumber"
+                value={facultyNumber}
+                onChange={(e) => setFacultyNumber(e.target.value)}
+                placeholder={role === "student" ? "121222XXX" : "001212XXX"}
+                required
+                data-testid="input-faculty-number"
+              />
+              <p className="text-xs text-slate-400">
+                {role === "student"
+                  ? "Студентският номер започва с 121222"
+                  : "Служебният номер започва с 001212"}
+              </p>
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
