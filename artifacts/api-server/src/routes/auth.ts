@@ -22,6 +22,9 @@ function formatUser(user: typeof usersTable.$inferSelect) {
     department: user.department ?? null,
     phoneNumber: user.phoneNumber ?? null,
     avatarUrl: user.avatarUrl ?? null,
+    facultyNumber: user.facultyNumber ?? null,
+    subjectTaught: user.subjectTaught ?? null,
+    maxStudents: user.maxStudents ?? 40,
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -33,6 +36,29 @@ router.post("/register", async (req, res) => {
     return;
   }
   const { email, password, firstName, lastName, role, faculty, department, phoneNumber } = parsed.data;
+  const facultyNumber: string | undefined = (req.body as any).facultyNumber;
+
+  // Faculty number validation
+  if (facultyNumber !== undefined && facultyNumber !== "") {
+    const digits = /^\d{9}$/.test(facultyNumber);
+    if (!digits) {
+      res.status(400).json({ error: "Факултетният номер трябва да е точно 9 цифри" });
+      return;
+    }
+    const isStudent = (role ?? "student") === "student";
+    const expectedPrefix = isStudent ? "121222" : "001212";
+    if (!facultyNumber.startsWith(expectedPrefix)) {
+      res.status(400).json({ error: `Факултетният номер трябва да започва с "${expectedPrefix}"` });
+      return;
+    }
+    const existingFn = await db.select().from(usersTable)
+      .where(eq(usersTable.facultyNumber, facultyNumber)).limit(1);
+    if (existingFn[0]) {
+      res.status(400).json({ error: "Факултетният номер вече е зает" });
+      return;
+    }
+  }
+
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (existing[0]) {
     res.status(409).json({ error: "Email already registered" });
@@ -47,6 +73,7 @@ router.post("/register", async (req, res) => {
     faculty: faculty ?? null,
     department: department ?? null,
     phoneNumber: phoneNumber ?? null,
+    facultyNumber: facultyNumber || null,
   }).returning();
   const token = signToken({ userId: user.id, role: user.role });
   res.status(201).json({ user: formatUser(user), token });

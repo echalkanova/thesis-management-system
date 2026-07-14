@@ -10,6 +10,7 @@ import defensesRouter from "./defenses";
 import notificationsRouter from "./notifications";
 import dashboardRouter from "./dashboard";
 import auditLogRouter from "./auditLog";
+import supervisorRequestsRouter from "./supervisorRequests";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use("/notifications", notificationsRouter);
 router.use("/dashboard", dashboardRouter);
 router.use("/reports", dashboardRouter);
 router.use("/audit-log", auditLogRouter);
+router.use("/supervisor-requests", supervisorRequestsRouter);
 
 export default router;

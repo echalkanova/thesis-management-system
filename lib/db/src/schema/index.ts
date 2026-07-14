@@ -6,3 +6,4 @@ export * from "./grades";
 export * from "./defenses";
 export * from "./notifications";
 export * from "./auditLog";
+export * from "./supervisorRequests";
