@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, thesesTable, usersTable, notificationsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, thesesTable, usersTable, notificationsTable, supervisorRequestsTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { pushNotification } from "../sse";
 import { logAction } from "./auditLog";
@@ -96,6 +96,15 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
     res.status(400).json({ error: "Title is required" });
     return;
   }
+
+  // Inherit the supervisor/reviewer from an already-accepted supervisor
+  // request, so theses created after acceptance aren't left unassigned.
+  const [acceptedRequest] = await db.select().from(supervisorRequestsTable)
+    .where(and(
+      eq(supervisorRequestsTable.studentId, req.userId!),
+      eq(supervisorRequestsTable.status, "accepted"),
+    )).limit(1);
+
   const [thesis] = await db.insert(thesesTable).values({
     title,
     description: description ?? null,
@@ -103,6 +112,8 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
     field: field ?? null,
     studentId: req.userId!,
     status: "draft",
+    supervisorId: acceptedRequest?.supervisorId ?? null,
+    reviewerId: acceptedRequest?.reviewerId ?? null,
   }).returning();
   await logAction(req.userId, "create_thesis", "thesis", thesis.id, { title: thesis.title });
   res.status(201).json(await formatThesis(thesis));
