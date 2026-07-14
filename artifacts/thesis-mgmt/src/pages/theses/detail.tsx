@@ -276,8 +276,22 @@ export default function ThesisDetail() {
             <CardHeader><CardTitle>Действия</CardTitle></CardHeader>
             <CardContent className="space-y-2">
 
-              {/* STUDENT: Submit */}
-              {isOwner && thesis.status === "draft" && (
+              {/* STUDENT: status info while waiting on the supervisor */}
+              {isOwner && ["submitted", "pending_supervisor_approval"].includes(thesis.status) && (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-blue-50 border border-blue-100 text-blue-700 text-sm font-medium" data-testid="status-info-submitted">
+                  Предадена — очаква преглед от научния ръководител
+                </div>
+              )}
+
+              {/* STUDENT: status info + resubmit when returned for revision */}
+              {isOwner && thesis.status === "returned_for_revision" && (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-orange-50 border border-orange-100 text-orange-700 text-sm font-medium" data-testid="status-info-returned">
+                  Върната за корекции
+                </div>
+              )}
+
+              {/* STUDENT: Submit / Resubmit */}
+              {isOwner && ["draft", "returned_for_revision"].includes(thesis.status) && (
                 <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white" disabled={submitThesis.isPending} data-testid="button-submit-thesis"
                   onClick={() => {
                     if (!files || files.length === 0) {
@@ -286,7 +300,9 @@ export default function ThesisDetail() {
                     }
                     submitThesis.mutate({ id: thesisId }, { onSuccess: () => { invalidate(); toast({ title: "Дипломната работа е предадена на научния ръководител" }); } });
                   }}>
-                  {submitThesis.isPending ? "Предаване..." : "Предай"}
+                  {submitThesis.isPending
+                    ? "Предаване..."
+                    : thesis.status === "returned_for_revision" ? "Предай отново" : "Предай"}
                 </Button>
               )}
 

@@ -22,9 +22,46 @@ const NAV_LINKS = [
   { href: "/audit-log", label: "Одит лог", icon: Shield, roles: ["admin"] },
 ];
 
+function useSidebarBadges(user: { id: number; role: string } | null | undefined) {
+  const { data: supervisorRequests } = useQuery({
+    queryKey: ["sidebar-supervisor-requests"],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch("/api/supervisor-requests", { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: user?.role === "supervisor",
+    refetchInterval: 15000,
+  });
+
+  const { data: reviewerTheses } = useQuery({
+    queryKey: ["sidebar-reviewer-theses"],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch(`/api/theses?reviewerId=${user?.id}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: user?.role === "reviewer",
+    refetchInterval: 15000,
+  });
+
+  const pendingRequests = (supervisorRequests ?? []).filter((r: any) => r.status === "pending").length;
+  const pendingReviews = (reviewerTheses ?? []).filter((t: any) => t.status === "under_review").length;
+
+  return {
+    "/supervisor-requests": pendingRequests,
+    "/reviews": pendingReviews,
+  } as Record<string, number>;
+}
+
 export function Sidebar() {
   const { user, logout } = useAuth();
   const [location] = useLocation();
+  const badges = useSidebarBadges(user);
 
   if (!user) return null;
 
@@ -46,7 +83,11 @@ export function Sidebar() {
       </div>
 
       {/* User card */}
-      <div className="mx-3 mt-4 mb-1 p-3 rounded-xl bg-indigo-50 border border-indigo-100">
+      <Link
+        href="/profile"
+        data-testid="link-profile-card"
+        className="mx-3 mt-4 mb-1 p-3 rounded-xl bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 transition-colors block"
+      >
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
             {user.firstName[0]}{user.lastName[0]}
@@ -56,13 +97,14 @@ export function Sidebar() {
             <div className="text-xs text-indigo-500 font-medium">{formatRole(user.role)}</div>
           </div>
         </div>
-      </div>
+      </Link>
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 py-2">Меню</div>
         {visibleLinks.map(({ href, label, icon: Icon }) => {
           const active = location === href || (href !== "/dashboard" && location.startsWith(href));
+          const badgeCount = badges[href] ?? 0;
           return (
             <Link
               key={href}
@@ -75,8 +117,16 @@ export function Sidebar() {
               }`}
             >
               <Icon size={16} className={active ? "text-indigo-600" : "text-slate-400"} />
-              <span>{label}</span>
-              {active && <ChevronRight size={14} className="ml-auto text-indigo-300" />}
+              <span className="flex-1">{label}</span>
+              {badgeCount > 0 && (
+                <span
+                  data-testid={`badge-sidebar-${href.replace("/", "")}`}
+                  className="flex-shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center"
+                >
+                  {badgeCount > 9 ? "9+" : badgeCount}
+                </span>
+              )}
+              {active && <ChevronRight size={14} className="text-indigo-300" />}
             </Link>
           );
         })}
@@ -156,12 +206,16 @@ export function Header() {
         )}
       </Link>
 
-      <div className="flex items-center gap-2 pl-1">
+      <Link
+        href="/profile"
+        data-testid="link-profile-header"
+        className="flex items-center gap-2 pl-1 rounded-lg hover:bg-slate-50 py-1 pr-2 transition-colors"
+      >
         <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">
           {user.firstName[0]}{user.lastName[0]}
         </div>
         <span className="text-sm font-medium text-slate-700 hidden md:block">{user.firstName}</span>
-      </div>
+      </Link>
     </header>
   );
 }
