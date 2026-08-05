@@ -74,10 +74,10 @@ function Router() {
       <Route path="/users" component={withLayout(Users, ["admin"])} />
       <Route path="/profile" component={withLayout(Profile)} />
       <Route path="/notifications" component={withLayout(Notifications)} />
-      <Route path="/reports" component={withLayout(Reports, ["admin", "supervisor"])} />
+      <Route path="/reports" component={withLayout(Reports, ["admin", "supervisor", "department_head"])} />
       <Route path="/audit-log" component={withLayout(AuditLog, ["admin"])} />
       <Route path="/supervisors" component={withLayout(Supervisors)} />
-      <Route path="/supervisor-requests" component={withLayout(SupervisorRequests, ["supervisor", "admin"])} />
+      <Route path="/supervisor-requests" component={withLayout(SupervisorRequests, ["supervisor", "department_head", "admin"])} />
       <Route path="/messages/:userId" component={withLayout(Messages)} />
       <Route path="/messages" component={withLayout(Messages)} />
       <Route path="/committees" component={withLayout(Committees, ["department_head", "admin", "student"])} />

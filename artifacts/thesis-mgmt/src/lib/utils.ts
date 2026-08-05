@@ -11,7 +11,7 @@ export const formatRole = (role?: string) => {
     student: 'Студент',
     supervisor: 'Научен ръководител',
     reviewer: 'Рецензент',
-    committee_member: 'Член на комисия',
+    department_head: 'Ръководител катедра',
     admin: 'Администратор'
   };
   return map[role] || role;
