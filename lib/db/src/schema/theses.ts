@@ -22,6 +22,7 @@ export const thesesTable = pgTable("theses", {
   studentId: integer("student_id").notNull().references(() => usersTable.id),
   supervisorId: integer("supervisor_id").references(() => usersTable.id),
   reviewerId: integer("reviewer_id").references(() => usersTable.id),
+  reviewerSelectedAt: timestamp("reviewer_selected_at", { withTimezone: true }),
   defenseId: integer("defense_id"),
   keywords: text("keywords"),
   field: text("field"),

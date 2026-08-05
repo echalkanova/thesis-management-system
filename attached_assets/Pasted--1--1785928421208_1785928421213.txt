@@ -1,0 +1,922 @@
+Направи следните промени в системата без да променяш съществуващата архитектура:
+
+=== ЧАСТ 1: БАЗА ДАННИ ===
+
+1. В lib/db/src/schema/users.ts добави "department_head" към възможните роли
+   (просто като документация в коментар, схемата използва text).
+
+2. Създай нов файл lib/db/src/schema/committees.ts:
+
+import { pgTable, serial, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { usersTable } from "./users";
+
+export const committeesTable = pgTable("committees", {
+  id: serial("id").primaryKey(),
+  romanNumeral: text("roman_numeral").notNull().unique(),
+  description: text("description"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+});
+
+export const committeeMembersTable = pgTable("committee_members", {
+  id: serial("id").primaryKey(),
+  committeeId: integer("committee_id").notNull().references(() => committeesTable.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const studentCommitteesTable = pgTable("student_committees", {
+  id: serial("id").primaryKey(),
+  studentId: integer("student_id").notNull().unique().references(() => usersTable.id, { onDelete: "cascade" }),
+  committeeId: integer("committee_id").notNull().references(() => committeesTable.id, { onDelete: "cascade" }),
+  assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+3. Добави exports в lib/db/src/schema/index.ts:
+   export * from "./committees";
+
+4. Пусни в базата данни:
+
+CREATE TABLE IF NOT EXISTS committees (
+  id serial PRIMARY KEY,
+  roman_numeral text NOT NULL UNIQUE,
+  description text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS committee_members (
+  id serial PRIMARY KEY,
+  committee_id integer NOT NULL REFERENCES committees(id) ON DELETE CASCADE,
+  user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS student_committees (
+  id serial PRIMARY KEY,
+  student_id integer NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  committee_id integer NOT NULL REFERENCES committees(id) ON DELETE CASCADE,
+  assigned_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Добави начални 5 комисии
+INSERT INTO committees (roman_numeral, description) VALUES
+  ('I', 'Комисия I'),
+  ('II', 'Комисия II'),
+  ('III', 'Комисия III'),
+  ('IV', 'Комисия IV'),
+  ('V', 'Комисия V')
+ON CONFLICT DO NOTHING;
+
+5. В lib/db/src/schema/reviews.ts добави колона fileUrl след content:
+   fileUrl: text("file_url"),
+
+   Пусни в базата:
+   ALTER TABLE reviews ADD COLUMN IF NOT EXISTS file_url text;
+
+6. В lib/db/src/schema/theses.ts добави колона reviewerSelectedAt след reviewerId:
+   reviewerSelectedAt: timestamp("reviewer_selected_at", { withTimezone: true }),
+
+   Пусни в базата:
+   ALTER TABLE theses ADD COLUMN IF NOT EXISTS reviewer_selected_at timestamptz;
+
+=== ЧАСТ 2: BACKEND ===
+
+7. Създай нов файл artifacts/api-server/src/routes/committees.ts:
+
+import { Router } from "express";
+import { db, committeesTable, committeeMembersTable, studentCommitteesTable, usersTable, thesesTable } from "@workspace/db";
+import { eq, and, inArray } from "drizzle-orm";
+import { requireAuth, type AuthRequest } from "../middlewares/auth";
+
+const router = Router();
+
+async function formatCommittee(committee: typeof committeesTable.$inferSelect) {
+  const members = await db.select().from(committeeMembersTable)
+    .where(eq(committeeMembersTable.committeeId, committee.id));
+  const memberUsers = await Promise.all(members.map(async (m) => {
+    const [user] = await db.select().from(usersTable)
+      .where(eq(usersTable.id, m.userId)).limit(1);
+    return user ? {
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+    } : null;
+  }));
+  return {
+    id: committee.id,
+    romanNumeral: committee.romanNumeral,
+    description: committee.description ?? null,
+    members: memberUsers.filter(Boolean),
+    createdAt: committee.createdAt.toISOString(),
+  };
+}
+
+// GET all committees
+router.get("/", requireAuth, async (_req, res) => {
+  const committees = await db.select().from(committeesTable);
+  const formatted = await Promise.all(committees.map(formatCommittee));
+  res.json(formatted);
+});
+
+// POST create committee (department_head only)
+router.post("/", requireAuth, async (req: AuthRequest, res) => {
+  if (req.userRole !== "department_head" && req.userRole !== "admin") {
+    res.status(403).json({ error: "Only department head can manage committees" });
+    return;
+  }
+  const { romanNumeral, description } = req.body;
+  if (!romanNumeral) {
+    res.status(400).json({ error: "Roman numeral is required" });
+    return;
+  }
+  const [committee] = await db.insert(committeesTable)
+    .values({ romanNumeral, description: description ?? null })
+    .returning();
+  res.status(201).json(await formatCommittee(committee));
+});
+
+// PATCH update committee
+router.patch("/:id", requireAuth, async (req: AuthRequest, res) => {
+  if (req.userRole !== "department_head" && req.userRole !== "admin") {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  const id = Number(req.params.id);
+  const { romanNumeral, description } = req.body;
+  const updates: any = {};
+  if (romanNumeral !== undefined) updates.romanNumeral = romanNumeral;
+  if (description !== undefined) updates.description = description;
+  const [updated] = await db.update(committeesTable)
+    .set(updates).where(eq(committeesTable.id, id)).returning();
+  if (!updated) { res.status(404).json({ error: "Committee not found" }); return; }
+  res.json(await formatCommittee(updated));
+});
+
+// DELETE committee
+router.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
+  if (req.userRole !== "department_head" && req.userRole !== "admin") {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  const id = Number(req.params.id);
+  await db.delete(committeesTable).where(eq(committeesTable.id, id));
+  res.json({ message: "Committee deleted" });
+});
+
+// POST add member to committee
+router.post("/:id/members", requireAuth, async (req: AuthRequest, res) => {
+  if (req.userRole !== "department_head" && req.userRole !== "admin") {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  const committeeId = Number(req.params.id);
+  const { userId } = req.body;
+  if (!userId) { res.status(400).json({ error: "userId is required" }); return; }
+
+  // Check user is not already in another committee
+  const existing = await db.select().from(committeeMembersTable)
+    .where(eq(committeeMembersTable.userId, userId));
+  if (existing.length > 0) {
+    res.status(400).json({ error: "Този потребител вече е член на друга комисия" });
+    return;
+  }
+
+  const [member] = await db.insert(committeeMembersTable)
+    .values({ committeeId, userId }).returning();
+  res.status(201).json(member);
+});
+
+// DELETE remove member from committee
+router.delete("/:id/members/:userId", requireAuth, async (req: AuthRequest, res) => {
+  if (req.userRole !== "department_head" && req.userRole !== "admin") {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  const committeeId = Number(req.params.id);
+  const userId = Number(req.params.userId);
+  await db.delete(committeeMembersTable)
+    .where(and(
+      eq(committeeMembersTable.committeeId, committeeId),
+      eq(committeeMembersTable.userId, userId)
+    ));
+  res.json({ message: "Member removed" });
+});
+
+// GET committees available for a student
+// (excludes committees containing student's supervisor or reviewer)
+router.get("/available-for-student/:studentId", requireAuth, async (req: AuthRequest, res) => {
+  if (req.userRole !== "department_head" && req.userRole !== "admin") {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  const studentId = Number(req.params.studentId);
+
+  // Get student's thesis to find supervisor and reviewer
+  const theses = await db.select().from(thesesTable)
+    .where(eq(thesesTable.studentId, studentId));
+  const thesis = theses[0];
+  const excludedUserIds: number[] = [];
+  if (thesis?.supervisorId) excludedUserIds.push(thesis.supervisorId);
+  if (thesis?.reviewerId) excludedUserIds.push(thesis.reviewerId);
+
+  const allCommittees = await db.select().from(committeesTable);
+  const result = await Promise.all(allCommittees.map(async (c) => {
+    const members = await db.select().from(committeeMembersTable)
+      .where(eq(committeeMembersTable.committeeId, c.id));
+    const memberIds = members.map(m => m.userId);
+    const hasConflict = excludedUserIds.some(id => memberIds.includes(id));
+    const formatted = await formatCommittee(c);
+    return { ...formatted, disabled: hasConflict, disabledReason: hasConflict ? "Съдържа научния ръководител или рецензента на студента" : null };
+  }));
+
+  res.json(result);
+});
+
+// POST assign student to committee
+router.post("/assign-student", requireAuth, async (req: AuthRequest, res) => {
+  if (req.userRole !== "department_head" && req.userRole !== "admin") {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  const { studentId, committeeId } = req.body;
+  if (!studentId || !committeeId) {
+    res.status(400).json({ error: "studentId and committeeId are required" });
+    return;
+  }
+
+  // Verify no conflict
+  const theses = await db.select().from(thesesTable)
+    .where(eq(thesesTable.studentId, studentId));
+  const thesis = theses[0];
+  const excludedUserIds: number[] = [];
+  if (thesis?.supervisorId) excludedUserIds.push(thesis.supervisorId);
+  if (thesis?.reviewerId) excludedUserIds.push(thesis.reviewerId);
+
+  if (excludedUserIds.length > 0) {
+    const members = await db.select().from(committeeMembersTable)
+      .where(eq(committeeMembersTable.committeeId, committeeId));
+    const memberIds = members.map(m => m.userId);
+    const hasConflict = excludedUserIds.some(id => memberIds.includes(id));
+    if (hasConflict) {
+      res.status(400).json({ error: "Тази комисия съдържа научния ръководител или рецензента на студента" });
+      return;
+    }
+  }
+
+  // Upsert student committee assignment
+  const existing = await db.select().from(studentCommitteesTable)
+    .where(eq(studentCommitteesTable.studentId, studentId));
+  
+  if (existing.length > 0) {
+    await db.update(studentCommitteesTable)
+      .set({ committeeId })
+      .where(eq(studentCommitteesTable.studentId, studentId));
+  } else {
+    await db.insert(studentCommitteesTable)
+      .values({ studentId, committeeId });
+  }
+
+  res.json({ message: "Студентът е назначен към комисията" });
+});
+
+// GET student's committee
+router.get("/my-committee", requireAuth, async (req: AuthRequest, res) => {
+  if (req.userRole !== "student") {
+    res.status(403).json({ error: "Only students can view their committee" });
+    return;
+  }
+  const [assignment] = await db.select().from(studentCommitteesTable)
+    .where(eq(studentCommitteesTable.studentId, req.userId!));
+  if (!assignment) {
+    res.json(null);
+    return;
+  }
+  const [committee] = await db.select().from(committeesTable)
+    .where(eq(committeesTable.id, assignment.committeeId)).limit(1);
+  if (!committee) { res.json(null); return; }
+  res.json(await formatCommittee(committee));
+});
+
+export default router;
+
+8. В artifacts/api-server/src/routes/reviews.ts замени thesisReviewsRouter.post
+   за да поддържа качване на файл (рецензията е файл) и изпраща известия:
+
+   Замени целия файл с това:
+
+import { Router } from "express";
+import { db, reviewsTable, usersTable, thesesTable, notificationsTable } from "@workspace/db";
+import { logAction } from "./auditLog";
+import { eq } from "drizzle-orm";
+import { requireAuth, type AuthRequest } from "../middlewares/auth";
+import { pushNotification } from "../sse";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+const uploadDir = path.join(process.cwd(), "uploads/reviews");
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, unique + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = [".pdf", ".doc", ".docx"];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(ext)) cb(null, true);
+    else cb(new Error("Only PDF, DOC and DOCX files are allowed"));
+  },
+});
+
+async function sendNotification(userId: number, title: string, message: string, type: string, relatedThesisId?: number) {
+  const [row] = await db.insert(notificationsTable)
+    .values({ userId, title, message, type, relatedThesisId: relatedThesisId ?? null })
+    .returning();
+  pushNotification(userId, {
+    id: row.id, title, message, type,
+    isRead: false,
+    relatedThesisId: relatedThesisId ?? null,
+    createdAt: row.createdAt.toISOString()
+  });
+}
+
+function formatUser(user: typeof usersTable.$inferSelect) {
+  return {
+    id: user.id, email: user.email,
+    firstName: user.firstName, lastName: user.lastName,
+    role: user.role, faculty: user.faculty ?? null,
+    department: user.department ?? null,
+    phoneNumber: user.phoneNumber ?? null,
+    avatarUrl: user.avatarUrl ?? null,
+    createdAt: user.createdAt.toISOString(),
+  };
+}
+
+async function formatReview(review: typeof reviewsTable.$inferSelect) {
+  const [reviewer] = await db.select().from(usersTable)
+    .where(eq(usersTable.id, review.reviewerId)).limit(1);
+  return {
+    id: review.id,
+    thesisId: review.thesisId,
+    reviewerId: review.reviewerId,
+    content: review.content,
+    fileUrl: (review as any).fileUrl ?? null,
+    recommendation: review.recommendation,
+    isPublished: review.isPublished,
+    createdAt: review.createdAt.toISOString(),
+    updatedAt: review.updatedAt.toISOString(),
+    reviewer: reviewer ? formatUser(reviewer) : null,
+  };
+}
+
+export const thesisReviewsRouter = Router({ mergeParams: true });
+
+thesisReviewsRouter.get("/", requireAuth, async (req: AuthRequest, res) => {
+  const thesisId = Number(req.params.id);
+  
+  // Students can only see reviews after thesis is reviewed or later
+  const [thesis] = await db.select().from(thesesTable)
+    .where(eq(thesesTable.id, thesisId)).limit(1);
+  
+  const laterStatuses = ["reviewed", "approved_for_defense", "scheduled_for_defense", "defended"];
+  const isStudent = req.userRole === "student";
+  
+  if (isStudent && thesis && !laterStatuses.includes(thesis.status)) {
+    res.json([]);
+    return;
+  }
+  
+  const reviews = await db.select().from(reviewsTable)
+    .where(eq(reviewsTable.thesisId, thesisId));
+  const formatted = await Promise.all(reviews.map(formatReview));
+  res.json(formatted);
+});
+
+// POST upload review file
+thesisReviewsRouter.post("/", requireAuth, upload.single("file"), async (req: AuthRequest, res) => {
+  const thesisId = Number(req.params.id);
+  
+  if (req.userRole !== "reviewer" && req.userRole !== "admin") {
+    res.status(403).json({ error: "Only reviewers can submit reviews" });
+    return;
+  }
+
+  const [thesis] = await db.select().from(thesesTable)
+    .where(eq(thesesTable.id, thesisId)).limit(1);
+  if (!thesis) { res.status(404).json({ error: "Thesis not found" }); return; }
+  
+  if (thesis.reviewerId !== req.userId && req.userRole !== "admin") {
+    res.status(403).json({ error: "You are not the reviewer of this thesis" });
+    return;
+  }
+
+  const { content, recommendation, isPublished } = req.body;
+  if (!content || !recommendation) {
+    res.status(400).json({ error: "Content and recommendation are required" });
+    return;
+  }
+
+  let fileUrl: string | null = null;
+  if (req.file) {
+    fileUrl = `/uploads/reviews/${req.file.filename}`;
+  }
+
+  const [review] = await db.insert(reviewsTable).values({
+    thesisId,
+    reviewerId: req.userId!,
+    content,
+    recommendation,
+    isPublished: isPublished === "true" || isPublished === true,
+    ...(fileUrl ? { fileUrl } : {}),
+  }).returning();
+
+  // Update thesis status to reviewed
+  await db.update(thesesTable)
+    .set({ status: "reviewed" })
+    .where(eq(thesesTable.id, thesisId));
+
+  // Send notification to student
+  await sendNotification(
+    thesis.studentId,
+    "Рецензията е готова",
+    `Вашата дипломна работа "${thesis.title}" получи рецензия.`,
+    "info",
+    thesisId
+  );
+
+  // Send notification to supervisor
+  if (thesis.supervisorId) {
+    await sendNotification(
+      thesis.supervisorId,
+      "Рецензията е изготвена",
+      `Рецензията на "${thesis.title}" е готова.`,
+      "info",
+      thesisId
+    );
+  }
+
+  await logAction(req.userId, "publish_review", "review", review.id, { thesisId, recommendation });
+  res.status(201).json(await formatReview(review));
+});
+
+export const reviewsRouter = Router();
+
+reviewsRouter.get("/:id", requireAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  const [review] = await db.select().from(reviewsTable)
+    .where(eq(reviewsTable.id, id)).limit(1);
+  if (!review) { res.status(404).json({ error: "Review not found" }); return; }
+  res.json(await formatReview(review));
+});
+
+reviewsRouter.patch("/:id", requireAuth, async (req: AuthRequest, res) => {
+  const id = Number(req.params.id);
+  const [review] = await db.select().from(reviewsTable)
+    .where(eq(reviewsTable.id, id)).limit(1);
+  if (!review) { res.status(404).json({ error: "Review not found" }); return; }
+  if (req.userRole !== "admin" && review.reviewerId !== req.userId) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
+  const { content, recommendation, isPublished } = req.body;
+  const updates: Partial<typeof reviewsTable.$inferInsert> = {};
+  if (content !== undefined) updates.content = content;
+  if (recommendation !== undefined) updates.recommendation = recommendation;
+  if (isPublished !== undefined) updates.isPublished = isPublished;
+  const [updated] = await db.update(reviewsTable)
+    .set(updates).where(eq(reviewsTable.id, id)).returning();
+  res.json(await formatReview(updated));
+});
+
+// GET download review file
+reviewsRouter.get("/:id/download", requireAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  const [review] = await db.select().from(reviewsTable)
+    .where(eq(reviewsTable.id, id)).limit(1);
+  if (!review) { res.status(404).json({ error: "Review not found" }); return; }
+  const fileUrl = (review as any).fileUrl;
+  if (!fileUrl) { res.status(404).json({ error: "No file attached" }); return; }
+  const filePath = path.join(process.cwd(), fileUrl);
+  if (!fs.existsSync(filePath)) { res.status(404).json({ error: "File not found on disk" }); return; }
+  res.download(filePath);
+});
+
+9. В artifacts/api-server/src/routes/theses.ts промени router.post("/:id/approve"):
+   След одобрението вместо да приключва, да НЕ изпраща автоматично за рецензия.
+   Добави нов endpoint за избор на рецензент след одобрение:
+
+router.post("/:id/select-reviewer", requireAuth, async (req: AuthRequest, res) => {
+  if (req.userRole !== "supervisor") {
+    res.status(403).json({ error: "Only supervisors can select reviewer" });
+    return;
+  }
+  const id = Number(req.params.id);
+  const [thesis] = await db.select().from(thesesTable)
+    .where(eq(thesesTable.id, id)).limit(1);
+  if (!thesis) { res.status(404).json({ error: "Thesis not found" }); return; }
+  if (thesis.supervisorId !== req.userId) {
+    res.status(403).json({ error: "You are not the supervisor of this thesis" }); return;
+  }
+  if (thesis.status !== "approved_by_supervisor") {
+    res.status(400).json({ error: "Thesis must be approved first" }); return;
+  }
+  const { reviewerId } = req.body;
+  if (!reviewerId) { res.status(400).json({ error: "reviewerId is required" }); return; }
+
+  const [updated] = await db.update(thesesTable)
+    .set({ 
+      reviewerId, 
+      status: "under_review",
+      reviewerSelectedAt: new Date()
+    })
+    .where(eq(thesesTable.id, id)).returning();
+
+  await sendNotification(
+    reviewerId,
+    "Назначени сте за рецензент",
+    `Назначени сте за рецензент на "${thesis.title}"`,
+    "info", id
+  );
+  await sendNotification(
+    thesis.studentId,
+    "Дипломната работа е изпратена за рецензия",
+    `"${thesis.title}" е изпратена за рецензия`,
+    "info", id
+  );
+
+  res.json(await formatThesis(updated));
+});
+
+10. В artifacts/api-server/src/index.ts регистрирай новия router:
+    import committeesRouter from "./routes/committees";
+    app.use("/api/committees", committeesRouter);
+
+11. Добави в artifacts/api-server/src/index.ts serving на reviews uploads:
+    app.use("/uploads/reviews", express.static(path.join(process.cwd(), "uploads/reviews")));
+
+=== ЧАСТ 3: FRONTEND ===
+
+12. В artifacts/thesis-mgmt/src/pages/register.tsx добави "department_head"
+    като опция в Select за роля:
+    <SelectItem value="department_head">Ръководител катедра</SelectItem>
+
+13. Създай нова страница artifacts/thesis-mgmt/src/pages/committees.tsx:
+
+import { useState } from "react";
+import { useAuth } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus, Trash2, UserPlus, Users } from "lucide-react";
+
+const ROMAN_NUMERALS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+
+export default function Committees() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const isDeptHead = user?.role === "department_head" || user?.role === "admin";
+
+  const [newRoman, setNewRoman] = useState("");
+  const [newDesc, setNewDesc] = useState("");
+  const [selectedMember, setSelectedMember] = useState<Record<number, string>>({});
+  const [assignStudent, setAssignStudent] = useState<Record<number, string>>({});
+
+  const token = localStorage.getItem("thesis_token");
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+  const { data: committees, isLoading } = useQuery({
+    queryKey: ["committees"],
+    queryFn: async () => {
+      const res = await fetch("/api/committees", { headers });
+      return res.json();
+    },
+  });
+
+  const { data: users } = useQuery({
+    queryKey: ["all-users"],
+    queryFn: async () => {
+      const res = await fetch("/api/users", { headers });
+      return res.json();
+    },
+    enabled: isDeptHead,
+  });
+
+  const { data: students } = useQuery({
+    queryKey: ["students-list"],
+    queryFn: async () => {
+      const res = await fetch("/api/users?role=student", { headers });
+      return res.json();
+    },
+    enabled: isDeptHead,
+  });
+
+  const { data: myCommittee } = useQuery({
+    queryKey: ["my-committee"],
+    queryFn: async () => {
+      const res = await fetch("/api/committees/my-committee", { headers });
+      return res.json();
+    },
+    enabled: user?.role === "student",
+  });
+
+  const createCommittee = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/committees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ romanNumeral: newRoman, description: newDesc }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      return json;
+    },
+    onSuccess: () => { toast({ title: "Комисията е създадена" }); queryClient.invalidateQueries({ queryKey: ["committees"] }); setNewRoman(""); setNewDesc(""); },
+    onError: (e: Error) => toast({ title: "Грешка", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteCommittee = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/committees/${id}`, { method: "DELETE", headers });
+      if (!res.ok) throw new Error("Грешка при изтриване");
+    },
+    onSuccess: () => { toast({ title: "Комисията е изтрита" }); queryClient.invalidateQueries({ queryKey: ["committees"] }); },
+    onError: (e: Error) => toast({ title: "Грешка", description: e.message, variant: "destructive" }),
+  });
+
+  const addMember = useMutation({
+    mutationFn: async ({ committeeId, userId }: { committeeId: number; userId: number }) => {
+      const res = await fetch(`/api/committees/${committeeId}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ userId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      return json;
+    },
+    onSuccess: () => { toast({ title: "Членът е добавен" }); queryClient.invalidateQueries({ queryKey: ["committees"] }); },
+    onError: (e: Error) => toast({ title: "Грешка", description: e.message, variant: "destructive" }),
+  });
+
+  const removeMember = useMutation({
+    mutationFn: async ({ committeeId, userId }: { committeeId: number; userId: number }) => {
+      const res = await fetch(`/api/committees/${committeeId}/members/${userId}`, { method: "DELETE", headers });
+      if (!res.ok) throw new Error("Грешка");
+    },
+    onSuccess: () => { toast({ title: "Членът е премахнат" }); queryClient.invalidateQueries({ queryKey: ["committees"] }); },
+  });
+
+  const assignStudentToCommittee = useMutation({
+    mutationFn: async ({ studentId, committeeId }: { studentId: number; committeeId: number }) => {
+      const res = await fetch("/api/committees/assign-student", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({ studentId, committeeId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      return json;
+    },
+    onSuccess: () => { toast({ title: "Студентът е назначен към комисията" }); queryClient.invalidateQueries({ queryKey: ["committees"] }); },
+    onError: (e: Error) => toast({ title: "Грешка", description: e.message, variant: "destructive" }),
+  });
+
+  if (isLoading) return <div className="p-8 text-center text-slate-500">Зареждане...</div>;
+
+  // STUDENT VIEW
+  if (user?.role === "student") {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-[#0a192f]">Моята комисия</h1>
+        {!myCommittee ? (
+          <Card><CardContent className="py-8 text-center text-slate-400">Все още не сте назначени към комисия</CardContent></Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Комисия {myCommittee.romanNumeral}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {myCommittee.members?.map((m: any) => (
+                <div key={m.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                  <div className="w-8 h-8 rounded-full bg-[#0a192f] flex items-center justify-center text-white text-xs font-bold">
+                    {m.firstName?.[0]}{m.lastName?.[0]}
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">{m.firstName} {m.lastName}</p>
+                    <p className="text-xs text-slate-400">{m.email}</p>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  }
+
+  // DEPARTMENT HEAD / ADMIN VIEW
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-[#0a192f]">Управление на комисии</h1>
+          <p className="text-slate-500 text-sm mt-1">Създавайте и управлявайте комисии</p>
+        </div>
+        {isDeptHead && (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="bg-[#0a192f] text-white"><Plus className="h-4 w-4 mr-2" />Нова комисия</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Създай комисия</DialogTitle></DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label>Римска цифра</Label>
+                  <Select value={newRoman} onValueChange={setNewRoman}>
+                    <SelectTrigger><SelectValue placeholder="Изберете..." /></SelectTrigger>
+                    <SelectContent>
+                      {ROMAN_NUMERALS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Описание (по избор)</Label>
+                  <Input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Описание..." />
+                </div>
+                <Button className="w-full bg-[#0a192f] text-white" disabled={!newRoman || createCommittee.isPending}
+                  onClick={() => createCommittee.mutate()}>
+                  {createCommittee.isPending ? "Създаване..." : "Създай"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+
+      {/* Assign student to committee */}
+      {isDeptHead && (
+        <Card>
+          <CardHeader><CardTitle>Назначи студент към комисия</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Студент</Label>
+                <Select onValueChange={v => setAssignStudent(prev => ({ ...prev, student: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Изберете студент" /></SelectTrigger>
+                  <SelectContent>
+                    {students?.map((s: any) => (
+                      <SelectItem key={s.id} value={String(s.id)}>{s.firstName} {s.lastName}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Комисия</Label>
+                <Select onValueChange={v => setAssignStudent(prev => ({ ...prev, committee: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Изберете комисия" /></SelectTrigger>
+                  <SelectContent>
+                    {committees?.map((c: any) => (
+                      <SelectItem key={c.id} value={String(c.id)}>Комисия {c.romanNumeral}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Button className="bg-[#0a192f] text-white"
+              disabled={!assignStudent.student || !assignStudent.committee || assignStudentToCommittee.isPending}
+              onClick={() => assignStudentToCommittee.mutate({
+                studentId: Number(assignStudent.student),
+                committeeId: Number(assignStudent.committee)
+              })}>
+              Назначи
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Committees list */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {committees?.map((c: any) => (
+          <Card key={c.id}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Комисия {c.romanNumeral}</CardTitle>
+                {isDeptHead && (
+                  <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-600"
+                    onClick={() => deleteCommittee.mutate(c.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              <Badge variant="outline" className="w-fit">{c.members?.length ?? 0} членa</Badge>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {c.members?.map((m: any) => (
+                <div key={m.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium">{m.firstName} {m.lastName}</p>
+                    <p className="text-xs text-slate-400">{m.role}</p>
+                  </div>
+                  {isDeptHead && (
+                    <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-600 h-7 w-7"
+                      onClick={() => removeMember.mutate({ committeeId: c.id, userId: m.id })}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+
+              {isDeptHead && (
+                <div className="flex gap-2 pt-2">
+                  <Select onValueChange={v => setSelectedMember(prev => ({ ...prev, [c.id]: v }))}>
+                    <SelectTrigger className="flex-1 h-8 text-xs">
+                      <SelectValue placeholder="Добави член..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users?.filter((u: any) => ["supervisor", "reviewer", "committee_member", "department_head"].includes(u.role))
+                        .map((u: any) => (
+                          <SelectItem key={u.id} value={String(u.id)}>
+                            {u.firstName} {u.lastName}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <Button size="sm" className="h-8 bg-[#0a192f] text-white px-2"
+                    disabled={!selectedMember[c.id] || addMember.isPending}
+                    onClick={() => addMember.mutate({ committeeId: c.id, userId: Number(selectedMember[c.id]) })}>
+                    <UserPlus className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+14. В artifacts/thesis-mgmt/src/pages/theses/detail.tsx намери бутона
+    за одобрение от supervisor (button-approve) и след успешното одобрение
+    покажи автоматично диалог за избор на рецензент:
+
+    Добави нов state: const [reviewerDialogOpen, setReviewerDialogOpen] = useState(false);
+    Добави нов state: const [selectedReviewerForThesis, setSelectedReviewerForThesis] = useState("");
+
+    Замени onClick на approve бутона с:
+    onClick={() => thesisAction("approve")
+      .then(() => { toast({ title: "Дипломната работа е одобрена" }); setReviewerDialogOpen(true); })
+      .catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}
+
+    Добави диалог за избор на рецензент след approve бутона:
+
+    <Dialog open={reviewerDialogOpen} onOpenChange={setReviewerDialogOpen}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Изберете рецензент</DialogTitle></DialogHeader>
+        <div className="space-y-4 pt-2">
+          <p className="text-sm text-slate-500">Дипломната работа е одобрена. Изберете рецензент за да я изпратите за рецензия.</p>
+          <Select value={selectedReviewerForThesis} onValueChange={setSelectedReviewerForThesis}>
+            <SelectTrigger><SelectValue placeholder="Изберете рецензент" /></SelectTrigger>
+            <SelectContent>
+              {reviewers.map(u => (
+                <SelectItem key={u.id} value={String(u.id)}>{u.firstName} {u.lastName}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button className="w-full bg-[#0a192f] text-white"
+            disabled={!selectedReviewerForThesis || actionPending === "select-reviewer"}
+            onClick={() => thesisAction("select-reviewer", { reviewerId: Number(selectedReviewerForThesis) })
+              .then(() => { toast({ title: "Рецензентът е избран и работата е изпратена" }); setReviewerDialogOpen(false); setSelectedReviewerForThesis(""); })
+              .catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}>
+            {actionPending === "select-reviewer" ? "Изпращане..." : "Потвърди и изпрати за рецензия"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+15. Добави страниците в router-а и навигацията:
+    - /committees → видима за department_head, admin и student
+    - Навигационен линк "Комисии" за department_head и admin
+    - Навигационен линк "Моята комисия" за student
+
+16. Рестартирай сървъра след всички промени.

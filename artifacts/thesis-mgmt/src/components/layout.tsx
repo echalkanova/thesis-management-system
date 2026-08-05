@@ -3,7 +3,7 @@ import { useAuth } from "@/lib/auth";
 import {
   BookOpen, Calendar, LayoutDashboard, Users, FileText,
   BarChart2, LogOut, Bell, UserCircle, GraduationCap,
-  ChevronRight, Shield, UserCheck, Inbox, MessageSquare
+  ChevronRight, Shield, UserCheck, Inbox, MessageSquare, UsersRound
 } from "lucide-react";
 import { formatRole } from "@/lib/utils";
 import { useListNotifications, getListNotificationsQueryKey } from "@workspace/api-client-react";
@@ -19,6 +19,8 @@ const NAV_LINKS = [
   { href: "/supervisor-requests", label: "Запитвания", icon: Inbox, roles: ["supervisor", "admin"] },
   { href: "/reports", label: "Справки", icon: BarChart2, roles: ["admin", "supervisor"] },
   { href: "/users", label: "Потребители", icon: Users, roles: ["admin"] },
+  { href: "/committees", label: "Комисии", icon: UsersRound, roles: ["department_head", "admin"] },
+  { href: "/committees", label: "Моята комисия", icon: UsersRound, roles: ["student"] },
   { href: "/audit-log", label: "Одит лог", icon: Shield, roles: ["admin"] },
 ];
 

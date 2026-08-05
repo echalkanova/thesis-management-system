@@ -1,4 +1,5 @@
 export * from "./users";
+export * from "./committees";
 export * from "./theses";
 export * from "./thesisFiles";
 export * from "./reviews";

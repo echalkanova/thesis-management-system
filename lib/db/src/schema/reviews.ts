@@ -9,6 +9,7 @@ export const reviewsTable = pgTable("reviews", {
   thesisId: integer("thesis_id").notNull().references(() => thesesTable.id, { onDelete: "cascade" }),
   reviewerId: integer("reviewer_id").notNull().references(() => usersTable.id),
   content: text("content").notNull(),
+  fileUrl: text("file_url"),
   recommendation: text("recommendation").notNull(),
   isPublished: boolean("is_published").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

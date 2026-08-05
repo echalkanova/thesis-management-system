@@ -319,6 +319,48 @@ router.patch("/:id/status", requireAuth, async (req: AuthRequest, res) => {
   res.json(await formatThesis(updated));
 });
 
+// Select reviewer after supervisor approval (supervisor only)
+router.post("/:id/select-reviewer", requireAuth, async (req: AuthRequest, res) => {
+  if (req.userRole !== "supervisor") {
+    res.status(403).json({ error: "Only supervisors can select reviewer" });
+    return;
+  }
+  const id = Number(req.params.id);
+  const [thesis] = await db.select().from(thesesTable).where(eq(thesesTable.id, id)).limit(1);
+  if (!thesis) { res.status(404).json({ error: "Thesis not found" }); return; }
+  if (thesis.supervisorId !== req.userId) {
+    res.status(403).json({ error: "You are not the supervisor of this thesis" }); return;
+  }
+  if (thesis.status !== "approved_by_supervisor") {
+    res.status(400).json({ error: "Thesis must be approved first" }); return;
+  }
+  const { reviewerId } = req.body;
+  if (!reviewerId) { res.status(400).json({ error: "reviewerId is required" }); return; }
+
+  const [updated] = await db.update(thesesTable)
+    .set({
+      reviewerId,
+      status: "under_review",
+      reviewerSelectedAt: new Date(),
+    })
+    .where(eq(thesesTable.id, id)).returning();
+
+  await sendNotification(
+    reviewerId,
+    "Назначени сте за рецензент",
+    `Назначени сте за рецензент на "${thesis.title}"`,
+    "info", id
+  );
+  await sendNotification(
+    thesis.studentId,
+    "Дипломната работа е изпратена за рецензия",
+    `"${thesis.title}" е изпратена за рецензия`,
+    "info", id
+  );
+
+  res.json(await formatThesis(updated));
+});
+
 router.post("/:id/assign", requireAuth, async (req: AuthRequest, res) => {
   const id = Number(req.params.id);
   if (!["admin", "supervisor"].includes(req.userRole ?? "")) {

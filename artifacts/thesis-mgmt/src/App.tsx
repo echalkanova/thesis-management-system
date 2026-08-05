@@ -23,6 +23,7 @@ import AuditLog from "@/pages/audit-log";
 import Supervisors from "@/pages/supervisors";
 import SupervisorRequests from "@/pages/supervisor-requests";
 import Messages from "@/pages/messages";
+import Committees from "@/pages/committees";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -78,6 +79,7 @@ function Router() {
       <Route path="/supervisor-requests" component={withLayout(SupervisorRequests, ["supervisor", "admin"])} />
       <Route path="/messages/:userId" component={withLayout(Messages)} />
       <Route path="/messages" component={withLayout(Messages)} />
+      <Route path="/committees" component={withLayout(Committees, ["department_head", "admin", "student"])} />
 
       <Route>
         <Layout>

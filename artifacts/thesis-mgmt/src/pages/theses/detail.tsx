@@ -64,6 +64,8 @@ export default function ThesisDetail() {
   const [statusToSet, setStatusToSet] = useState("");
   const [returnComment, setReturnComment] = useState("");
   const [actionPending, setActionPending] = useState<string | null>(null);
+  const [reviewerDialogOpen, setReviewerDialogOpen] = useState(false);
+  const [selectedReviewerForThesis, setSelectedReviewerForThesis] = useState("");
 
   const thesisAction = async (action: string, body?: Record<string, unknown>) => {
     setActionPending(action);
@@ -309,10 +311,37 @@ export default function ThesisDetail() {
               {/* SUPERVISOR: Approve */}
               {isSupervisor && thesis.supervisorId === user?.id && ["submitted", "pending_supervisor_approval", "returned_for_revision"].includes(thesis.status) && (
                 <Button className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={actionPending === "approve"} data-testid="button-approve"
-                  onClick={() => thesisAction("approve").then(() => toast({ title: "Дипломната работа е одобрена" })).catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}>
+                  onClick={() => thesisAction("approve")
+                    .then(() => { toast({ title: "Дипломната работа е одобрена" }); setReviewerDialogOpen(true); })
+                    .catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}>
                   {actionPending === "approve" ? "Одобряване..." : "✓ Одобри"}
                 </Button>
               )}
+
+              {/* SUPERVISOR: Select reviewer dialog (after approve) */}
+              <Dialog open={reviewerDialogOpen} onOpenChange={setReviewerDialogOpen}>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Изберете рецензент</DialogTitle></DialogHeader>
+                  <div className="space-y-4 pt-2">
+                    <p className="text-sm text-slate-500">Дипломната работа е одобрена. Изберете рецензент за да я изпратите за рецензия.</p>
+                    <Select value={selectedReviewerForThesis} onValueChange={setSelectedReviewerForThesis}>
+                      <SelectTrigger><SelectValue placeholder="Изберете рецензент" /></SelectTrigger>
+                      <SelectContent>
+                        {reviewers.map(u => (
+                          <SelectItem key={u.id} value={String(u.id)}>{u.firstName} {u.lastName}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button className="w-full bg-[#0a192f] text-white"
+                      disabled={!selectedReviewerForThesis || actionPending === "select-reviewer"}
+                      onClick={() => thesisAction("select-reviewer", { reviewerId: Number(selectedReviewerForThesis) })
+                        .then(() => { toast({ title: "Рецензентът е избран и работата е изпратена" }); setReviewerDialogOpen(false); setSelectedReviewerForThesis(""); })
+                        .catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}>
+                      {actionPending === "select-reviewer" ? "Изпращане..." : "Потвърди и изпрати за рецензия"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
 
               {/* SUPERVISOR: Return for revision */}
               {isSupervisor && thesis.supervisorId === user?.id && ["submitted", "pending_supervisor_approval", "under_review"].includes(thesis.status) && (

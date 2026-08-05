@@ -112,6 +112,7 @@ export default function Register() {
                   <SelectItem value="supervisor">Научен ръководител</SelectItem>
                   <SelectItem value="reviewer">Рецензент</SelectItem>
                   <SelectItem value="committee_member">Член на комисия</SelectItem>
+                  <SelectItem value="department_head">Ръководител катедра</SelectItem>
                   <SelectItem value="admin">Администратор</SelectItem>
                 </SelectContent>
               </Select>
