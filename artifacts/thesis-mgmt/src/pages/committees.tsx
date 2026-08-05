@@ -8,21 +8,30 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, UserPlus, Crown, Users } from "lucide-react";
-
-const ROMAN_NUMERALS = ["I","II","III","IV","V","VI","VII","VIII","IX","X"];
+import { Plus, Trash2, UserPlus, Crown, Users, CheckCircle2 } from "lucide-react";
+import { formatRole } from "@/lib/utils";
 
 export default function Committees() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const isDeptHead = ["department_head","admin"].includes(user?.role ?? "");
+  const isDeptHead = ["department_head", "admin"].includes(user?.role ?? "");
 
-  const [newRoman, setNewRoman] = useState("");
-  const [newDesc, setNewDesc] = useState("");
-  const [selectedMember, setSelectedMember] = useState<Record<number,string>>({});
-  const [isChairman, setIsChairman] = useState<Record<number,boolean>>({});
+  // Create committee
+  const [newName, setNewName] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+
+  // Add members dialog
+  const [addMembersCommitteeId, setAddMembersCommitteeId] = useState<number | null>(null);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<Set<number>>(new Set());
+
+  // Chairman dialog
+  const [chairmanCommitteeId, setChairmanCommitteeId] = useState<number | null>(null);
+  const [chairmanUserId, setChairmanUserId] = useState<number | null>(null);
+
+  // Assign student
   const [assignStudentId, setAssignStudentId] = useState("");
   const [assignCommitteeId, setAssignCommitteeId] = useState("");
 
@@ -51,7 +60,7 @@ export default function Committees() {
     queryFn: async () => {
       const res = await fetch("/api/users", { headers: authHeaders });
       const all = await res.json();
-      return all.filter((u: any) => ["supervisor","reviewer","department_head"].includes(u.role));
+      return all.filter((u: any) => ["supervisor", "reviewer", "department_head"].includes(u.role));
     },
     enabled: isDeptHead,
   });
@@ -70,13 +79,18 @@ export default function Committees() {
       const res = await fetch("/api/committees", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders },
-        body: JSON.stringify({ romanNumeral: newRoman, description: newDesc }),
+        body: JSON.stringify({ romanNumeral: newName }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       return json;
     },
-    onSuccess: () => { toast({ title: "Комисията е създадена" }); queryClient.invalidateQueries({ queryKey: ["committees"] }); setNewRoman(""); setNewDesc(""); },
+    onSuccess: () => {
+      toast({ title: "Комисията е създадена" });
+      queryClient.invalidateQueries({ queryKey: ["committees"] });
+      setNewName("");
+      setCreateOpen(false);
+    },
     onError: (e: Error) => toast({ title: "Грешка", description: e.message, variant: "destructive" }),
   });
 
@@ -98,7 +112,6 @@ export default function Committees() {
       if (!res.ok) throw new Error(json.error);
       return json;
     },
-    onSuccess: () => { toast({ title: "Членът е добавен" }); queryClient.invalidateQueries({ queryKey: ["committees"] }); },
     onError: (e: Error) => toast({ title: "Грешка", description: e.message, variant: "destructive" }),
   });
 
@@ -124,6 +137,31 @@ export default function Committees() {
     onError: (e: Error) => toast({ title: "Грешка", description: e.message, variant: "destructive" }),
   });
 
+  // Add multiple members sequentially
+  async function handleAddSelectedMembers() {
+    if (!addMembersCommitteeId || selectedMemberIds.size === 0) return;
+    let successCount = 0;
+    for (const uid of selectedMemberIds) {
+      try {
+        await addMember.mutateAsync({ committeeId: addMembersCommitteeId, userId: uid, chairman: false });
+        successCount++;
+      } catch { /* individual errors shown by mutation */ }
+    }
+    queryClient.invalidateQueries({ queryKey: ["committees"] });
+    toast({ title: `${successCount} член${successCount === 1 ? "" : "а"} добавен${successCount === 1 ? "" : "и"}` });
+    setSelectedMemberIds(new Set());
+    setAddMembersCommitteeId(null);
+  }
+
+  async function handleSetChairman() {
+    if (!chairmanCommitteeId || !chairmanUserId) return;
+    await addMember.mutateAsync({ committeeId: chairmanCommitteeId, userId: chairmanUserId, chairman: true });
+    queryClient.invalidateQueries({ queryKey: ["committees"] });
+    toast({ title: "Председателят е зададен" });
+    setChairmanUserId(null);
+    setChairmanCommitteeId(null);
+  }
+
   if (isLoading) return <div className="p-8 text-center text-slate-500">Зареждане...</div>;
 
   // STUDENT VIEW
@@ -137,7 +175,7 @@ export default function Committees() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" /> Комисия {myCommittee.romanNumeral}
+                <Users className="h-5 w-5" /> {myCommittee.romanNumeral}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -169,6 +207,17 @@ export default function Committees() {
     );
   }
 
+  // Get committee by ID helper
+  const getCommittee = (id: number | null) => committees?.find((c: any) => c.id === id);
+
+  // Teachers not yet in a given committee
+  const availableTeachers = (committeeId: number | null) => {
+    if (!committeeId || !teachers) return teachers ?? [];
+    const committee = getCommittee(committeeId);
+    const memberIds = new Set((committee?.members ?? []).map((m: any) => m.id));
+    return teachers.filter((t: any) => !memberIds.has(t.id));
+  };
+
   // DEPARTMENT HEAD / ADMIN VIEW
   return (
     <div className="space-y-6">
@@ -177,7 +226,9 @@ export default function Committees() {
           <h1 className="text-2xl font-bold text-[#0a192f]">Управление на комисии</h1>
           <p className="text-slate-500 text-sm">Създавайте и управлявайте изпитни комисии</p>
         </div>
-        <Dialog>
+
+        {/* Create committee dialog */}
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <Button className="bg-[#0a192f] text-white"><Plus className="h-4 w-4 mr-2" />Нова комисия</Button>
           </DialogTrigger>
@@ -185,21 +236,19 @@ export default function Committees() {
             <DialogHeader><DialogTitle>Създай комисия</DialogTitle></DialogHeader>
             <div className="space-y-4 pt-2">
               <div className="space-y-2">
-                <Label>Римска цифра</Label>
-                <Select value={newRoman} onValueChange={setNewRoman}>
-                  <SelectTrigger><SelectValue placeholder="Изберете..." /></SelectTrigger>
-                  <SelectContent>
-                    {ROMAN_NUMERALS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label>Име на комисия</Label>
+                <Input
+                  value={newName}
+                  onChange={e => setNewName(e.target.value)}
+                  placeholder="Въведете наименование..."
+                  onKeyDown={e => { if (e.key === "Enter" && newName.trim()) createCommittee.mutate(); }}
+                />
               </div>
-              <div className="space-y-2">
-                <Label>Описание (по избор)</Label>
-                <Input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Описание..." />
-              </div>
-              <Button className="w-full bg-[#0a192f] text-white"
-                disabled={!newRoman || createCommittee.isPending}
-                onClick={() => createCommittee.mutate()}>
+              <Button
+                className="w-full bg-[#0a192f] text-white"
+                disabled={!newName.trim() || createCommittee.isPending}
+                onClick={() => createCommittee.mutate()}
+              >
                 {createCommittee.isPending ? "Създаване..." : "Създай"}
               </Button>
             </div>
@@ -229,19 +278,136 @@ export default function Committees() {
                 <SelectTrigger><SelectValue placeholder="Изберете комисия" /></SelectTrigger>
                 <SelectContent>
                   {committees?.map((c: any) => (
-                    <SelectItem key={c.id} value={String(c.id)}>Комисия {c.romanNumeral}</SelectItem>
+                    <SelectItem key={c.id} value={String(c.id)}>{c.romanNumeral}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <Button className="bg-[#0a192f] text-white"
+            <Button
+              className="bg-[#0a192f] text-white"
               disabled={!assignStudentId || !assignCommitteeId || assignToCommittee.isPending}
-              onClick={() => assignToCommittee.mutate()}>
+              onClick={() => assignToCommittee.mutate()}
+            >
               Назначи
             </Button>
           </div>
         </CardContent>
       </Card>
+
+      {/* Add members dialog (multi-select) */}
+      <Dialog
+        open={addMembersCommitteeId !== null}
+        onOpenChange={open => { if (!open) { setAddMembersCommitteeId(null); setSelectedMemberIds(new Set()); } }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Добави членове — {getCommittee(addMembersCommitteeId)?.romanNumeral}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+            {availableTeachers(addMembersCommitteeId).length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-4">Няма налични преподаватели за добавяне</p>
+            ) : (
+              availableTeachers(addMembersCommitteeId).map((t: any) => (
+                <label
+                  key={t.id}
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    selectedMemberIds.has(t.id) ? "bg-indigo-50 border-indigo-300" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  <Checkbox
+                    checked={selectedMemberIds.has(t.id)}
+                    onCheckedChange={checked => {
+                      setSelectedMemberIds(prev => {
+                        const next = new Set(prev);
+                        checked ? next.add(t.id) : next.delete(t.id);
+                        return next;
+                      });
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-800">{t.firstName} {t.lastName}</p>
+                    <p className="text-xs text-slate-400">{formatRole(t.role)}</p>
+                  </div>
+                  {selectedMemberIds.has(t.id) && <CheckCircle2 className="h-4 w-4 text-indigo-500 flex-shrink-0" />}
+                </label>
+              ))
+            )}
+          </div>
+          <div className="flex gap-2 pt-2 border-t">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => { setAddMembersCommitteeId(null); setSelectedMemberIds(new Set()); }}
+            >
+              Отказ
+            </Button>
+            <Button
+              className="flex-1 bg-[#0a192f] text-white"
+              disabled={selectedMemberIds.size === 0 || addMember.isPending}
+              onClick={handleAddSelectedMembers}
+            >
+              <UserPlus className="h-4 w-4 mr-1.5" />
+              Добави ({selectedMemberIds.size})
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Chairman dialog (single select from all teachers) */}
+      <Dialog
+        open={chairmanCommitteeId !== null}
+        onOpenChange={open => { if (!open) { setChairmanCommitteeId(null); setChairmanUserId(null); } }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Избери председател — {getCommittee(chairmanCommitteeId)?.romanNumeral}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+            {(teachers ?? []).length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-4">Няма налични преподаватели</p>
+            ) : (
+              (teachers ?? []).map((t: any) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setChairmanUserId(t.id)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${
+                    chairmanUserId === t.id
+                      ? "bg-amber-50 border-amber-300"
+                      : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  <div className="w-8 h-8 rounded-full bg-[#0a192f] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                    {t.firstName[0]}{t.lastName[0]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-800">{t.firstName} {t.lastName}</p>
+                    <p className="text-xs text-slate-400">{formatRole(t.role)}</p>
+                  </div>
+                  {chairmanUserId === t.id && <Crown className="h-4 w-4 text-amber-500 flex-shrink-0" />}
+                </button>
+              ))
+            )}
+          </div>
+          <div className="flex gap-2 pt-2 border-t">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => { setChairmanCommitteeId(null); setChairmanUserId(null); }}
+            >
+              Отказ
+            </Button>
+            <Button
+              className="flex-1 bg-amber-600 hover:bg-amber-700 text-white"
+              disabled={!chairmanUserId || addMember.isPending}
+              onClick={handleSetChairman}
+            >
+              <Crown className="h-4 w-4 mr-1.5" />
+              Задай като председател
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Committees grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -249,7 +415,7 @@ export default function Committees() {
           <Card key={c.id} className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle>Комисия {c.romanNumeral}</CardTitle>
+                <CardTitle className="text-base">{c.romanNumeral}</CardTitle>
                 <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-600"
                   onClick={() => deleteCommittee.mutate(c.id)}>
                   <Trash2 className="h-4 w-4" />
@@ -261,10 +427,10 @@ export default function Committees() {
               {c.members?.map((m: any) => (
                 <div key={m.id} className={`flex items-center justify-between p-2 rounded-lg ${m.isChairman ? "bg-amber-50 border border-amber-200" : "bg-slate-50"}`}>
                   <div className="flex items-center gap-2">
-                    {m.isChairman && <Crown className="h-3 w-3 text-amber-600" />}
+                    {m.isChairman && <Crown className="h-3 w-3 text-amber-600 flex-shrink-0" />}
                     <div>
                       <p className="text-sm font-medium">{m.firstName} {m.lastName}</p>
-                      <p className="text-xs text-slate-400">{m.isChairman ? "Председател" : m.role}</p>
+                      <p className="text-xs text-slate-400">{m.isChairman ? "Председател" : formatRole(m.role)}</p>
                     </div>
                   </div>
                   <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-600 h-7 w-7"
@@ -274,29 +440,22 @@ export default function Committees() {
                 </div>
               ))}
 
-              <div className="pt-2 space-y-2 border-t">
-                <Select onValueChange={v => setSelectedMember(prev => ({ ...prev, [c.id]: v }))}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Добави член..." /></SelectTrigger>
-                  <SelectContent>
-                    {teachers?.map((u: any) => (
-                      <SelectItem key={u.id} value={String(u.id)}>
-                        {u.firstName} {u.lastName} ({u.role})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="flex gap-2">
-                  <Button size="sm" className="flex-1 h-8 bg-[#0a192f] text-white text-xs"
-                    disabled={!selectedMember[c.id] || addMember.isPending}
-                    onClick={() => addMember.mutate({ committeeId: c.id, userId: Number(selectedMember[c.id]), chairman: false })}>
-                    <UserPlus className="h-3 w-3 mr-1" /> Добави член
-                  </Button>
-                  <Button size="sm" variant="outline" className="flex-1 h-8 text-xs border-amber-300 text-amber-700"
-                    disabled={!selectedMember[c.id] || addMember.isPending}
-                    onClick={() => addMember.mutate({ committeeId: c.id, userId: Number(selectedMember[c.id]), chairman: true })}>
-                    <Crown className="h-3 w-3 mr-1" /> Председател
-                  </Button>
-                </div>
+              <div className="pt-2 flex gap-2 border-t">
+                <Button
+                  size="sm"
+                  className="flex-1 h-8 bg-[#0a192f] text-white text-xs"
+                  onClick={() => { setAddMembersCommitteeId(c.id); setSelectedMemberIds(new Set()); }}
+                >
+                  <UserPlus className="h-3 w-3 mr-1" /> Добави член
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 h-8 text-xs border-amber-300 text-amber-700 hover:bg-amber-50"
+                  onClick={() => { setChairmanCommitteeId(c.id); setChairmanUserId(null); }}
+                >
+                  <Crown className="h-3 w-3 mr-1" /> Председател
+                </Button>
               </div>
             </CardContent>
           </Card>
