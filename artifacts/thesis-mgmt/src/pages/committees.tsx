@@ -143,6 +143,56 @@ export default function Committees() {
 
   if (isLoading) return <div className="p-8 text-center text-slate-500">Зареждане...</div>;
 
+  // SUPERVISOR READ-ONLY VIEW
+  if (user?.role === "supervisor") {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Комисии</h1>
+          <p className="text-sm text-slate-400 mt-1">Преглед на всички изпитни комисии</p>
+        </div>
+        {!committees || committees.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-slate-400">
+              Няма създадени комисии
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {committees.map((c: any) => (
+              <Card key={c.id}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Users className="h-5 w-5 text-slate-500" />
+                    Комисия {c.romanNumeral}
+                  </CardTitle>
+                  {c.description && <p className="text-xs text-slate-400">{c.description}</p>}
+                  <Badge variant="outline" className="w-fit">{c.members?.length ?? 0} членa</Badge>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {c.members?.length === 0 && (
+                    <p className="text-sm text-slate-400 text-center py-3">Няма членове</p>
+                  )}
+                  {c.members?.map((m: any) => (
+                    <div key={m.id} className="flex items-center gap-3 p-2 bg-slate-50 rounded-lg">
+                      <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xs font-bold flex-shrink-0">
+                        {m.firstName?.[0]}{m.lastName?.[0]}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-800 truncate">{m.firstName} {m.lastName}</p>
+                        <p className="text-xs text-slate-400">{m.email}</p>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // STUDENT VIEW
   if (user?.role === "student") {
     return (

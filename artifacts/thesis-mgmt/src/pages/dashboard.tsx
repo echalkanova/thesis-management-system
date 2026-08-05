@@ -12,9 +12,11 @@ import {
   ArrowUpRight, ArrowDownRight, MapPin, CheckCircle2,
   CircleDot, Circle, ChevronRight, Plus, Bell, Star,
   User, GraduationCap, AlertCircle, ClipboardCheck, Hourglass,
+  Users, Inbox,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 const STATUS_BADGE_COLORS: Record<string, string> = {
@@ -458,7 +460,208 @@ function ReviewerDashboard() {
 }
 
 /* ═══════════════════════════════════════════════════
-   ADMIN / SUPERVISOR DASHBOARD
+   SUPERVISOR DASHBOARD
+═══════════════════════════════════════════════════ */
+function SupervisorDashboard() {
+  const { user } = useAuth();
+
+  const { data: myTheses, isLoading } = useListTheses(
+    {} as any,
+    { query: { queryKey: getListThesesQueryKey({} as any) } }
+  );
+
+  const { data: notifications } = useListNotifications(
+    { query: { queryKey: getListNotificationsQueryKey() } }
+  );
+
+  const { data: supervisorRequests } = useQuery({
+    queryKey: ["supervisor-requests-dashboard"],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch("/api/supervisor-requests", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-5 animate-pulse">
+        <div className="h-8 w-56 bg-slate-200 rounded-lg" />
+        <div className="grid grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => <div key={i} className="h-28 bg-slate-200 rounded-2xl" />)}
+        </div>
+      </div>
+    );
+  }
+
+  const theses = myTheses ?? [];
+  const pendingApproval = theses.filter(t => t.status === "pending_supervisor_approval");
+  const active = theses.filter(t => !["defended", "draft"].includes(t.status));
+  const defended = theses.filter(t => t.status === "defended");
+  const pendingRequests = (supervisorRequests ?? []).filter((r: any) => r.status === "pending");
+  const recentNotifs = (notifications ?? []).slice(0, 4);
+
+  const metrics = [
+    { label: "Чакат одобрение", value: pendingApproval.length, icon: AlertCircle, iconBg: "bg-amber-50", iconColor: "text-amber-600" },
+    { label: "Активни дипломни работи", value: active.length, icon: BookOpen, iconBg: "bg-indigo-50", iconColor: "text-indigo-600" },
+    { label: "Запитвания от студенти", value: pendingRequests.length, icon: Inbox, iconBg: "bg-violet-50", iconColor: "text-violet-600" },
+    { label: "Успешно защитени", value: defended.length, icon: GraduationCap, iconBg: "bg-emerald-50", iconColor: "text-emerald-600" },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Табло на ръководителя</h1>
+        <p className="text-sm text-slate-400 mt-0.5">Добре дошли, {user?.firstName}. Ето актуалното състояние на вашите дипломанти.</p>
+      </div>
+
+      {/* Metric cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {metrics.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
+          <div key={label} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+            <div className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center mb-4`}>
+              <Icon size={20} className={iconColor} />
+            </div>
+            <div className="text-3xl font-bold text-slate-800 mb-0.5">{value}</div>
+            <div className="text-xs text-slate-400">{label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Pending approvals */}
+      <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-slate-800">Чакат вашето одобрение</h2>
+          <Link href="/theses" className="text-xs text-indigo-600 font-semibold hover:text-indigo-700">Всички →</Link>
+        </div>
+        {pendingApproval.length === 0 ? (
+          <div className="text-sm text-slate-400 text-center py-6 flex flex-col items-center gap-2">
+            <CheckCircle2 size={28} className="text-slate-300" />Няма дипломни работи, чакащи одобрение
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {pendingApproval.map(thesis => (
+              <Link key={thesis.id} href={`/theses/${thesis.id}`}>
+                <div className="flex items-center justify-between p-3 rounded-xl hover:bg-amber-50 border border-transparent hover:border-amber-100 transition-all cursor-pointer group">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm text-slate-800 truncate group-hover:text-amber-800">{thesis.title}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Студент: {thesis.student?.firstName} {thesis.student?.lastName}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                    <Badge className="text-xs bg-amber-50 text-amber-700 border-amber-200" variant="outline">
+                      Чака одобрение
+                    </Badge>
+                    <ChevronRight size={14} className="text-slate-300 group-hover:text-amber-400" />
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* All supervised theses */}
+      <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-slate-800">Мои дипломанти</h2>
+          <Link href="/theses" className="text-xs text-indigo-600 font-semibold hover:text-indigo-700">Всички →</Link>
+        </div>
+        {theses.length === 0 ? (
+          <div className="text-sm text-slate-400 text-center py-6 flex flex-col items-center gap-2">
+            <Users size={28} className="text-slate-300" />Нямате назначени дипломанти
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {theses.slice(0, 6).map(thesis => (
+              <Link key={thesis.id} href={`/theses/${thesis.id}`}>
+                <div className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer group">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0 text-xs font-bold text-indigo-700">
+                      {thesis.student?.firstName?.[0]}{thesis.student?.lastName?.[0]}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm text-slate-800 truncate group-hover:text-indigo-700">{thesis.title}</p>
+                      <p className="text-xs text-slate-400">{thesis.student?.firstName} {thesis.student?.lastName}</p>
+                    </div>
+                  </div>
+                  <Badge className={`ml-3 flex-shrink-0 text-xs ${getStatusColor(thesis.status)}`} variant="outline">
+                    {formatStatus(thesis.status)}
+                  </Badge>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Pending student requests */}
+      {pendingRequests.length > 0 && (
+        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-slate-800">Нови запитвания от студенти</h2>
+            <Link href="/supervisor-requests" className="text-xs text-indigo-600 font-semibold hover:text-indigo-700">Всички →</Link>
+          </div>
+          <div className="space-y-2">
+            {pendingRequests.slice(0, 4).map((r: any) => (
+              <Link key={r.id} href="/supervisor-requests">
+                <div className="flex items-center justify-between p-3 rounded-xl hover:bg-violet-50 border border-transparent hover:border-violet-100 transition-all cursor-pointer group">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm text-slate-800 truncate">{r.student?.firstName} {r.student?.lastName}</p>
+                    <p className="text-xs text-slate-400 truncate mt-0.5">{r.message ?? "Запитване за ръководство"}</p>
+                  </div>
+                  <Badge className="ml-3 flex-shrink-0 text-xs bg-violet-50 text-violet-700 border-violet-200" variant="outline">
+                    Ново
+                  </Badge>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Notifications */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center">
+              <Bell size={14} className="text-slate-500" />
+            </div>
+            <h2 className="font-semibold text-slate-800">Последни известия</h2>
+          </div>
+          <Link href="/notifications" className="text-xs text-indigo-600 font-semibold hover:text-indigo-700">Всички →</Link>
+        </div>
+        {recentNotifs.length === 0 ? (
+          <div className="text-sm text-slate-400 text-center py-6 flex flex-col items-center gap-2">
+            <Bell size={24} className="text-slate-300" />Няма известия
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {recentNotifs.map(n => (
+              <div key={n.id} className={`flex items-start gap-3 p-3 rounded-xl transition-colors ${n.isRead ? "bg-slate-50" : "bg-indigo-50 border border-indigo-100"}`}>
+                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${n.isRead ? "bg-slate-300" : "bg-indigo-500"}`} />
+                <div className="min-w-0 flex-1">
+                  <div className={`text-sm font-medium ${n.isRead ? "text-slate-600" : "text-slate-800"}`}>{n.title}</div>
+                  <div className="text-xs text-slate-400 mt-0.5 truncate">{n.message}</div>
+                </div>
+                <div className="text-[10px] text-slate-300 flex-shrink-0 mt-0.5">
+                  {new Date(n.createdAt).toLocaleDateString("bg")}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════
+   ADMIN DASHBOARD
 ═══════════════════════════════════════════════════ */
 function AdminDashboard() {
   const { user } = useAuth();
@@ -664,6 +867,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   if (user?.role === "student") return <StudentDashboard />;
   if (user?.role === "reviewer") return <ReviewerDashboard />;
+  if (user?.role === "supervisor") return <SupervisorDashboard />;
   return <AdminDashboard />;
 }
 
