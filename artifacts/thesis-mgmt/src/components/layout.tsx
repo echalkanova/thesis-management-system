@@ -11,11 +11,11 @@ import { useNotificationStream } from "@/hooks/use-notification-stream";
 import { useQuery } from "@tanstack/react-query";
 
 const NAV_LINKS = [
-  { href: "/dashboard", label: "Табло", icon: LayoutDashboard, roles: ["student", "supervisor", "reviewer", "committee_member", "admin"] },
-  { href: "/theses", label: "Дипломни работи", icon: BookOpen, roles: ["student", "supervisor", "reviewer", "committee_member", "admin"] },
-  { href: "/defenses", label: "Защити", icon: Calendar, roles: ["student", "supervisor", "reviewer", "committee_member", "admin"] },
+  { href: "/dashboard", label: "Табло", icon: LayoutDashboard, roles: ["student", "supervisor", "reviewer", "department_head", "admin"] },
+  { href: "/theses", label: "Дипломни работи", icon: BookOpen, roles: ["student", "supervisor", "reviewer", "department_head", "admin"] },
+  { href: "/defenses", label: "Защити", icon: Calendar, roles: ["student", "supervisor", "reviewer", "department_head", "admin"] },
   { href: "/reviews", label: "Рецензии", icon: FileText, roles: ["reviewer", "admin"] },
-  { href: "/supervisors", label: "Ръководители", icon: UserCheck, roles: ["student", "committee_member", "admin"] },
+  { href: "/supervisors", label: "Ръководители", icon: UserCheck, roles: ["student", "admin"] },
   { href: "/supervisor-requests", label: "Запитвания", icon: Inbox, roles: ["supervisor", "admin"] },
   { href: "/reports", label: "Справки", icon: BarChart2, roles: ["admin", "supervisor"] },
   { href: "/users", label: "Потребители", icon: Users, roles: ["admin"] },

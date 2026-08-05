@@ -1,0 +1,487 @@
+Направи следните промени в системата. ВАЖНО: Запази ролята "reviewer". 
+Премахни само ролята "committee_member". Не променяй съществуващата архитектура.
+
+=== БАЗА ДАННИ ===
+
+1. Пусни в базата данни:
+
+-- Добави chairman към committee_members
+ALTER TABLE committee_members ADD COLUMN IF NOT EXISTS is_chairman boolean NOT NULL DEFAULT false;
+
+-- Добави зала и времеви слот към defenses
+ALTER TABLE defenses ADD COLUMN IF NOT EXISTS room text;
+ALTER TABLE defenses ADD COLUMN IF NOT EXISTS start_time text;
+ALTER TABLE defenses ADD COLUMN IF NOT EXISTS end_time text;
+ALTER TABLE defenses ADD COLUMN IF NOT EXISTS committee_id integer REFERENCES committees(id);
+
+-- Таблица за студенти в защита
+CREATE TABLE IF NOT EXISTS defense_students (
+  id serial PRIMARY KEY,
+  defense_id integer NOT NULL REFERENCES defenses(id) ON DELETE CASCADE,
+  student_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+2. В lib/db/src/schema/committees.ts добави is_chairman в committeeMembersTable:
+   isChairman: boolean("is_chairman").notNull().default(false),
+
+3. Създай lib/db/src/schema/defenseStudents.ts:
+
+import { pgTable, serial, integer, timestamp } from "drizzle-orm/pg-core";
+import { defensesTable } from "./defenses";
+import { usersTable } from "./users";
+
+export const defenseStudentsTable = pgTable("defense_students", {
+  id: serial("id").primaryKey(),
+  defenseId: integer("defense_id").notNull().references(() => defensesTable.id, { onDelete: "cascade" }),
+  studentId: integer("student_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+4. В lib/db/src/schema/defenses.ts добави новите колони:
+   room: text("room"),
+   startTime: text("start_time"),
+   endTime: text("end_time"),
+   committeeId: integer("committee_id"),
+
+5. Добави export в lib/db/src/schema/index.ts:
+   export * from "./defenseStudents";
+
+=== BACKEND ===
+
+6. Замени изцяло artifacts/api-server/src/routes/committees.ts с:
+
+import { Router } from "express";
+import { db, committeesTable, committeeMembersTable, studentCommitteesTable, usersTable, thesesTable, notificationsTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
+import { requireAuth, type AuthRequest } from "../middlewares/auth";
+import { pushNotification } from "../sse";
+
+const router = Router();
+
+async function sendNotification(userId: number, title: string, message: string, type: string) {
+  const [row] = await db.insert(notificationsTable)
+    .values({ userId, title, message, type, relatedThesisId: null })
+    .returning();
+  pushNotification(userId, {
+    id: row.id, title, message, type,
+    isRead: false, relatedThesisId: null,
+    createdAt: row.createdAt.toISOString()
+  });
+}
+
+async function formatCommittee(committee: typeof committeesTable.$inferSelect) {
+  const members = await db.select().from(committeeMembersTable)
+    .where(eq(committeeMembersTable.committeeId, committee.id));
+  const memberUsers = await Promise.all(members.map(async (m) => {
+    const [user] = await db.select().from(usersTable)
+      .where(eq(usersTable.id, m.userId)).limit(1);
+    return user ? {
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      isChairman: (m as any).isChairman ?? false,
+    } : null;
+  }));
+  return {
+    id: committee.id,
+    romanNumeral: committee.romanNumeral,
+    description: committee.description ?? null,
+    members: memberUsers.filter(Boolean),
+    chairman: memberUsers.find((m: any) => m?.isChairman) ?? null,
+    createdAt: committee.createdAt.toISOString(),
+  };
+}
+
+// GET all committees
+router.get("/", requireAuth, async (_req, res) => {
+  const committees = await db.select().from(committeesTable);
+  const formatted = await Promise.all(committees.map(formatCommittee));
+  res.json(formatted);
+});
+
+// POST create committee
+router.post("/", requireAuth, async (req: AuthRequest, res) => {
+  if (!["department_head", "admin"].includes(req.userRole ?? "")) {
+    res.status(403).json({ error: "Only department head can manage committees" });
+    return;
+  }
+  const { romanNumeral, description } = req.body;
+  if (!romanNumeral) { res.status(400).json({ error: "Roman numeral is required" }); return; }
+  const [committee] = await db.insert(committeesTable)
+    .values({ romanNumeral, description: description ?? null })
+    .returning();
+  res.status(201).json(await formatCommittee(committee));
+});
+
+// PATCH update committee
+router.patch("/:id", requireAuth, async (req: AuthRequest, res) => {
+  if (!["department_head", "admin"].includes(req.userRole ?? "")) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
+  const id = Number(req.params.id);
+  const { romanNumeral, description } = req.body;
+  const updates: any = {};
+  if (romanNumeral !== undefined) updates.romanNumeral = romanNumeral;
+  if (description !== undefined) updates.description = description;
+  const [updated] = await db.update(committeesTable)
+    .set(updates).where(eq(committeesTable.id, id)).returning();
+  if (!updated) { res.status(404).json({ error: "Committee not found" }); return; }
+  res.json(await formatCommittee(updated));
+});
+
+// DELETE committee
+router.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
+  if (!["department_head", "admin"].includes(req.userRole ?? "")) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
+  await db.delete(committeesTable).where(eq(committeesTable.id, Number(req.params.id)));
+  res.json({ message: "Committee deleted" });
+});
+
+// POST add member to committee
+router.post("/:id/members", requireAuth, async (req: AuthRequest, res) => {
+  if (!["department_head", "admin"].includes(req.userRole ?? "")) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
+  const committeeId = Number(req.params.id);
+  const { userId, isChairman } = req.body;
+  if (!userId) { res.status(400).json({ error: "userId is required" }); return; }
+
+  // Check user is not already in another committee
+  const existing = await db.select().from(committeeMembersTable)
+    .where(eq(committeeMembersTable.userId, userId));
+  if (existing.length > 0) {
+    res.status(400).json({ error: "Този потребител вече е член на друга комисия" });
+    return;
+  }
+
+  // If setting as chairman, remove previous chairman
+  if (isChairman) {
+    await db.update(committeeMembersTable)
+      .set({ isChairman: false } as any)
+      .where(eq(committeeMembersTable.committeeId, committeeId));
+  }
+
+  await db.insert(committeeMembersTable)
+    .values({ committeeId, userId, isChairman: isChairman ?? false } as any)
+    .returning();
+
+  // Get committee info for notification
+  const [committee] = await db.select().from(committeesTable)
+    .where(eq(committeesTable.id, committeeId)).limit(1);
+
+  // Send notification to added member
+  await sendNotification(
+    userId,
+    "Добавени сте към комисия",
+    `Добавени сте като ${isChairman ? "председател" : "член"} на Комисия ${committee?.romanNumeral ?? ""}`,
+    "info"
+  );
+
+  res.status(201).json({ message: "Member added" });
+});
+
+// DELETE remove member from committee
+router.delete("/:id/members/:userId", requireAuth, async (req: AuthRequest, res) => {
+  if (!["department_head", "admin"].includes(req.userRole ?? "")) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
+  const committeeId = Number(req.params.id);
+  const userId = Number(req.params.userId);
+
+  // Get committee info for notification
+  const [committee] = await db.select().from(committeesTable)
+    .where(eq(committeesTable.id, committeeId)).limit(1);
+
+  await db.delete(committeeMembersTable)
+    .where(and(
+      eq(committeeMembersTable.committeeId, committeeId),
+      eq(committeeMembersTable.userId, userId)
+    ));
+
+  // Send notification to removed member
+  await sendNotification(
+    userId,
+    "Премахнати сте от комисия",
+    `Премахнати сте от Комисия ${committee?.romanNumeral ?? ""}`,
+    "warning"
+  );
+
+  res.json({ message: "Member removed" });
+});
+
+// GET available committees for student (excludes supervisor/reviewer conflicts)
+router.get("/available-for-student/:studentId", requireAuth, async (req: AuthRequest, res) => {
+  if (!["department_head", "admin"].includes(req.userRole ?? "")) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
+  const studentId = Number(req.params.studentId);
+  const theses = await db.select().from(thesesTable)
+    .where(eq(thesesTable.studentId, studentId));
+  const thesis = theses[0];
+  const excludedIds: number[] = [];
+  if (thesis?.supervisorId) excludedIds.push(thesis.supervisorId);
+  if (thesis?.reviewerId) excludedIds.push(thesis.reviewerId);
+
+  const allCommittees = await db.select().from(committeesTable);
+  const result = await Promise.all(allCommittees.map(async (c) => {
+    const members = await db.select().from(committeeMembersTable)
+      .where(eq(committeeMembersTable.committeeId, c.id));
+    const memberIds = members.map(m => m.userId);
+    const hasConflict = excludedIds.some(id => memberIds.includes(id));
+    const formatted = await formatCommittee(c);
+    return {
+      ...formatted,
+      disabled: hasConflict,
+      disabledReason: hasConflict ? "Съдържа научния ръководител или рецензента на студента" : null
+    };
+  }));
+  res.json(result);
+});
+
+// POST assign student to committee
+router.post("/assign-student", requireAuth, async (req: AuthRequest, res) => {
+  if (!["department_head", "admin"].includes(req.userRole ?? "")) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
+  const { studentId, committeeId } = req.body;
+  if (!studentId || !committeeId) {
+    res.status(400).json({ error: "studentId and committeeId are required" }); return;
+  }
+
+  // Check conflict
+  const theses = await db.select().from(thesesTable)
+    .where(eq(thesesTable.studentId, studentId));
+  const thesis = theses[0];
+  const excludedIds: number[] = [];
+  if (thesis?.supervisorId) excludedIds.push(thesis.supervisorId);
+  if (thesis?.reviewerId) excludedIds.push(thesis.reviewerId);
+
+  if (excludedIds.length > 0) {
+    const members = await db.select().from(committeeMembersTable)
+      .where(eq(committeeMembersTable.committeeId, committeeId));
+    const memberIds = members.map(m => m.userId);
+    if (excludedIds.some(id => memberIds.includes(id))) {
+      res.status(400).json({ error: "Тази комисия съдържа научния ръководител или рецензента на студента" });
+      return;
+    }
+  }
+
+  const existing = await db.select().from(studentCommitteesTable)
+    .where(eq(studentCommitteesTable.studentId, studentId));
+  if (existing.length > 0) {
+    await db.update(studentCommitteesTable)
+      .set({ committeeId })
+      .where(eq(studentCommitteesTable.studentId, studentId));
+  } else {
+    await db.insert(studentCommitteesTable).values({ studentId, committeeId });
+  }
+  res.json({ message: "Студентът е назначен към комисията" });
+});
+
+// GET student's own committee
+router.get("/my-committee", requireAuth, async (req: AuthRequest, res) => {
+  if (req.userRole !== "student") {
+    res.status(403).json({ error: "Only students" }); return;
+  }
+  const [assignment] = await db.select().from(studentCommitteesTable)
+    .where(eq(studentCommitteesTable.studentId, req.userId!));
+  if (!assignment) { res.json(null); return; }
+  const [committee] = await db.select().from(committeesTable)
+    .where(eq(committeesTable.id, assignment.committeeId)).limit(1);
+  if (!committee) { res.json(null); return; }
+  res.json(await formatCommittee(committee));
+});
+
+export default router;
+
+7. Замени изцяло artifacts/api-server/src/routes/defenses.ts с:
+
+import { Router } from "express";
+import { db, defensesTable, usersTable, notificationsTable, committeesTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { requireAuth, type AuthRequest } from "../middlewares/auth";
+import { pushNotification } from "../sse";
+
+const router = Router();
+
+async function sendNotification(userId: number, title: string, message: string, type: string) {
+  const [row] = await db.insert(notificationsTable)
+    .values({ userId, title, message, type, relatedThesisId: null })
+    .returning();
+  pushNotification(userId, {
+    id: row.id, title, message, type,
+    isRead: false, relatedThesisId: null,
+    createdAt: row.createdAt.toISOString()
+  });
+}
+
+async function formatDefense(defense: typeof defensesTable.$inferSelect) {
+  let committee = null;
+  if ((defense as any).committeeId) {
+    const [c] = await db.select().from(committeesTable)
+      .where(eq(committeesTable.id, (defense as any).committeeId)).limit(1);
+    if (c) committee = { id: c.id, romanNumeral: c.romanNumeral };
+  }
+
+  const studentUsers = await Promise.all(
+    (defense.thesisIds ?? []).map(async (sid: number) => {
+      const [u] = await db.select().from(usersTable).where(eq(usersTable.id, sid)).limit(1);
+      return u ? { id: u.id, firstName: u.firstName, lastName: u.lastName } : null;
+    })
+  );
+
+  return {
+    id: defense.id,
+    title: defense.title,
+    scheduledAt: defense.scheduledAt.toISOString(),
+    location: defense.location ?? null,
+    roomOrLink: defense.roomOrLink ?? null,
+    room: (defense as any).room ?? null,
+    startTime: (defense as any).startTime ?? null,
+    endTime: (defense as any).endTime ?? null,
+    committeeId: (defense as any).committeeId ?? null,
+    committee,
+    thesisIds: defense.thesisIds ?? [],
+    committeeIds: defense.committeeIds ?? [],
+    students: studentUsers.filter(Boolean),
+    notes: defense.notes ?? null,
+    createdAt: defense.createdAt.toISOString(),
+  };
+}
+
+// GET all defenses
+router.get("/", requireAuth, async (_req, res) => {
+  const defenses = await db.select().from(defensesTable);
+  const formatted = await Promise.all(defenses.map(formatDefense));
+  res.json(formatted);
+});
+
+// GET defense for current student
+router.get("/my-defense", requireAuth, async (req: AuthRequest, res) => {
+  if (req.userRole !== "student") {
+    res.status(403).json({ error: "Only students" }); return;
+  }
+  const allDefenses = await db.select().from(defensesTable);
+  const myDefense = allDefenses.find(d =>
+    (d.thesisIds ?? []).includes(req.userId!)
+  );
+  if (!myDefense) { res.json(null); return; }
+  res.json(await formatDefense(myDefense));
+});
+
+// POST create defense (department_head only)
+router.post("/", requireAuth, async (req: AuthRequest, res) => {
+  if (!["department_head", "admin"].includes(req.userRole ?? "")) {
+    res.status(403).json({ error: "Only department head can manage defenses" }); return;
+  }
+  const { title, scheduledAt, location, room, startTime, endTime, committeeId, notes } = req.body;
+  if (!title || !scheduledAt) {
+    res.status(400).json({ error: "Title and scheduledAt are required" }); return;
+  }
+  const [defense] = await db.insert(defensesTable).values({
+    title,
+    scheduledAt: new Date(scheduledAt),
+    location: location ?? null,
+    roomOrLink: room ?? null,
+    room: room ?? null,
+    startTime: startTime ?? null,
+    endTime: endTime ?? null,
+    committeeId: committeeId ?? null,
+    thesisIds: [],
+    committeeIds: committeeId ? [committeeId] : [],
+    notes: notes ?? null,
+  } as any).returning();
+  res.status(201).json(await formatDefense(defense));
+});
+
+// PATCH update defense
+router.patch("/:id", requireAuth, async (req: AuthRequest, res) => {
+  if (!["department_head", "admin"].includes(req.userRole ?? "")) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
+  const id = Number(req.params.id);
+  const { title, scheduledAt, location, room, startTime, endTime, committeeId, notes } = req.body;
+  const updates: any = {};
+  if (title !== undefined) updates.title = title;
+  if (scheduledAt !== undefined) updates.scheduledAt = new Date(scheduledAt);
+  if (location !== undefined) updates.location = location;
+  if (room !== undefined) { updates.room = room; updates.roomOrLink = room; }
+  if (startTime !== undefined) updates.startTime = startTime;
+  if (endTime !== undefined) updates.endTime = endTime;
+  if (committeeId !== undefined) updates.committeeId = committeeId;
+  if (notes !== undefined) updates.notes = notes;
+  const [updated] = await db.update(defensesTable)
+    .set(updates).where(eq(defensesTable.id, id)).returning();
+  if (!updated) { res.status(404).json({ error: "Defense not found" }); return; }
+  res.json(await formatDefense(updated));
+});
+
+// POST add student to defense
+router.post("/:id/add-student", requireAuth, async (req: AuthRequest, res) => {
+  if (!["department_head", "admin"].includes(req.userRole ?? "")) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
+  const id = Number(req.params.id);
+  const { studentId } = req.body;
+  if (!studentId) { res.status(400).json({ error: "studentId is required" }); return; }
+
+  const [defense] = await db.select().from(defensesTable)
+    .where(eq(defensesTable.id, id)).limit(1);
+  if (!defense) { res.status(404).json({ error: "Defense not found" }); return; }
+
+  const currentIds = defense.thesisIds ?? [];
+  if (!currentIds.includes(studentId)) {
+    await db.update(defensesTable)
+      .set({ thesisIds: [...currentIds, studentId] } as any)
+      .where(eq(defensesTable.id, id));
+  }
+
+  // Notify student
+  const formatted = await formatDefense(defense);
+  await sendNotification(
+    studentId,
+    "Насрочена защита",
+    `Добавени сте към защита "${defense.title}" на ${new Date(defense.scheduledAt).toLocaleDateString("bg")}${(defense as any).room ? ` в зала ${(defense as any).room}` : ""}`,
+    "info"
+  );
+
+  res.json({ message: "Student added to defense" });
+});
+
+// POST remove student from defense
+router.post("/:id/remove-student", requireAuth, async (req: AuthRequest, res) => {
+  if (!["department_head", "admin"].includes(req.userRole ?? "")) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
+  const id = Number(req.params.id);
+  const { studentId } = req.body;
+  const [defense] = await db.select().from(defensesTable)
+    .where(eq(defensesTable.id, id)).limit(1);
+  if (!defense) { res.status(404).json({ error: "Defense not found" }); return; }
+  const currentIds = (defense.thesisIds ?? []).filter((sid: number) => sid !== studentId);
+  await db.update(defensesTable)
+    .set({ thesisIds: currentIds } as any)
+    .where(eq(defensesTable.id, id));
+  res.json({ message: "Student removed" });
+});
+
+// DELETE defense
+router.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
+  if (!["department_head", "admin"].includes(req.userRole ?? "")) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
+  await db.delete(defensesTable).where(eq(defensesTable.id, Number(req.params.id)));
+  res.json({ message: "Defense deleted" });
+});
+
+export default router;
+
+8. В artifacts/api-server/src/routes/users.ts премахни
+   "committee_member" от всички места където се споменава като роля.
+   Запази "reviewer" навсякъде.
+
+9. Рестартирай сървъра.

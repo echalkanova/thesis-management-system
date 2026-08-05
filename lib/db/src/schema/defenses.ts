@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -8,6 +8,10 @@ export const defensesTable = pgTable("defenses", {
   scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),
   location: text("location"),
   roomOrLink: text("room_or_link"),
+  room: text("room"),
+  startTime: text("start_time"),
+  endTime: text("end_time"),
+  committeeId: integer("committee_id"),
   thesisIds: integer("thesis_ids").array().notNull().default([]),
   committeeIds: integer("committee_ids").array().notNull().default([]),
   notes: text("notes"),

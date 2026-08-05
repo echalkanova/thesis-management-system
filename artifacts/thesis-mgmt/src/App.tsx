@@ -66,7 +66,7 @@ function Router() {
       <Route path="/theses/new" component={withLayout(NewThesis, ["student"])} />
       <Route path="/theses/:id" component={withLayout(ThesisDetail)} />
       <Route path="/theses" component={withLayout(ThesesList)} />
-      <Route path="/defenses/new" component={withLayout(NewDefense, ["admin", "committee_member"])} />
+      <Route path="/defenses/new" component={withLayout(NewDefense, ["admin", "department_head"])} />
       <Route path="/defenses/:id" component={withLayout(DefenseDetail)} />
       <Route path="/defenses" component={withLayout(DefensesList)} />
       <Route path="/reviews" component={withLayout(Reviews, ["reviewer", "admin"])} />

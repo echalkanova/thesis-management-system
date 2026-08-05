@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, timestamp } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
 export const committeesTable = pgTable("committees", {
@@ -13,6 +13,7 @@ export const committeeMembersTable = pgTable("committee_members", {
   id: serial("id").primaryKey(),
   committeeId: integer("committee_id").notNull().references(() => committeesTable.id, { onDelete: "cascade" }),
   userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  isChairman: boolean("is_chairman").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
