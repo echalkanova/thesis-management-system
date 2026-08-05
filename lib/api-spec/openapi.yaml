@@ -856,7 +856,7 @@ components:
           type: string
         role:
           type: string
-          enum: [student, supervisor, reviewer, committee_member, admin]
+          enum: [student, supervisor, reviewer, department_head, admin]
         faculty:
           type: ["string", "null"]
         department:
@@ -888,7 +888,7 @@ components:
           type: string
         role:
           type: string
-          enum: [student, supervisor, reviewer, committee_member, admin]
+          enum: [student, supervisor, reviewer, department_head, admin]
         faculty:
           type: string
         department:
@@ -937,7 +937,7 @@ components:
           type: string
         role:
           type: string
-          enum: [student, supervisor, reviewer, committee_member, admin]
+          enum: [student, supervisor, reviewer, department_head, admin]
         faculty:
           type: string
         department:
@@ -977,7 +977,7 @@ components:
           type: string
         role:
           type: string
-          enum: [student, supervisor, reviewer, committee_member, admin]
+          enum: [student, supervisor, reviewer, department_head, admin]
 
     Thesis:
       type: object

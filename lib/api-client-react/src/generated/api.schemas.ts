@@ -20,7 +20,7 @@ export const UserRole = {
   student: 'student',
   supervisor: 'supervisor',
   reviewer: 'reviewer',
-  committee_member: 'committee_member',
+  department_head: 'department_head',
   admin: 'admin',
 } as const;
 
@@ -48,7 +48,7 @@ export const RegisterInputRole = {
   student: 'student',
   supervisor: 'supervisor',
   reviewer: 'reviewer',
-  committee_member: 'committee_member',
+  department_head: 'department_head',
   admin: 'admin',
 } as const;
 
@@ -80,7 +80,7 @@ export const UserInputRole = {
   student: 'student',
   supervisor: 'supervisor',
   reviewer: 'reviewer',
-  committee_member: 'committee_member',
+  department_head: 'department_head',
   admin: 'admin',
 } as const;
 
@@ -107,7 +107,7 @@ export const UserUpdateRole = {
   student: 'student',
   supervisor: 'supervisor',
   reviewer: 'reviewer',
-  committee_member: 'committee_member',
+  department_head: 'department_head',
   admin: 'admin',
 } as const;
 

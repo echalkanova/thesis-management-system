@@ -13,6 +13,6 @@ export const UserUpdateRole = {
   student: 'student',
   supervisor: 'supervisor',
   reviewer: 'reviewer',
-  committee_member: 'committee_member',
+  department_head: 'department_head',
   admin: 'admin',
 } as const;
