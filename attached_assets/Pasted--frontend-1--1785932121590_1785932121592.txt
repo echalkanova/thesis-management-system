@@ -1,0 +1,681 @@
+Направи следните промени във frontend-а без да променяш съществуващия дизайн:
+
+=== 1. ПОКАЗВАНЕ НА ПАРОЛАТА ===
+
+В artifacts/thesis-mgmt/src/pages/register.tsx и login.tsx:
+
+За всяко поле от тип password добави toggle за видимост:
+
+а) Добави import: import { Eye, EyeOff } from "lucide-react";
+
+б) Добави state: const [showPassword, setShowPassword] = useState(false);
+
+в) Замени Input за парола с:
+<div className="relative">
+  <Input
+    id="password"
+    type={showPassword ? "text" : "password"}
+    value={password}
+    onChange={(e) => setPassword(e.target.value)}
+    required
+    className="pr-10"
+    data-testid="input-password"
+  />
+  <button
+    type="button"
+    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+    onClick={() => setShowPassword(!showPassword)}
+  >
+    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+  </button>
+</div>
+
+г) В register.tsx добави същото и за confirm password ако има такова поле.
+   Добави отделен state: const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+д) В register.tsx премахни "committee_member" от SelectContent за роли.
+   Запази всички останали роли включително "reviewer".
+   Добави "department_head" ако не е добавено вече:
+   <SelectItem value="department_head">Ръководител катедра</SelectItem>
+
+=== 2. СТРАНИЦА ЗА КОМИСИИ (замени съществуващата) ===
+
+Замени изцяло artifacts/thesis-mgmt/src/pages/committees.tsx с:
+
+import { useState } from "react";
+import { useAuth } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus, Trash2, UserPlus, Crown, Users } from "lucide-react";
+
+const ROMAN_NUMERALS = ["I","II","III","IV","V","VI","VII","VIII","IX","X"];
+
+export default function Committees() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const isDeptHead = ["department_head","admin"].includes(user?.role ?? "");
+
+  const [newRoman, setNewRoman] = useState("");
+  const [newDesc, setNewDesc] = useState("");
+  const [selectedMember, setSelectedMember] = useState<Record<number,string>>({});
+  const [isChairman, setIsChairman] = useState<Record<number,boolean>>({});
+  const [assignStudentId, setAssignStudentId] = useState("");
+  const [assignCommitteeId, setAssignCommitteeId] = useState("");
+
+  const token = localStorage.getItem("thesis_token");
+  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
+  const { data: committees, isLoading } = useQuery({
+    queryKey: ["committees"],
+    queryFn: async () => {
+      const res = await fetch("/api/committees", { headers: authHeaders });
+      return res.json();
+    },
+  });
+
+  const { data: myCommittee } = useQuery({
+    queryKey: ["my-committee"],
+    queryFn: async () => {
+      const res = await fetch("/api/committees/my-committee", { headers: authHeaders });
+      return res.json();
+    },
+    enabled: user?.role === "student",
+  });
+
+  const { data: teachers } = useQuery({
+    queryKey: ["teachers-list"],
+    queryFn: async () => {
+      const res = await fetch("/api/users", { headers: authHeaders });
+      const all = await res.json();
+      return all.filter((u: any) => ["supervisor","reviewer","department_head"].includes(u.role));
+    },
+    enabled: isDeptHead,
+  });
+
+  const { data: students } = useQuery({
+    queryKey: ["students-only"],
+    queryFn: async () => {
+      const res = await fetch("/api/users?role=student", { headers: authHeaders });
+      return res.json();
+    },
+    enabled: isDeptHead,
+  });
+
+  const createCommittee = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/committees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ romanNumeral: newRoman, description: newDesc }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      return json;
+    },
+    onSuccess: () => { toast({ title: "Комисията е създадена" }); queryClient.invalidateQueries({ queryKey: ["committees"] }); setNewRoman(""); setNewDesc(""); },
+    onError: (e: Error) => toast({ title: "Грешка", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteCommittee = useMutation({
+    mutationFn: async (id: number) => {
+      await fetch(`/api/committees/${id}`, { method: "DELETE", headers: authHeaders });
+    },
+    onSuccess: () => { toast({ title: "Комисията е изтрита" }); queryClient.invalidateQueries({ queryKey: ["committees"] }); },
+  });
+
+  const addMember = useMutation({
+    mutationFn: async ({ committeeId, userId, chairman }: { committeeId: number; userId: number; chairman: boolean }) => {
+      const res = await fetch(`/api/committees/${committeeId}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ userId, isChairman: chairman }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      return json;
+    },
+    onSuccess: () => { toast({ title: "Членът е добавен" }); queryClient.invalidateQueries({ queryKey: ["committees"] }); },
+    onError: (e: Error) => toast({ title: "Грешка", description: e.message, variant: "destructive" }),
+  });
+
+  const removeMember = useMutation({
+    mutationFn: async ({ committeeId, userId }: { committeeId: number; userId: number }) => {
+      await fetch(`/api/committees/${committeeId}/members/${userId}`, { method: "DELETE", headers: authHeaders });
+    },
+    onSuccess: () => { toast({ title: "Членът е премахнат" }); queryClient.invalidateQueries({ queryKey: ["committees"] }); },
+  });
+
+  const assignToCommittee = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/committees/assign-student", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ studentId: Number(assignStudentId), committeeId: Number(assignCommitteeId) }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      return json;
+    },
+    onSuccess: () => { toast({ title: "Студентът е назначен" }); setAssignStudentId(""); setAssignCommitteeId(""); },
+    onError: (e: Error) => toast({ title: "Грешка", description: e.message, variant: "destructive" }),
+  });
+
+  if (isLoading) return <div className="p-8 text-center text-slate-500">Зареждане...</div>;
+
+  // STUDENT VIEW
+  if (user?.role === "student") {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-[#0a192f]">Моята комисия</h1>
+        {!myCommittee ? (
+          <Card><CardContent className="py-12 text-center text-slate-400">Все още не сте назначени към комисия</CardContent></Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" /> Комисия {myCommittee.romanNumeral}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {myCommittee.chairman && (
+                <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  <Crown className="h-4 w-4 text-amber-600" />
+                  <div>
+                    <p className="font-semibold text-sm text-amber-800">Председател</p>
+                    <p className="text-sm">{myCommittee.chairman.firstName} {myCommittee.chairman.lastName}</p>
+                    <p className="text-xs text-slate-400">{myCommittee.chairman.email}</p>
+                  </div>
+                </div>
+              )}
+              {myCommittee.members?.filter((m: any) => !m.isChairman).map((m: any) => (
+                <div key={m.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                  <div className="w-8 h-8 rounded-full bg-[#0a192f] flex items-center justify-center text-white text-xs font-bold">
+                    {m.firstName?.[0]}{m.lastName?.[0]}
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">{m.firstName} {m.lastName}</p>
+                    <p className="text-xs text-slate-400">{m.email}</p>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  }
+
+  // DEPARTMENT HEAD / ADMIN VIEW
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-[#0a192f]">Управление на комисии</h1>
+          <p className="text-slate-500 text-sm">Създавайте и управлявайте изпитни комисии</p>
+        </div>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button className="bg-[#0a192f] text-white"><Plus className="h-4 w-4 mr-2" />Нова комисия</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Създай комисия</DialogTitle></DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label>Римска цифра</Label>
+                <Select value={newRoman} onValueChange={setNewRoman}>
+                  <SelectTrigger><SelectValue placeholder="Изберете..." /></SelectTrigger>
+                  <SelectContent>
+                    {ROMAN_NUMERALS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Описание (по избор)</Label>
+                <Input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Описание..." />
+              </div>
+              <Button className="w-full bg-[#0a192f] text-white"
+                disabled={!newRoman || createCommittee.isPending}
+                onClick={() => createCommittee.mutate()}>
+                {createCommittee.isPending ? "Създаване..." : "Създай"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Assign student to committee */}
+      <Card>
+        <CardHeader><CardTitle>Назначи студент към комисия</CardTitle></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div className="space-y-2">
+              <Label>Студент</Label>
+              <Select value={assignStudentId} onValueChange={setAssignStudentId}>
+                <SelectTrigger><SelectValue placeholder="Изберете студент" /></SelectTrigger>
+                <SelectContent>
+                  {students?.map((s: any) => (
+                    <SelectItem key={s.id} value={String(s.id)}>{s.firstName} {s.lastName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Комисия</Label>
+              <Select value={assignCommitteeId} onValueChange={setAssignCommitteeId}>
+                <SelectTrigger><SelectValue placeholder="Изберете комисия" /></SelectTrigger>
+                <SelectContent>
+                  {committees?.map((c: any) => (
+                    <SelectItem key={c.id} value={String(c.id)}>Комисия {c.romanNumeral}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button className="bg-[#0a192f] text-white"
+              disabled={!assignStudentId || !assignCommitteeId || assignToCommittee.isPending}
+              onClick={() => assignToCommittee.mutate()}>
+              Назначи
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Committees grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {committees?.map((c: any) => (
+          <Card key={c.id} className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle>Комисия {c.romanNumeral}</CardTitle>
+                <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-600"
+                  onClick={() => deleteCommittee.mutate(c.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <Badge variant="outline" className="w-fit">{c.members?.length ?? 0} членa</Badge>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {c.members?.map((m: any) => (
+                <div key={m.id} className={`flex items-center justify-between p-2 rounded-lg ${m.isChairman ? "bg-amber-50 border border-amber-200" : "bg-slate-50"}`}>
+                  <div className="flex items-center gap-2">
+                    {m.isChairman && <Crown className="h-3 w-3 text-amber-600" />}
+                    <div>
+                      <p className="text-sm font-medium">{m.firstName} {m.lastName}</p>
+                      <p className="text-xs text-slate-400">{m.isChairman ? "Председател" : m.role}</p>
+                    </div>
+                  </div>
+                  <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-600 h-7 w-7"
+                    onClick={() => removeMember.mutate({ committeeId: c.id, userId: m.id })}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+
+              <div className="pt-2 space-y-2 border-t">
+                <Select onValueChange={v => setSelectedMember(prev => ({ ...prev, [c.id]: v }))}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Добави член..." /></SelectTrigger>
+                  <SelectContent>
+                    {teachers?.map((u: any) => (
+                      <SelectItem key={u.id} value={String(u.id)}>
+                        {u.firstName} {u.lastName} ({u.role})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex gap-2">
+                  <Button size="sm" className="flex-1 h-8 bg-[#0a192f] text-white text-xs"
+                    disabled={!selectedMember[c.id] || addMember.isPending}
+                    onClick={() => addMember.mutate({ committeeId: c.id, userId: Number(selectedMember[c.id]), chairman: false })}>
+                    <UserPlus className="h-3 w-3 mr-1" /> Добави член
+                  </Button>
+                  <Button size="sm" variant="outline" className="flex-1 h-8 text-xs border-amber-300 text-amber-700"
+                    disabled={!selectedMember[c.id] || addMember.isPending}
+                    onClick={() => addMember.mutate({ committeeId: c.id, userId: Number(selectedMember[c.id]), chairman: true })}>
+                    <Crown className="h-3 w-3 mr-1" /> Председател
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+=== 3. СТРАНИЦА ЗА ЗАЩИТИ ===
+
+Създай нова страница artifacts/thesis-mgmt/src/pages/defenses.tsx:
+
+import { useState } from "react";
+import { useAuth } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus, Trash2, Calendar, Clock, MapPin, Users } from "lucide-react";
+
+export default function Defenses() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const isDeptHead = ["department_head", "admin"].includes(user?.role ?? "");
+  const isStudent = user?.role === "student";
+
+  const [form, setForm] = useState({
+    title: "", scheduledAt: "", room: "",
+    startTime: "", endTime: "", committeeId: "", notes: ""
+  });
+  const [addStudentId, setAddStudentId] = useState<Record<number,string>>({});
+
+  const token = localStorage.getItem("thesis_token");
+  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
+  const { data: defenses, isLoading } = useQuery({
+    queryKey: ["defenses"],
+    queryFn: async () => {
+      const res = await fetch("/api/defenses", { headers: authHeaders });
+      return res.json();
+    },
+  });
+
+  const { data: myDefense } = useQuery({
+    queryKey: ["my-defense"],
+    queryFn: async () => {
+      const res = await fetch("/api/defenses/my-defense", { headers: authHeaders });
+      return res.json();
+    },
+    enabled: isStudent,
+  });
+
+  const { data: committees } = useQuery({
+    queryKey: ["committees"],
+    queryFn: async () => {
+      const res = await fetch("/api/committees", { headers: authHeaders });
+      return res.json();
+    },
+  });
+
+  const { data: students } = useQuery({
+    queryKey: ["students-only"],
+    queryFn: async () => {
+      const res = await fetch("/api/users?role=student", { headers: authHeaders });
+      return res.json();
+    },
+    enabled: isDeptHead,
+  });
+
+  const createDefense = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/defenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ ...form, committeeId: form.committeeId ? Number(form.committeeId) : null }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      return json;
+    },
+    onSuccess: () => {
+      toast({ title: "Защитата е насрочена" });
+      queryClient.invalidateQueries({ queryKey: ["defenses"] });
+      setForm({ title: "", scheduledAt: "", room: "", startTime: "", endTime: "", committeeId: "", notes: "" });
+    },
+    onError: (e: Error) => toast({ title: "Грешка", description: e.message, variant: "destructive" }),
+  });
+
+  const addStudent = useMutation({
+    mutationFn: async ({ defenseId, studentId }: { defenseId: number; studentId: number }) => {
+      const res = await fetch(`/api/defenses/${defenseId}/add-student`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ studentId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      return json;
+    },
+    onSuccess: () => { toast({ title: "Студентът е добавен" }); queryClient.invalidateQueries({ queryKey: ["defenses"] }); },
+    onError: (e: Error) => toast({ title: "Грешка", description: e.message, variant: "destructive" }),
+  });
+
+  const removeStudent = useMutation({
+    mutationFn: async ({ defenseId, studentId }: { defenseId: number; studentId: number }) => {
+      await fetch(`/api/defenses/${defenseId}/remove-student`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ studentId }),
+      });
+    },
+    onSuccess: () => { toast({ title: "Студентът е премахнат" }); queryClient.invalidateQueries({ queryKey: ["defenses"] }); },
+  });
+
+  const deleteDefense = useMutation({
+    mutationFn: async (id: number) => {
+      await fetch(`/api/defenses/${id}`, { method: "DELETE", headers: authHeaders });
+    },
+    onSuccess: () => { toast({ title: "Защитата е изтрита" }); queryClient.invalidateQueries({ queryKey: ["defenses"] }); },
+  });
+
+  if (isLoading) return <div className="p-8 text-center text-slate-500">Зареждане...</div>;
+
+  // STUDENT VIEW
+  if (isStudent) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-[#0a192f]">Моята защита</h1>
+        {!myDefense ? (
+          <Card><CardContent className="py-12 text-center text-slate-400">Все още нямате насрочена защита</CardContent></Card>
+        ) : (
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5" />{myDefense.title}</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg">
+                  <Calendar className="h-4 w-4 text-slate-400" />
+                  <div>
+                    <p className="text-xs text-slate-400">Дата</p>
+                    <p className="font-medium text-sm">{new Date(myDefense.scheduledAt).toLocaleDateString("bg")}</p>
+                  </div>
+                </div>
+                {myDefense.startTime && (
+                  <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg">
+                    <Clock className="h-4 w-4 text-slate-400" />
+                    <div>
+                      <p className="text-xs text-slate-400">Начален час</p>
+                      <p className="font-medium text-sm">{myDefense.startTime}</p>
+                    </div>
+                  </div>
+                )}
+                {myDefense.room && (
+                  <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg">
+                    <MapPin className="h-4 w-4 text-slate-400" />
+                    <div>
+                      <p className="text-xs text-slate-400">Зала</p>
+                      <p className="font-medium text-sm">{myDefense.room}</p>
+                    </div>
+                  </div>
+                )}
+                {myDefense.committee && (
+                  <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg">
+                    <Users className="h-4 w-4 text-slate-400" />
+                    <div>
+                      <p className="text-xs text-slate-400">Комисия</p>
+                      <p className="font-medium text-sm">Комисия {myDefense.committee.romanNumeral}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {myDefense.notes && (
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                  <p className="text-xs text-blue-400 mb-1">Бележки</p>
+                  <p className="text-sm text-blue-800">{myDefense.notes}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  }
+
+  // DEPARTMENT HEAD / ADMIN VIEW
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-[#0a192f]">График на защитите</h1>
+          <p className="text-slate-500 text-sm">Насрочвайте и управлявайте защитите</p>
+        </div>
+        {isDeptHead && (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="bg-[#0a192f] text-white"><Plus className="h-4 w-4 mr-2" />Насрочи защита</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader><DialogTitle>Насрочи защита</DialogTitle></DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label>Заглавие *</Label>
+                  <Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Защита Юли 2027..." />
+                </div>
+                <div className="space-y-2">
+                  <Label>Дата *</Label>
+                  <Input type="date" value={form.scheduledAt} onChange={e => setForm(p => ({ ...p, scheduledAt: e.target.value }))} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Начален час</Label>
+                    <Input type="time" value={form.startTime} onChange={e => setForm(p => ({ ...p, startTime: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Краен час</Label>
+                    <Input type="time" value={form.endTime} onChange={e => setForm(p => ({ ...p, endTime: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Зала</Label>
+                  <Input value={form.room} onChange={e => setForm(p => ({ ...p, room: e.target.value }))} placeholder="2103, 710..." />
+                </div>
+                <div className="space-y-2">
+                  <Label>Комисия</Label>
+                  <Select value={form.committeeId} onValueChange={v => setForm(p => ({ ...p, committeeId: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Изберете комисия" /></SelectTrigger>
+                    <SelectContent>
+                      {committees?.map((c: any) => (
+                        <SelectItem key={c.id} value={String(c.id)}>Комисия {c.romanNumeral}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Бележки</Label>
+                  <Input value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Допълнителна информация..." />
+                </div>
+                <Button className="w-full bg-[#0a192f] text-white"
+                  disabled={!form.title || !form.scheduledAt || createDefense.isPending}
+                  onClick={() => createDefense.mutate()}>
+                  {createDefense.isPending ? "Запазване..." : "Насрочи"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+
+      <div className="space-y-4">
+        {!defenses?.length && (
+          <Card><CardContent className="py-12 text-center text-slate-400">Няма насрочени защити</CardContent></Card>
+        )}
+        {defenses?.map((d: any) => (
+          <Card key={d.id} className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle className="text-lg">{d.title}</CardTitle>
+                  <div className="flex flex-wrap gap-3 mt-2 text-sm text-slate-600">
+                    <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{new Date(d.scheduledAt).toLocaleDateString("bg")}</span>
+                    {d.startTime && <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{d.startTime}{d.endTime ? ` – ${d.endTime}` : ""}</span>}
+                    {d.room && <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />Зала {d.room}</span>}
+                    {d.committee && <Badge variant="outline">Комисия {d.committee.romanNumeral}</Badge>}
+                  </div>
+                </div>
+                {isDeptHead && (
+                  <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-600"
+                    onClick={() => deleteDefense.mutate(d.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <p className="text-sm font-medium text-slate-600 mb-2">Студенти ({d.students?.length ?? 0})</p>
+                <div className="space-y-1">
+                  {d.students?.map((s: any) => (
+                    <div key={s.id} className="flex items-center justify-between p-2 bg-slate-50 rounded">
+                      <span className="text-sm">{s.firstName} {s.lastName}</span>
+                      {isDeptHead && (
+                        <Button size="icon" variant="ghost" className="h-6 w-6 text-red-400"
+                          onClick={() => removeStudent.mutate({ defenseId: d.id, studentId: s.id })}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {isDeptHead && (
+                <div className="flex gap-2 pt-2 border-t">
+                  <Select onValueChange={v => setAddStudentId(prev => ({ ...prev, [d.id]: v }))}>
+                    <SelectTrigger className="flex-1 h-8 text-xs">
+                      <SelectValue placeholder="Добави студент..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {students?.map((s: any) => (
+                        <SelectItem key={s.id} value={String(s.id)}>{s.firstName} {s.lastName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button size="sm" className="h-8 bg-[#0a192f] text-white px-3"
+                    disabled={!addStudentId[d.id] || addStudent.isPending}
+                    onClick={() => addStudent.mutate({ defenseId: d.id, studentId: Number(addStudentId[d.id]) })}>
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+=== 4. НАВИГАЦИЯ ===
+
+В главния layout/навигация файл добави:
+- "Комисии" → /committees → видимо за department_head, admin, student
+- "График защити" → /defenses → видимо за department_head, admin, student
+- В router-а добави routes за двете нови страници
+
+=== 5. ROUTER ===
+
+В App.tsx или routes файла добави:
+import Defenses from "./pages/defenses";
+<Route path="/defenses" component={Defenses} />
+
+Рестартирай след всички промени.

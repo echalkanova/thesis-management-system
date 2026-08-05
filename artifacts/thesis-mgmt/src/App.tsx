@@ -12,6 +12,7 @@ import ThesesList from "@/pages/theses/index";
 import NewThesis from "@/pages/theses/new";
 import ThesisDetail from "@/pages/theses/detail";
 import DefensesList from "@/pages/defenses/index";
+import Defenses from "@/pages/defenses";
 import NewDefense from "@/pages/defenses/new";
 import DefenseDetail from "@/pages/defenses/detail";
 import Reviews from "@/pages/reviews";
@@ -68,7 +69,7 @@ function Router() {
       <Route path="/theses" component={withLayout(ThesesList)} />
       <Route path="/defenses/new" component={withLayout(NewDefense, ["admin", "department_head"])} />
       <Route path="/defenses/:id" component={withLayout(DefenseDetail)} />
-      <Route path="/defenses" component={withLayout(DefensesList)} />
+      <Route path="/defenses" component={withLayout(Defenses)} />
       <Route path="/reviews" component={withLayout(Reviews, ["reviewer", "admin"])} />
       <Route path="/users" component={withLayout(Users, ["admin"])} />
       <Route path="/profile" component={withLayout(Profile)} />
