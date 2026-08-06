@@ -38,7 +38,7 @@ export default function Login() {
 
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <ThesisFlowIcon size={64} />
+          <ThesisFlowIcon size={96} />
         </div>
 
         {/* Heading */}

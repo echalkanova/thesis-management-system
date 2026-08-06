@@ -4,7 +4,7 @@
 export function ThesisFlowIcon({ size = 40 }: { size?: number }) {
   return (
     <img
-      src="/thesisflow-logo.png"
+      src="/thesisflow-icon.png"
       alt="ThesisFlow"
       width={size}
       height={size}
