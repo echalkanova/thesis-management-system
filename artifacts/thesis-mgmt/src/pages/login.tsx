@@ -1,16 +1,14 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, LogIn, UserPlus } from "lucide-react";
+import { ThesisFlowIcon, ThesisFlowWordmark } from "@/components/thesis-flow-logo";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
   const [, setLocation] = useLocation();
@@ -23,11 +21,11 @@ export default function Login() {
     try {
       await login({ email, password });
       setLocation("/dashboard");
-    } catch (err) {
+    } catch {
       toast({
         title: "Грешка при вход",
         description: "Невалиден имейл или парола.",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -35,65 +33,116 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-      <Card className="w-full max-w-md bg-white shadow-sm border-slate-100">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-2">
-            <div className="w-11 h-11 rounded-xl bg-indigo-600 flex items-center justify-center shadow-sm shadow-indigo-200">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-            </div>
-          </div>
-          <CardTitle className="text-2xl font-bold text-slate-800">Вход в системата</CardTitle>
-          <CardDescription>
-            Въведете вашите данни за достъп до TMS
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Имейл</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                placeholder="име@университет.bg" 
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-indigo-50 to-slate-100 p-4">
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl shadow-indigo-100/50 border border-slate-100 px-8 py-10">
+
+        {/* Logo */}
+        <div className="flex flex-col items-center mb-8">
+          <ThesisFlowIcon size={64} />
+        </div>
+
+        {/* Heading */}
+        <div className="text-center mb-7">
+          <h1 className="text-2xl font-bold text-slate-800 mb-1">
+            Welcome to <ThesisFlowWordmark className="text-2xl" />
+          </h1>
+          <p className="text-sm text-slate-400">Sign in to access your account</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Email */}
+          <div className="space-y-1.5">
+            <label htmlFor="email" className="text-sm font-medium text-slate-700">
+              Email address
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                id="email"
+                type="email"
+                placeholder="name@university.bg"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={e => setEmail(e.target.value)}
                 required
                 data-testid="input-email"
+                className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Парола</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="pr-10"
-                  data-testid="input-password"
-                />
-                <button
-                  type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+          </div>
+
+          {/* Password */}
+          <div className="space-y-1.5">
+            <label htmlFor="password" className="text-sm font-medium text-slate-700">
+              Password
+            </label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                data-testid="input-password"
+                className="w-full pl-9 pr-10 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-200" type="submit" disabled={loading} data-testid="button-submit-login">
-              {loading ? "Зареждане..." : "Вход"}
-            </Button>
-            <div className="text-sm text-center text-slate-500">
-              Нямате акаунт? <Link href="/register" className="text-indigo-600 font-medium hover:text-indigo-700 hover:underline" data-testid="link-register">Регистрация</Link>
-            </div>
-          </CardFooter>
+          </div>
+
+          {/* Remember me + Forgot password */}
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={e => setRememberMe(e.target.checked)}
+                className="w-4 h-4 accent-indigo-600 rounded"
+              />
+              <span className="text-sm text-slate-600">Remember me</span>
+            </label>
+            <button type="button" className="text-sm text-indigo-500 hover:text-indigo-700 font-medium">
+              Forgot password?
+            </button>
+          </div>
+
+          {/* Sign In button */}
+          <button
+            type="submit"
+            disabled={loading}
+            data-testid="button-submit-login"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-sm transition shadow-md shadow-indigo-200 disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+          >
+            <LogIn className="h-4 w-4" />
+            {loading ? "Зареждане..." : "Sign In"}
+          </button>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-slate-100" />
+            <span className="text-xs text-slate-400">or</span>
+            <div className="flex-1 h-px bg-slate-100" />
+          </div>
+
+          {/* Create account */}
+          <Link href="/register" data-testid="link-register">
+            <button
+              type="button"
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-sm transition"
+            >
+              <UserPlus className="h-4 w-4 text-slate-500" />
+              Create an account
+            </button>
+          </Link>
         </form>
-      </Card>
+      </div>
     </div>
   );
 }

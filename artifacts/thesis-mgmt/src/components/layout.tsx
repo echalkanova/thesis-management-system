@@ -2,10 +2,11 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import {
   BookOpen, Calendar, LayoutDashboard, Users, FileText,
-  BarChart2, LogOut, Bell, UserCircle, GraduationCap,
+  BarChart2, LogOut, Bell, UserCircle,
   ChevronRight, Shield, UserCheck, Inbox, MessageSquare, UsersRound
 } from "lucide-react";
 import { formatRole } from "@/lib/utils";
+import { ThesisFlowIcon, ThesisFlowWordmark } from "@/components/thesis-flow-logo";
 import { useListNotifications, getListNotificationsQueryKey } from "@workspace/api-client-react";
 import { useNotificationStream } from "@/hooks/use-notification-stream";
 import { useQuery } from "@tanstack/react-query";
@@ -72,13 +73,11 @@ export function Sidebar() {
   return (
     <aside className="w-60 bg-white border-r border-slate-100 flex flex-col flex-shrink-0 shadow-sm">
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-slate-100">
+      <div className="px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-sm shadow-indigo-200">
-            <GraduationCap className="text-white" size={18} />
-          </div>
+          <ThesisFlowIcon size={34} />
           <div>
-            <span className="font-bold text-slate-800 text-base tracking-tight">TMS</span>
+            <ThesisFlowWordmark className="text-sm" />
             <div className="text-[10px] text-slate-400 leading-none mt-0.5">Дипломна система</div>
           </div>
         </div>
@@ -230,9 +229,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center">
-            <GraduationCap className="text-white" size={20} />
-          </div>
+          <ThesisFlowIcon size={40} />
           <div className="text-sm text-slate-500 animate-pulse">Зареждане...</div>
         </div>
       </div>
