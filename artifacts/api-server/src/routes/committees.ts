@@ -97,11 +97,14 @@ router.post("/:id/members", requireAuth, async (req: AuthRequest, res) => {
   const { userId, isChairman } = req.body;
   if (!userId) { res.status(400).json({ error: "userId is required" }); return; }
 
-  // Check user is not already in another committee
+  // Check user is not already in THIS committee
   const existing = await db.select().from(committeeMembersTable)
-    .where(eq(committeeMembersTable.userId, userId));
+    .where(and(
+      eq(committeeMembersTable.committeeId, committeeId),
+      eq(committeeMembersTable.userId, userId)
+    ));
   if (existing.length > 0) {
-    res.status(400).json({ error: "Този потребител вече е член на друга комисия" });
+    res.status(400).json({ error: "Този потребител вече е член на тази комисия" });
     return;
   }
 
