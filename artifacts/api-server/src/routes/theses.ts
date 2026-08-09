@@ -176,6 +176,11 @@ router.post("/:id/submit", requireAuth, async (req: AuthRequest, res) => {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
+  if (!thesis.supervisorId) {
+    res.status(400).json({ error: "Не можете да подадете дипломната работа без избран научен ръководител. Моля, изпратете запитване към ръководител." });
+    return;
+  }
+
   const [updated] = await db.update(thesesTable).set({ status: "submitted", submittedAt: new Date() }).where(eq(thesesTable.id, id)).returning();
   await logAction(req.userId, "submit_thesis", "thesis", id, { title: thesis.title });
   if (thesis.supervisorId) {

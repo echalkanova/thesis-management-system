@@ -18,6 +18,8 @@ export default function Committees() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isDeptHead = ["department_head", "admin"].includes(user?.role ?? "");
+  const isSupervisor = user?.role === "supervisor";
+  const isStudent = user?.role === "student";
 
   // Create committee
   const [newName, setNewName] = useState("");
@@ -36,7 +38,7 @@ export default function Committees() {
   const [assignCommitteeId, setAssignCommitteeId] = useState("");
 
   const token = localStorage.getItem("thesis_token");
-  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+  const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
   const { data: committees, isLoading } = useQuery({
     queryKey: ["committees"],
@@ -52,8 +54,15 @@ export default function Committees() {
       const res = await fetch("/api/committees/my-committee", { headers: authHeaders });
       return res.json();
     },
-    enabled: user?.role === "student",
+    enabled: isStudent,
   });
+
+  // For supervisor: find their committee from all committees
+  const supervisorCommittee = isSupervisor
+    ? committees?.find((c: any) =>
+        c.members?.some((m: any) => m.id === user?.id)
+      )
+    : null;
 
   const { data: teachers } = useQuery({
     queryKey: ["teachers-list"],
@@ -98,7 +107,10 @@ export default function Committees() {
     mutationFn: async (id: number) => {
       await fetch(`/api/committees/${id}`, { method: "DELETE", headers: authHeaders });
     },
-    onSuccess: () => { toast({ title: "Комисията е изтрита" }); queryClient.invalidateQueries({ queryKey: ["committees"] }); },
+    onSuccess: () => {
+      toast({ title: "Комисията е изтрита" });
+      queryClient.invalidateQueries({ queryKey: ["committees"] });
+    },
   });
 
   const addMember = useMutation({
@@ -119,7 +131,10 @@ export default function Committees() {
     mutationFn: async ({ committeeId, userId }: { committeeId: number; userId: number }) => {
       await fetch(`/api/committees/${committeeId}/members/${userId}`, { method: "DELETE", headers: authHeaders });
     },
-    onSuccess: () => { toast({ title: "Членът е премахнат" }); queryClient.invalidateQueries({ queryKey: ["committees"] }); },
+    onSuccess: () => {
+      toast({ title: "Членът е премахнат" });
+      queryClient.invalidateQueries({ queryKey: ["committees"] });
+    },
   });
 
   const assignToCommittee = useMutation({
@@ -133,11 +148,14 @@ export default function Committees() {
       if (!res.ok) throw new Error(json.error);
       return json;
     },
-    onSuccess: () => { toast({ title: "Студентът е назначен" }); setAssignStudentId(""); setAssignCommitteeId(""); },
+    onSuccess: () => {
+      toast({ title: "Студентът е назначен" });
+      setAssignStudentId("");
+      setAssignCommitteeId("");
+    },
     onError: (e: Error) => toast({ title: "Грешка", description: e.message, variant: "destructive" }),
   });
 
-  // Add multiple members sequentially
   async function handleAddSelectedMembers() {
     if (!addMembersCommitteeId || selectedMemberIds.size === 0) return;
     let successCount = 0;
@@ -165,7 +183,7 @@ export default function Committees() {
   if (isLoading) return <div className="p-8 text-center text-slate-500">Зареждане...</div>;
 
   // STUDENT VIEW
-  if (user?.role === "student") {
+  if (isStudent) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-[#0a192f]">Моята комисия</h1>
@@ -175,7 +193,7 @@ export default function Committees() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" /> {myCommittee.romanNumeral}
+                <Users className="h-5 w-5" /> Комисия {myCommittee.romanNumeral}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -190,6 +208,49 @@ export default function Committees() {
                 </div>
               )}
               {myCommittee.members?.filter((m: any) => !m.isChairman).map((m: any) => (
+                <div key={m.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                  <div className="w-8 h-8 rounded-full bg-[#0a192f] flex items-center justify-center text-white text-xs font-bold">
+                    {m.firstName?.[0]}{m.lastName?.[0]}
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">{m.firstName} {m.lastName}</p>
+                    <p className="text-xs text-slate-400">{m.email}</p>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  }
+
+  // SUPERVISOR VIEW — само преглед на комисията в която участва
+  if (isSupervisor) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-[#0a192f]">Моята комисия</h1>
+        {!supervisorCommittee ? (
+          <Card><CardContent className="py-12 text-center text-slate-400">Все още не сте назначени към комисия</CardContent></Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" /> Комисия {supervisorCommittee.romanNumeral}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {supervisorCommittee.chairman && (
+                <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  <Crown className="h-4 w-4 text-amber-600" />
+                  <div>
+                    <p className="font-semibold text-sm text-amber-800">Председател</p>
+                    <p className="text-sm">{supervisorCommittee.chairman.firstName} {supervisorCommittee.chairman.lastName}</p>
+                    <p className="text-xs text-slate-400">{supervisorCommittee.chairman.email}</p>
+                  </div>
+                </div>
+              )}
+              {supervisorCommittee.members?.filter((m: any) => !m.isChairman).map((m: any) => (
                 <div key={m.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
                   <div className="w-8 h-8 rounded-full bg-[#0a192f] flex items-center justify-center text-white text-xs font-bold">
                     {m.firstName?.[0]}{m.lastName?.[0]}
@@ -227,7 +288,6 @@ export default function Committees() {
           <p className="text-slate-500 text-sm">Създавайте и управлявайте изпитни комисии</p>
         </div>
 
-        {/* Create committee dialog */}
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <Button className="bg-[#0a192f] text-white"><Plus className="h-4 w-4 mr-2" />Нова комисия</Button>
@@ -236,11 +296,11 @@ export default function Committees() {
             <DialogHeader><DialogTitle>Създай комисия</DialogTitle></DialogHeader>
             <div className="space-y-4 pt-2">
               <div className="space-y-2">
-                <Label>Име на комисия</Label>
+                <Label>Римска цифра / Наименование</Label>
                 <Input
                   value={newName}
                   onChange={e => setNewName(e.target.value)}
-                  placeholder="Въведете наименование..."
+                  placeholder="Например: I, II, III..."
                   onKeyDown={e => { if (e.key === "Enter" && newName.trim()) createCommittee.mutate(); }}
                 />
               </div>
@@ -278,7 +338,7 @@ export default function Committees() {
                 <SelectTrigger><SelectValue placeholder="Изберете комисия" /></SelectTrigger>
                 <SelectContent>
                   {committees?.map((c: any) => (
-                    <SelectItem key={c.id} value={String(c.id)}>{c.romanNumeral}</SelectItem>
+                    <SelectItem key={c.id} value={String(c.id)}>Комисия {c.romanNumeral}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -294,14 +354,14 @@ export default function Committees() {
         </CardContent>
       </Card>
 
-      {/* Add members dialog (multi-select) */}
+      {/* Add members dialog */}
       <Dialog
         open={addMembersCommitteeId !== null}
         onOpenChange={open => { if (!open) { setAddMembersCommitteeId(null); setSelectedMemberIds(new Set()); } }}
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Добави членове — {getCommittee(addMembersCommitteeId)?.romanNumeral}</DialogTitle>
+            <DialogTitle>Добави членове — Комисия {getCommittee(addMembersCommitteeId)?.romanNumeral}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
             {availableTeachers(addMembersCommitteeId).length === 0 ? (
@@ -334,18 +394,13 @@ export default function Committees() {
             )}
           </div>
           <div className="flex gap-2 pt-2 border-t">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => { setAddMembersCommitteeId(null); setSelectedMemberIds(new Set()); }}
-            >
+            <Button variant="outline" className="flex-1"
+              onClick={() => { setAddMembersCommitteeId(null); setSelectedMemberIds(new Set()); }}>
               Отказ
             </Button>
-            <Button
-              className="flex-1 bg-[#0a192f] text-white"
+            <Button className="flex-1 bg-[#0a192f] text-white"
               disabled={selectedMemberIds.size === 0 || addMember.isPending}
-              onClick={handleAddSelectedMembers}
-            >
+              onClick={handleAddSelectedMembers}>
               <UserPlus className="h-4 w-4 mr-1.5" />
               Добави ({selectedMemberIds.size})
             </Button>
@@ -353,30 +408,24 @@ export default function Committees() {
         </DialogContent>
       </Dialog>
 
-      {/* Chairman dialog (single select from all teachers) */}
+      {/* Chairman dialog */}
       <Dialog
         open={chairmanCommitteeId !== null}
         onOpenChange={open => { if (!open) { setChairmanCommitteeId(null); setChairmanUserId(null); } }}
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Избери председател — {getCommittee(chairmanCommitteeId)?.romanNumeral}</DialogTitle>
+            <DialogTitle>Избери председател — Комисия {getCommittee(chairmanCommitteeId)?.romanNumeral}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
             {(teachers ?? []).length === 0 ? (
               <p className="text-sm text-slate-400 text-center py-4">Няма налични преподаватели</p>
             ) : (
               (teachers ?? []).map((t: any) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setChairmanUserId(t.id)}
+                <button key={t.id} type="button" onClick={() => setChairmanUserId(t.id)}
                   className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${
-                    chairmanUserId === t.id
-                      ? "bg-amber-50 border-amber-300"
-                      : "bg-slate-50 border-slate-200 hover:bg-slate-100"
-                  }`}
-                >
+                    chairmanUserId === t.id ? "bg-amber-50 border-amber-300" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                  }`}>
                   <div className="w-8 h-8 rounded-full bg-[#0a192f] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                     {t.firstName[0]}{t.lastName[0]}
                   </div>
@@ -390,18 +439,13 @@ export default function Committees() {
             )}
           </div>
           <div className="flex gap-2 pt-2 border-t">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => { setChairmanCommitteeId(null); setChairmanUserId(null); }}
-            >
+            <Button variant="outline" className="flex-1"
+              onClick={() => { setChairmanCommitteeId(null); setChairmanUserId(null); }}>
               Отказ
             </Button>
-            <Button
-              className="flex-1 bg-amber-600 hover:bg-amber-700 text-white"
+            <Button className="flex-1 bg-amber-600 hover:bg-amber-700 text-white"
               disabled={!chairmanUserId || addMember.isPending}
-              onClick={handleSetChairman}
-            >
+              onClick={handleSetChairman}>
               <Crown className="h-4 w-4 mr-1.5" />
               Задай като председател
             </Button>
@@ -415,7 +459,7 @@ export default function Committees() {
           <Card key={c.id} className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">{c.romanNumeral}</CardTitle>
+                <CardTitle className="text-base">Комисия {c.romanNumeral}</CardTitle>
                 <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-600"
                   onClick={() => deleteCommittee.mutate(c.id)}>
                   <Trash2 className="h-4 w-4" />
@@ -441,19 +485,12 @@ export default function Committees() {
               ))}
 
               <div className="pt-2 flex gap-2 border-t">
-                <Button
-                  size="sm"
-                  className="flex-1 h-8 bg-[#0a192f] text-white text-xs"
-                  onClick={() => { setAddMembersCommitteeId(c.id); setSelectedMemberIds(new Set()); }}
-                >
+                <Button size="sm" className="flex-1 h-8 bg-[#0a192f] text-white text-xs"
+                  onClick={() => { setAddMembersCommitteeId(c.id); setSelectedMemberIds(new Set()); }}>
                   <UserPlus className="h-3 w-3 mr-1" /> Добави член
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 h-8 text-xs border-amber-300 text-amber-700 hover:bg-amber-50"
-                  onClick={() => { setChairmanCommitteeId(c.id); setChairmanUserId(null); }}
-                >
+                <Button size="sm" variant="outline" className="flex-1 h-8 text-xs border-amber-300 text-amber-700 hover:bg-amber-50"
+                  onClick={() => { setChairmanCommitteeId(c.id); setChairmanUserId(null); }}>
                   <Crown className="h-3 w-3 mr-1" /> Председател
                 </Button>
               </div>

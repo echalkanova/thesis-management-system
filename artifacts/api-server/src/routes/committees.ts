@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, committeesTable, committeeMembersTable, studentCommitteesTable, usersTable, thesesTable, notificationsTable } from "@workspace/db";
+import { db, committeesTable, committeeMembersTable, studentCommitteesTable, usersTable, thesesTable, notificationsTable, reviewsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { pushNotification } from "../sse";
@@ -202,13 +202,35 @@ router.post("/assign-student", requireAuth, async (req: AuthRequest, res) => {
     res.status(400).json({ error: "studentId and committeeId are required" }); return;
   }
 
-  // Check conflict
-  const theses = await db.select().from(thesesTable)
+  // Лимит 15 студента на комисия
+  const committeeStudents = await db.select().from(studentCommitteesTable)
+    .where(eq(studentCommitteesTable.committeeId, committeeId));
+  if (committeeStudents.length >= 15) {
+    res.status(400).json({ error: "Комисията е достигнала максималния брой студенти (15)" });
+    return;
+  }
+
+  // Вземи дипломната работа на студента
+  const studentTheses = await db.select().from(thesesTable)
     .where(eq(thesesTable.studentId, studentId));
-  const thesis = theses[0];
+  const thesis = studentTheses[0];
+  if (!thesis) {
+    res.status(400).json({ error: "Студентът няма дипломна работа" }); return;
+  }
+
+  // Рецензията трябва да е готова
+  const reviews = await db.select().from(reviewsTable)
+    .where(eq(reviewsTable.thesisId, thesis.id));
+  const publishedReview = reviews.find((r: any) => r.isPublished);
+  if (!publishedReview) {
+    res.status(400).json({ error: "Рецензията не е готова. Студентът може да се добави към комисия само след публикувана рецензия." });
+    return;
+  }
+
+  // Провери конфликт с ръководител/рецензент
   const excludedIds: number[] = [];
-  if (thesis?.supervisorId) excludedIds.push(thesis.supervisorId);
-  if (thesis?.reviewerId) excludedIds.push(thesis.reviewerId);
+  if (thesis.supervisorId) excludedIds.push(thesis.supervisorId);
+  if (thesis.reviewerId) excludedIds.push(thesis.reviewerId);
 
   if (excludedIds.length > 0) {
     const members = await db.select().from(committeeMembersTable)

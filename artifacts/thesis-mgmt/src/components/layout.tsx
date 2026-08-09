@@ -22,7 +22,7 @@ const NAV_LINKS = [
   { href: "/users", label: "Потребители", icon: Users, roles: ["admin"] },
   { href: "/committees", label: "Комисии", icon: UsersRound, roles: ["department_head", "admin", "supervisor"] },
   { href: "/committees", label: "Моята комисия", icon: UsersRound, roles: ["student"] },
-  { href: "/audit-log", label: "Одит лог", icon: Shield, roles: ["admin"] },
+  { href: "/audit-log", label: "Активност", icon: Shield, roles: ["admin"] },
 ];
 
 function useSidebarBadges(user: { id: number; role: string } | null | undefined) {
@@ -75,7 +75,7 @@ export function Sidebar() {
       {/* Logo */}
       <div className="px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5">
-          <ThesisFlowIcon size={34} />
+          <ThesisFlowIcon size={37} />
           <div>
             <ThesisFlowWordmark className="text-sm" />
             <div className="text-[10px] text-slate-400 leading-none mt-0.5">Дипломна система</div>
@@ -229,7 +229,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-3">
-          <ThesisFlowIcon size={40} />
+          <ThesisFlowIcon size={47} />
           <div className="text-sm text-slate-500 animate-pulse">Зареждане...</div>
         </div>
       </div>

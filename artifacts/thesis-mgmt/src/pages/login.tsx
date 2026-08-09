@@ -8,7 +8,6 @@ import { ThesisFlowIcon, ThesisFlowWordmark } from "@/components/thesis-flow-log
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
   const [, setLocation] = useLocation();
@@ -60,7 +59,7 @@ export default function Login() {
               <input
                 id="email"
                 type="email"
-                placeholder="name@university.bg"
+                placeholder="Enter your email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
@@ -97,17 +96,8 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Remember me + Forgot password */}
-          <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={e => setRememberMe(e.target.checked)}
-                className="w-4 h-4 accent-indigo-600 rounded"
-              />
-              <span className="text-sm text-slate-600">Remember me</span>
-            </label>
+          {/* Forgot password */}
+          <div className="flex items-center justify-start">
             <button type="button" className="text-sm text-indigo-500 hover:text-indigo-700 font-medium">
               Forgot password?
             </button>
