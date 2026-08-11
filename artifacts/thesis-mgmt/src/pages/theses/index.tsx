@@ -23,8 +23,10 @@ export default function ThesesList() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-[#0a192f] tracking-tight">Дипломни работи</h1>
-          <p className="text-slate-500">Списък с дипломни работи във вашия контекст.</p>
+          <h1 className="text-2xl font-bold text-[#0a192f] tracking-tight">Дипломни работи</h1>
+          {!["department_head", "admin"].includes(user?.role ?? "") && (
+            <p className="text-slate-500">Списък с дипломни работи във вашия контекст.</p>
+          )}
         </div>
         
         {user?.role === "student" && (

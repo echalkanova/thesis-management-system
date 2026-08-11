@@ -15,7 +15,7 @@ export default function Defenses() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const isDeptHead = ["department_head", "admin"].includes(user?.role ?? "");
+  const isDeptHead = user?.role === "department_head";
   const isStudent = user?.role === "student";
 
   const [form, setForm] = useState({
@@ -25,7 +25,7 @@ export default function Defenses() {
   const [addStudentId, setAddStudentId] = useState<Record<number,string>>({});
 
   const token = localStorage.getItem("thesis_token");
-  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+  const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
   const { data: defenses, isLoading } = useQuery({
     queryKey: ["defenses"],
@@ -181,7 +181,9 @@ export default function Defenses() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#0a192f]">График на защитите</h1>
-          <p className="text-slate-500 text-sm">Насрочвайте и управлявайте защитите</p>
+          {!["supervisor", "admin"].includes(user?.role ?? "") && (
+            <p className="text-slate-500 text-sm">Насрочвайте и управлявайте защитите</p>
+          )}
         </div>
         {isDeptHead && (
           <Dialog>

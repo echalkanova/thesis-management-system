@@ -80,8 +80,7 @@ function Router() {
       <Route path="/supervisor-requests" component={withLayout(SupervisorRequests, ["supervisor", "department_head", "admin"])} />
       <Route path="/messages/:userId" component={withLayout(Messages)} />
       <Route path="/messages" component={withLayout(Messages)} />
-      <Route path="/committees" component={withLayout(Committees, ["department_head", "admin", "student"])} />
-
+      <Route path="/committees" component={withLayout(Committees, ["department_head", "admin", "student", "supervisor"])} />
       <Route>
         <Layout>
           <NotFound />

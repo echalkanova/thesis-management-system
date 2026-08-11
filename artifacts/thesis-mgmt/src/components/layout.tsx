@@ -12,17 +12,42 @@ import { useNotificationStream } from "@/hooks/use-notification-stream";
 import { useQuery } from "@tanstack/react-query";
 
 const NAV_LINKS = [
-  { href: "/dashboard", label: "Табло", icon: LayoutDashboard, roles: ["student", "supervisor", "reviewer", "department_head", "admin"] },
-  { href: "/theses", label: "Дипломни работи", icon: BookOpen, roles: ["student", "supervisor", "reviewer", "department_head", "admin"] },
-  { href: "/defenses", label: "Защити", icon: Calendar, roles: ["student", "supervisor", "reviewer", "department_head", "admin"] },
-  { href: "/reviews", label: "Рецензии", icon: FileText, roles: ["reviewer", "admin"] },
-  { href: "/supervisors", label: "Ръководители", icon: UserCheck, roles: ["student", "department_head", "admin"] },
-  { href: "/supervisor-requests", label: "Запитвания", icon: Inbox, roles: ["supervisor", "department_head", "admin"] },
-  { href: "/reports", label: "Справки", icon: BarChart2, roles: ["admin", "supervisor", "department_head"] },
+  // Admin
+  { href: "/dashboard", label: "Табло", icon: LayoutDashboard, roles: ["admin"] },
+  { href: "/theses", label: "Дипломни работи", icon: BookOpen, roles: ["admin"] },
+  { href: "/committees", label: "Комисии", icon: UsersRound, roles: ["admin"] },
+  { href: "/defenses", label: "Защити", icon: Calendar, roles: ["admin"] },
+  { href: "/supervisor-requests", label: "Запитвания", icon: Inbox, roles: ["admin"] },
+  { href: "/supervisors", label: "Ръководители", icon: UserCheck, roles: ["admin"] },
+  { href: "/reports", label: "Справки", icon: BarChart2, roles: ["admin"] },
   { href: "/users", label: "Потребители", icon: Users, roles: ["admin"] },
-  { href: "/committees", label: "Комисии", icon: UsersRound, roles: ["department_head", "admin", "supervisor"] },
-  { href: "/committees", label: "Моята комисия", icon: UsersRound, roles: ["student"] },
   { href: "/audit-log", label: "Активност", icon: Shield, roles: ["admin"] },
+  // Department head
+  { href: "/dashboard", label: "Табло", icon: LayoutDashboard, roles: ["department_head"] },
+  { href: "/theses", label: "Дипломни работи", icon: BookOpen, roles: ["department_head"] },
+  { href: "/committees", label: "Комисии", icon: UsersRound, roles: ["department_head"] },
+  { href: "/defenses", label: "Защити", icon: Calendar, roles: ["department_head"] },
+  { href: "/supervisor-requests", label: "Запитвания", icon: Inbox, roles: ["department_head"] },
+  { href: "/supervisors", label: "Ръководители", icon: UserCheck, roles: ["department_head"] },
+  { href: "/reports", label: "Справки", icon: BarChart2, roles: ["department_head"] },
+  // Supervisor
+  { href: "/dashboard", label: "Табло", icon: LayoutDashboard, roles: ["supervisor"] },
+  { href: "/theses", label: "Дипломни работи", icon: BookOpen, roles: ["supervisor"] },
+  { href: "/supervisor-requests", label: "Запитвания", icon: Inbox, roles: ["supervisor"] },
+  { href: "/committees", label: "Комисии", icon: UsersRound, roles: ["supervisor"] },
+  { href: "/defenses", label: "Защити", icon: Calendar, roles: ["supervisor"] },
+  { href: "/reports", label: "Справки", icon: BarChart2, roles: ["supervisor"] },
+  // Reviewer
+  { href: "/dashboard", label: "Табло", icon: LayoutDashboard, roles: ["reviewer"] },
+  { href: "/theses", label: "Дипломни работи", icon: BookOpen, roles: ["reviewer"] },
+  { href: "/reviews", label: "Рецензии", icon: FileText, roles: ["reviewer"] },
+  { href: "/defenses", label: "Защити", icon: Calendar, roles: ["reviewer"] },
+  // Student
+  { href: "/dashboard", label: "Табло", icon: LayoutDashboard, roles: ["student"] },
+  { href: "/theses", label: "Дипломни работи", icon: BookOpen, roles: ["student"] },
+  { href: "/supervisors", label: "Ръководители", icon: UserCheck, roles: ["student"] },
+  { href: "/defenses", label: "Защити", icon: Calendar, roles: ["student"] },
+  { href: "/committees", label: "Моята комисия", icon: UsersRound, roles: ["student"] },
 ];
 
 function useSidebarBadges(user: { id: number; role: string } | null | undefined) {
@@ -207,16 +232,6 @@ export function Header() {
         )}
       </Link>
 
-      <Link
-        href="/profile"
-        data-testid="link-profile-header"
-        className="flex items-center gap-2 pl-1 rounded-lg hover:bg-slate-50 py-1 pr-2 transition-colors"
-      >
-        <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">
-          {user.firstName[0]}{user.lastName[0]}
-        </div>
-        <span className="text-sm font-medium text-slate-700 hidden md:block">{user.firstName}</span>
-      </Link>
     </header>
   );
 }

@@ -47,7 +47,7 @@ export default function NewThesis() {
           <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold text-[#0a192f] tracking-tight">Нова дипломна работа</h1>
+          <h1 className="text-2xl font-bold text-[#0a192f] tracking-tight">Нова дипломна работа</h1>
           <p className="text-slate-500">Попълнете данните за вашата дипломна работа</p>
         </div>
       </div>

@@ -64,7 +64,7 @@ export default function Reports() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-[#0a192f] tracking-tight">Справки и отчети</h1>
+        <h1 className="text-2xl font-bold text-[#0a192f] tracking-tight">Справки и отчети</h1>
         <p className="text-slate-500">Статистика и анализ на дипломния процес</p>
       </div>
 

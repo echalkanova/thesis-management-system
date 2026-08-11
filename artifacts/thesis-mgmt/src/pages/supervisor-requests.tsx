@@ -12,7 +12,7 @@ import { CheckCircle, XCircle, User, MessageSquare } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useLocation } from "wouter";
 
-function apiHeaders() {
+function apiHeaders(): Record<string, string> {
   const token = localStorage.getItem("thesis_token");
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
@@ -108,7 +108,9 @@ export default function SupervisorRequests() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-[#0a192f]">Запитвания от студенти</h1>
-        <p className="text-slate-500 text-sm mt-1">Управлявайте запитванията за ръководство</p>
+        {user?.role !== "supervisor" && (
+          <p className="text-slate-500 text-sm mt-1">Управлявайте запитванията</p>
+        )}
       </div>
 
       {!requests?.length && (

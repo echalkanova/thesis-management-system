@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { createHmac } from "crypto";
 import { signToken, requireAuth, type AuthRequest } from "../middlewares/auth";
 import { RegisterBody, LoginBody } from "@workspace/api-zod";
+import { logAction } from "./auditLog";
 
 const router = Router();
 
@@ -97,6 +98,7 @@ router.post("/login", async (req, res) => {
     return;
   }
   const token = signToken({ userId: user.id, role: user.role });
+  await logAction(user.id, "login", "user", user.id, { email: user.email, role: user.role });
   res.json({ user: formatUser(user), token });
 });
 

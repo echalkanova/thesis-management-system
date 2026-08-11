@@ -51,10 +51,10 @@ export default function DefensesList() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-[#0a192f] tracking-tight">График за защити</h1>
+          <h1 className="text-2xl font-bold text-[#0a192f] tracking-tight">График за защити</h1>
           <p className="text-slate-500">Всички насрочени и проведени защити на дипломни работи</p>
         </div>
-        {(user?.role === "admin" || user?.role === "committee_member") && (
+        {(user?.role === "admin" || user?.role === "department_head") && (
           <Button asChild className="bg-[#0a192f] hover:bg-[#112240] text-white">
             <Link href="/defenses/new" data-testid="link-new-defense">
               <Plus className="mr-2 h-4 w-4" /> Насрочи защита

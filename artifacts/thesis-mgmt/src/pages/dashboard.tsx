@@ -57,6 +57,7 @@ function StudentDashboard() {
   );
 
   const { data: allDefenses } = useListDefenses(
+    {} as any,
     { query: { queryKey: getListDefensesQueryKey() } }
   );
 
@@ -91,9 +92,9 @@ function StudentDashboard() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
-          Добре дошъл, {user?.firstName}!
+          Добре дошли!
         </h1>
-        <p className="text-sm text-slate-400 mt-0.5">Ето актуалното състояние на твоята дипломна работа.</p>
+        <p className="text-sm text-slate-400 mt-0.5">Това е актуалното състояние на твоята дипломна работа.</p>
       </div>
 
       {/* No thesis yet */}
@@ -349,8 +350,8 @@ function ReviewerDashboard() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Табло на рецензента</h1>
-        <p className="text-sm text-slate-400 mt-0.5">Добре дошли, {user?.firstName}. Ето дипломните работи, назначени за ваша рецензия.</p>
+        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Табло</h1>
+        <p className="text-sm text-slate-400 mt-0.5">Добре дошли! Това са дипломните работи, назначени за рецензия.</p>
       </div>
 
       {/* Metric cards */}
@@ -498,7 +499,7 @@ function SupervisorDashboard() {
   }
 
   const theses = myTheses ?? [];
-  const pendingApproval = theses.filter(t => t.status === "pending_supervisor_approval");
+  const pendingApproval = theses.filter(t => (t.status as string) === "pending_supervisor_approval");
   const active = theses.filter(t => !["defended", "draft"].includes(t.status));
   const defended = theses.filter(t => t.status === "defended");
   const pendingRequests = (supervisorRequests ?? []).filter((r: any) => r.status === "pending");
@@ -514,8 +515,8 @@ function SupervisorDashboard() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Табло на ръководителя</h1>
-        <p className="text-sm text-slate-400 mt-0.5">Добре дошли, {user?.firstName}. Ето актуалното състояние на вашите дипломанти.</p>
+        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Табло</h1>
+        <p className="text-sm text-slate-400 mt-0.5">Добре дошли! Това е актуалното ниво на вашите дипломанти.</p>
       </div>
 
       {/* Metric cards */}
@@ -703,7 +704,7 @@ function AdminDashboard() {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Табло</h1>
-        <p className="text-sm text-slate-400 mt-0.5">Добре дошли, {user?.firstName}. Ето обобщение на дипломния процес.</p>
+        <p className="text-sm text-slate-400 mt-0.5">Добре дошли! Обобщението на дипломния процес е:</p>
       </div>
 
       {/* Metric cards */}

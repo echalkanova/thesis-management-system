@@ -51,7 +51,7 @@ export default function NewDefense() {
           <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold text-[#0a192f] tracking-tight">Насрочване на защита</h1>
+          <h1 className="text-2xl font-bold text-[#0a192f] tracking-tight">Насрочване на защита</h1>
           <p className="text-slate-500">Попълнете данните за сесията по защита</p>
         </div>
       </div>

@@ -17,7 +17,7 @@ export default function Committees() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const isDeptHead = ["department_head", "admin"].includes(user?.role ?? "");
+  const isDeptHead = user?.role === "department_head";
   const isSupervisor = user?.role === "supervisor";
   const isStudent = user?.role === "student";
 
@@ -285,9 +285,12 @@ export default function Committees() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#0a192f]">Управление на комисии</h1>
-          <p className="text-slate-500 text-sm">Създавайте и управлявайте изпитни комисии</p>
+          {user?.role !== "admin" && (
+            <p className="text-slate-500 text-sm">Създавайте и управлявайте изпитни комисии</p>
+          )}
         </div>
 
+        {isDeptHead && (
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <Button className="bg-[#0a192f] text-white"><Plus className="h-4 w-4 mr-2" />Нова комисия</Button>
@@ -313,7 +316,7 @@ export default function Committees() {
               </Button>
             </div>
           </DialogContent>
-        </Dialog>
+        </Dialog>)}
       </div>
 
       {/* Assign student to committee */}
