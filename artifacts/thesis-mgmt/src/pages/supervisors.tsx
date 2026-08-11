@@ -22,6 +22,8 @@ export default function Supervisors() {
   const [description, setDescription] = useState("");
   const [selectedSupervisorId, setSelectedSupervisorId] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [adminViewSupervisor, setAdminViewSupervisor] = useState<any | null>(null);
+  const [adminDialogOpen, setAdminDialogOpen] = useState(false);
 
   const { data: supervisors, isLoading } = useQuery({
     queryKey: ["supervisors-list"],
@@ -72,6 +74,18 @@ export default function Supervisors() {
     onError: (e: Error) => toast({ title: "Грешка", description: e.message, variant: "destructive" }),
   });
 
+  const { data: supervisorStudents } = useQuery({
+    queryKey: ["supervisor-students", adminViewSupervisor?.id],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch(`/api/theses?supervisorId=${adminViewSupervisor?.id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      return res.json();
+    },
+    enabled: !!adminViewSupervisor?.id,
+  });
+
   const hasActiveRequest = myRequests?.some((r: any) => ["pending", "accepted"].includes(r.status));
   const acceptedRequest = myRequests?.find((r: any) => r.status === "accepted");
 
@@ -102,7 +116,16 @@ export default function Supervisors() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {(supervisors ?? []).map((s: any) => (
-          <Card key={s.id} className="hover:shadow-md transition-shadow">
+          <Card
+            key={s.id}
+            className={`hover:shadow-md transition-shadow ${user?.role === "admin" ? "cursor-pointer" : ""}`}
+            onClick={() => {
+              if (user?.role === "admin") {
+                setAdminViewSupervisor(s);
+                setAdminDialogOpen(true);
+              }
+            }}
+          >
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <CardTitle className="text-base font-semibold text-[#0a192f]">
@@ -170,6 +193,36 @@ export default function Supervisors() {
             </CardContent>
           </Card>
         ))}
+        {/* Admin dialog — списък студенти */}
+      <Dialog open={adminDialogOpen} onOpenChange={setAdminDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Студенти на {adminViewSupervisor?.firstName} {adminViewSupervisor?.lastName}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {!supervisorStudents || supervisorStudents.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-6">Няма назначени студенти</p>
+            ) : (
+              supervisorStudents.map((t: any) => (
+                <div key={t.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs">
+                      {t.student?.firstName?.[0]}{t.student?.lastName?.[0]}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{t.student?.firstName} {t.student?.lastName}</p>
+                      <p className="text-xs text-slate-400 truncate max-w-[200px]">{t.title}</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-xs">{t.status}</Badge>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
         {(!supervisors || supervisors.length === 0) && (
           <div className="col-span-3 text-center py-12 text-slate-400">Няма регистрирани ръководители</div>
         )}

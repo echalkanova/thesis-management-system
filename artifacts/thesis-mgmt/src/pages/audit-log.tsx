@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Shield, Search } from "lucide-react";
@@ -24,6 +23,8 @@ const ACTION_LABELS: Record<string, string> = {
   create_grade: "Добави оценка",
   create_review: "Добави рецензия",
   publish_review: "Публикува рецензия",
+  login: "Влезе в системата",
+  assign_thesis: "Назначи дипломна работа",
 };
 
 const ACTION_COLORS: Record<string, string> = {
@@ -34,6 +35,8 @@ const ACTION_COLORS: Record<string, string> = {
   create_grade: "bg-amber-50 text-amber-700 border-amber-200",
   create_review: "bg-cyan-50 text-cyan-700 border-cyan-200",
   publish_review: "bg-purple-50 text-purple-700 border-purple-200",
+  login: "bg-slate-50 text-slate-600 border-slate-200",
+  assign_thesis: "bg-violet-50 text-violet-700 border-violet-200",
 };
 
 export default function AuditLog() {
@@ -70,17 +73,18 @@ export default function AuditLog() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[#0a192f] tracking-tight flex items-center gap-2">
-            <Shield className="h-7 w-7" /> Активност
+            <Shield className="h-6 w-6" /> Активност
           </h1>
-          <p className="text-slate-500 mt-1">Пълна история на действията в системата</p>
+          <p className="text-slate-500 mt-1 text-sm">Пълна история на действията в системата</p>
         </div>
-        <div className="relative w-full sm:w-64">
+        <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
-            placeholder="Търсене..."
+            placeholder="Търсене по име или имейл..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-9"
@@ -88,51 +92,92 @@ export default function AuditLog() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            {loading ? "Зареждане..." : `${filtered.length} записа`}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="py-12 text-center text-slate-400">Зареждане...</div>
-          ) : filtered.length === 0 ? (
-            <div className="py-12 text-center text-slate-400">Няма записи</div>
-          ) : (
-            <div className="divide-y">
-              {filtered.map(log => (
-                <div key={log.id} className="flex items-start gap-4 px-6 py-3 hover:bg-slate-50 transition-colors">
-                  <div className="text-xs text-slate-400 w-36 flex-shrink-0 pt-0.5">
-                    {new Date(log.createdAt).toLocaleString("bg", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline" className={`text-xs ${ACTION_COLORS[log.action] ?? "bg-slate-50 text-slate-600"}`}>
-                        {ACTION_LABELS[log.action] ?? log.action}
-                      </Badge>
-                      <span className="text-xs text-slate-400">
-                        {log.entityType}{log.entityId != null ? ` #${log.entityId}` : ""}
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+        {/* Table header */}
+        <div className="grid grid-cols-12 px-6 py-3 border-b border-slate-100 bg-slate-50">
+          <div className="col-span-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Потребител</div>
+          <div className="col-span-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Имейл</div>
+          <div className="col-span-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Действие</div>
+          <div className="col-span-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Роля</div>
+          <div className="col-span-1 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Дата</div>
+        </div>
+
+        {/* Table body */}
+        {loading ? (
+          <div className="py-16 text-center text-slate-400">Зареждане...</div>
+        ) : filtered.length === 0 ? (
+          <div className="py-16 text-center text-slate-400">Няма записи</div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {filtered.map(log => (
+              <div key={log.id} className="grid grid-cols-12 px-6 py-4 hover:bg-slate-50 transition-colors items-center">
+                {/* Потребител */}
+                <div className="col-span-3 flex items-center gap-3">
+                  {log.user ? (
+                    <>
+                      <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs flex-shrink-0">
+                        {log.user.firstName?.[0]}{log.user.lastName?.[0]}
+                      </div>
+                      <span className="font-medium text-sm text-slate-800">
+                        {log.user.firstName} {log.user.lastName}
                       </span>
-                    </div>
-                    {log.details && Object.keys(log.details).length > 0 && (
-                      <p className="text-xs text-slate-500 mt-0.5 truncate">
-                        {Object.entries(log.details).map(([k, v]) => `${k}: ${v}`).join(" · ")}
-                      </p>
-                    )}
-                  </div>
-                  {log.user && (
-                    <div className="text-right flex-shrink-0">
-                      <div className="text-xs font-medium text-slate-700">{log.user.firstName} {log.user.lastName}</div>
-                      <div className="text-xs text-slate-400">{formatRole(log.user.role)}</div>
-                    </div>
+                    </>
+                  ) : (
+                    <span className="text-sm text-slate-400 italic">Система</span>
                   )}
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+
+                {/* Имейл */}
+                <div className="col-span-3">
+                  <span className="text-sm text-slate-500">{log.user?.email ?? "—"}</span>
+                </div>
+
+                {/* Действие */}
+                <div className="col-span-3">
+                  <Badge
+                    variant="outline"
+                    className={`text-xs ${ACTION_COLORS[log.action] ?? "bg-slate-50 text-slate-600 border-slate-200"}`}
+                  >
+                    {ACTION_LABELS[log.action] ?? log.action}
+                  </Badge>
+                  {log.details?.title != null && (
+                    <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[180px]">
+                      {`${log.details.title}`}
+                    </p>
+                  )}
+                </div>
+
+                {/* Роля */}
+                <div className="col-span-2">
+                  {log.user ? (
+                    <span className="text-xs text-slate-500">{formatRole(log.user.role)}</span>
+                  ) : (
+                    <span className="text-xs text-slate-400">—</span>
+                  )}
+                </div>
+
+                {/* Дата */}
+                <div className="col-span-1 text-right">
+                  <div className="text-xs text-slate-500">
+                    {new Date(log.createdAt).toLocaleDateString("bg", { day: "2-digit", month: "2-digit", year: "2-digit" })}
+                  </div>
+                  <div className="text-xs text-slate-400">
+                    {new Date(log.createdAt).toLocaleTimeString("bg", { hour: "2-digit", minute: "2-digit" })}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Footer */}
+        {!loading && filtered.length > 0 && (
+          <div className="px-6 py-3 border-t border-slate-100 bg-slate-50">
+            <span className="text-xs text-slate-400">{filtered.length} записа</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
