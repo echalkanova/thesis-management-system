@@ -25,7 +25,7 @@ export default function ThesesList() {
         <div>
           <h1 className="text-2xl font-bold text-[#0a192f] tracking-tight">Дипломни работи</h1>
           {!["department_head", "admin"].includes(user?.role ?? "") && (
-            <p className="text-slate-500">Списък с дипломни работи във вашия контекст.</p>
+            <p className="text-slate-500"></p>
           )}
         </div>
         

@@ -182,7 +182,7 @@ export default function Defenses() {
         <div>
           <h1 className="text-2xl font-bold text-[#0a192f]">График на защитите</h1>
           {!["supervisor", "admin"].includes(user?.role ?? "") && (
-            <p className="text-slate-500 text-sm">Насрочвайте и управлявайте защитите</p>
+            <p className="text-slate-500 text-sm"></p>
           )}
         </div>
         {isDeptHead && (

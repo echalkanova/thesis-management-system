@@ -15,7 +15,7 @@ export default function Reviews() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-[#0a192f] tracking-tight">Рецензии</h1>
-        <p className="text-slate-500">Дипломни работи, назначени за рецензиране</p>
+        <p className="text-slate-500">Дипломни работи, назначени за рецензиране.</p>
       </div>
 
       {isLoading ? (
