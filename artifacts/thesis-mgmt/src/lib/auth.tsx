@@ -18,6 +18,10 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
+  activeRole: string | null;
+  canSwitchRole: boolean;
+  alternativeRole: string | null;
+  switchRole: () => void;
   login: (data: { email: string; password: string }) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
@@ -25,10 +29,17 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+function getAlternativeRole(role: string | undefined): string | null {
+  if (role === "supervisor") return "reviewer";
+  if (role === "reviewer") return "supervisor";
+  return null;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(() => localStorage.getItem("thesis_token"));
   const [isLoading, setIsLoading] = useState(true);
+  const [activeRole, setActiveRole] = useState<string | null>(null);
 
   useEffect(() => {
     setAuthTokenGetter(() => localStorage.getItem("thesis_token"));
@@ -41,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const userData = await getMe();
         setUser(userData);
+        setActiveRole(userData.role);
       } catch {
         setToken(null);
         localStorage.removeItem("thesis_token");
@@ -55,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await apiLogin(data);
     setToken(res.token);
     setUser(res.user);
+    setActiveRole(res.user.role);
     localStorage.setItem("thesis_token", res.token);
   };
 
@@ -68,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!res.ok) throw new Error(json.error ?? "Грешка при регистрация");
     setToken(json.token);
     setUser(json.user);
+    setActiveRole(json.user.role);
     localStorage.setItem("thesis_token", json.token);
   };
 
@@ -75,11 +89,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try { await apiLogout(); } catch {}
     setToken(null);
     setUser(null);
+    setActiveRole(null);
     localStorage.removeItem("thesis_token");
   };
 
+  const alternativeRole = getAlternativeRole(user?.role);
+  const canSwitchRole = alternativeRole !== null;
+
+  const switchRole = () => {
+    if (!canSwitchRole || !user) return;
+    setActiveRole(prev =>
+      prev === user.role ? alternativeRole : user.role
+    );
+  };
+
+  const effectiveUser = user && activeRole && activeRole !== user.role
+    ? { ...user, role: activeRole as RegisterInputRole }
+    : user;
+
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register: registerUser, logout }}>
+    <AuthContext.Provider value={{
+      user: effectiveUser,
+      token,
+      isLoading,
+      activeRole,
+      canSwitchRole,
+      alternativeRole,
+      switchRole,
+      login,
+      register: registerUser,
+      logout
+    }}>
       {children}
     </AuthContext.Provider>
   );

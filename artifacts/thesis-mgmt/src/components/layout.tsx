@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import {
   BookOpen, Calendar, LayoutDashboard, Users, FileText,
   BarChart2, LogOut, Bell, UserCircle,
-  ChevronRight, Shield, UserCheck, Inbox, MessageSquare, UsersRound
+  ChevronRight, Shield, UserCheck, Inbox, MessageSquare, UsersRound, ChevronDown
 } from "lucide-react";
 import { formatRole } from "@/lib/utils";
 import { ThesisFlowIcon, ThesisFlowWordmark } from "@/components/thesis-flow-logo";
@@ -86,8 +87,53 @@ function useSidebarBadges(user: { id: number; role: string } | null | undefined)
   } as Record<string, number>;
 }
 
+function RoleSwitcher({ user, alternativeRole, switchRole }: {
+  user: { firstName: string; lastName: string; role: string };
+  alternativeRole: string | null;
+  switchRole: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full p-3 rounded-xl bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 transition-colors flex items-center gap-2.5"
+      >
+        <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+          {user.firstName[0]}{user.lastName[0]}
+        </div>
+        <div className="min-w-0 flex-1 text-left">
+          <div className="text-sm font-semibold text-slate-800 truncate">{user.firstName} {user.lastName}</div>
+          <div className="text-xs text-indigo-500 font-medium">{formatRole(user.role)}</div>
+        </div>
+        <ChevronDown size={14} className="text-violet-400 flex-shrink-0" />
+      </button>
+
+      {open && (
+        <>
+          <div className="absolute left-0 right-0 mt-1 z-20 bg-white border border-violet-200 rounded-xl shadow-lg overflow-hidden">
+            <button
+              onClick={() => { switchRole(); setOpen(false); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-violet-50 transition-colors text-left"
+            >
+              <div className="w-7 h-7 rounded-full bg-white border border-violet-300 flex items-center justify-center text-violet-600 font-bold text-xs flex-shrink-0">
+                {user.firstName[0]}{user.lastName[0]}
+              </div>
+              <div>
+                <div className="text-xs font-medium text-slate-700">Превключи роля</div>
+                <div className="text-[10px] text-indigo-500">{formatRole(alternativeRole ?? "")}</div>
+              </div>
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function Sidebar() {
-  const { user, logout } = useAuth();
+  const { user, logout, canSwitchRole, alternativeRole, switchRole } = useAuth();
   const [location] = useLocation();
   const badges = useSidebarBadges(user);
 
@@ -109,21 +155,27 @@ export function Sidebar() {
       </div>
 
       {/* User card */}
-      <Link
-        href="/profile"
-        data-testid="link-profile-card"
-        className="mx-3 mt-4 mb-1 p-3 rounded-xl bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 transition-colors block"
-      >
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-            {user.firstName[0]}{user.lastName[0]}
-          </div>
-          <div className="min-w-0">
-            <div className="text-sm font-semibold text-slate-800 truncate">{user.firstName} {user.lastName}</div>
-            <div className="text-xs text-indigo-500 font-medium">{formatRole(user.role)}</div>
-          </div>
-        </div>
-      </Link>
+      <div className="mx-3 mt-4 mb-1">
+        {canSwitchRole ? (
+          <RoleSwitcher user={user} alternativeRole={alternativeRole} switchRole={switchRole} />
+        ) : (
+          <Link
+            href="/profile"
+            data-testid="link-profile-card"
+            className="p-3 rounded-xl bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 transition-colors block"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                {user.firstName[0]}{user.lastName[0]}
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-slate-800 truncate">{user.firstName} {user.lastName}</div>
+                <div className="text-xs text-indigo-500 font-medium">{formatRole(user.role)}</div>
+              </div>
+            </div>
+          </Link>
+        )}
+      </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
@@ -231,7 +283,6 @@ export function Header() {
           </span>
         )}
       </Link>
-
     </header>
   );
 }

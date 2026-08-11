@@ -98,7 +98,7 @@ export default function SupervisorRequests() {
     rejected: "bg-red-50 text-red-700 border-red-200",
   }[s] ?? "");
 
-  if (user?.role !== "supervisor" && user?.role !== "admin") {
+  if (!["supervisor", "admin", "department_head"].includes(user?.role ?? "")) {
     return <div className="p-8 text-center text-slate-500">Нямате достъп до тази страница.</div>;
   }
 
@@ -118,7 +118,7 @@ export default function SupervisorRequests() {
       )}
 
       <div className="space-y-4">
-        {requests?.map((r: any) => (
+        {(Array.isArray(requests) ? requests : []).map((r: any) => (
           <Card key={r.id}>
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">

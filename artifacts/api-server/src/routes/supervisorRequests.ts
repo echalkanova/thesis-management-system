@@ -78,7 +78,7 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
   } else if (req.userRole === "supervisor") {
     requests = await db.select().from(supervisorRequestsTable)
       .where(eq(supervisorRequestsTable.supervisorId, req.userId!));
-  } else if (req.userRole === "admin") {
+  } else if (req.userRole === "admin" || req.userRole === "department_head") {
     requests = await db.select().from(supervisorRequestsTable);
   } else {
     res.status(403).json({ error: "Forbidden" }); return;
