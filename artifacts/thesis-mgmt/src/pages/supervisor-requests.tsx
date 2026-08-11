@@ -114,7 +114,7 @@ export default function SupervisorRequests() {
       </div>
 
       {!requests?.length && (
-        <div className="text-center py-12 text-slate-400">Няма запитвания</div>
+        <Card><CardContent className="py-12 text-center text-slate-400">Няма запитвания</CardContent></Card>
       )}
 
       <div className="space-y-4">

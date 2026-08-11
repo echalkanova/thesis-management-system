@@ -179,7 +179,7 @@ export default function Committees() {
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-[#0a192f]">Моята комисия</h1>
         {!myCommittee ? (
-          <Card><CardContent className="py-12 text-center text-slate-400">Все още не сте назначени към комисия</CardContent></Card>
+          <Card><CardContent className="py-12 text-center text-slate-400">Все още не сте назначени към комисия.</CardContent></Card>
         ) : (
           <Card>
             <CardHeader>
@@ -222,7 +222,7 @@ export default function Committees() {
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-[#0a192f]">Моята комисия</h1>
         {!supervisorCommittee ? (
-          <Card><CardContent className="py-12 text-center text-slate-400">Все още не сте назначени към комисия</CardContent></Card>
+          <Card><CardContent className="py-12 text-center text-slate-400">Все още не сте назначени към комисия.</CardContent></Card>
         ) : (
           <Card>
             <CardHeader>

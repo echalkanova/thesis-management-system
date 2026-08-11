@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Send, MessageSquare, Search } from "lucide-react";
 import { formatRole, cn } from "@/lib/utils";
 
-function apiHeaders() {
+function apiHeaders() : Record<string, string> {
   const token = localStorage.getItem("thesis_token");
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
@@ -30,7 +30,6 @@ export default function Messages() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
-  // Conversations
   const { data: conversations = [] } = useQuery({
     queryKey: ["messages-conversations"],
     queryFn: async () => {
@@ -40,7 +39,6 @@ export default function Messages() {
     refetchInterval: 4000,
   });
 
-  // Selected user info (for new conversations where no message yet)
   const { data: selectedUser } = useQuery({
     queryKey: ["user-info", selectedId],
     queryFn: async () => {
@@ -50,7 +48,6 @@ export default function Messages() {
     enabled: !!selectedId,
   });
 
-  // Messages in conversation
   const { data: messages = [] } = useQuery({
     queryKey: ["messages-chat", selectedId],
     queryFn: async () => {
@@ -64,7 +61,6 @@ export default function Messages() {
     refetchInterval: 4000,
   });
 
-  // Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -93,11 +89,30 @@ export default function Messages() {
   const conv = conversations.find((c: any) => c.user?.id === selectedId);
   const partnerUser = conv?.user ?? selectedUser;
 
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ["all-users-search", search],
+    queryFn: async () => {
+      if (!search || search.length < 2) return [];
+      const res = await fetch(`/api/users?search=${encodeURIComponent(search)}`, { headers: apiHeaders() });
+      const data = await res.json();
+      return data.filter((u: any) => {
+        if (u.id === user?.id) return false;
+        if (user?.role === "student" && u.role === "admin") return false;
+        return true;
+      });
+    },
+    enabled: search.length >= 2,
+  });
+
   const filteredConvs = search
     ? conversations.filter((c: any) =>
         `${c.user?.firstName} ${c.user?.lastName}`.toLowerCase().includes(search.toLowerCase())
       )
     : conversations;
+
+  const newContacts = search.length >= 2
+    ? allUsers.filter((u: any) => !conversations.some((c: any) => c.user?.id === u.id))
+    : [];
 
   return (
     <div className="h-[calc(100vh-3.5rem-3rem)] -m-6 flex">
@@ -116,9 +131,7 @@ export default function Messages() {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {filteredConvs.length === 0 && (
-            <div className="text-center py-12 text-slate-400 text-sm">Няма разговори</div>
-          )}
+          {/* Existing conversations */}
           {filteredConvs.map((c: any) => (
             <button
               key={c.user.id}
@@ -144,6 +157,30 @@ export default function Messages() {
               </div>
             </button>
           ))}
+
+          {/* New contacts from search */}
+          {newContacts.map((u: any) => (
+            <button
+              key={u.id}
+              onClick={() => handleSelect(u.id)}
+              className={cn(
+                "w-full text-left flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors border-b border-slate-50",
+                selectedId === u.id && "bg-indigo-50 border-indigo-100"
+              )}>
+              <div className="w-9 h-9 rounded-full bg-slate-400 flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-0.5">
+                {u.firstName[0]}{u.lastName[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-slate-800 truncate">{u.firstName} {u.lastName}</div>
+                <div className="text-xs text-slate-400">{formatRole(u.role)}</div>
+              </div>
+            </button>
+          ))}
+
+          {/* Empty state — shown only when no results at all */}
+          {filteredConvs.length === 0 && newContacts.length === 0 && (
+            <div className="text-center py-12 text-slate-400 text-sm">Няма разговори</div>
+          )}
         </div>
       </div>
 
@@ -171,7 +208,7 @@ export default function Messages() {
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
               {(messages as any[]).length === 0 && (
-                <div className="text-center text-slate-400 text-sm py-8">Изпратете първото съобщение</div>
+                <div className="text-center text-slate-400 text-sm py-8">Изпратете първото съобщение!</div>
               )}
               {(messages as any[]).map((m: any) => {
                 const isMine = m.senderId === user?.id;

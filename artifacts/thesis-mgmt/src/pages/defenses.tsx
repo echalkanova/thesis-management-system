@@ -121,7 +121,7 @@ export default function Defenses() {
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-[#0a192f]">Моята защита</h1>
         {!myDefense ? (
-          <Card><CardContent className="py-12 text-center text-slate-400">Все още нямате насрочена защита</CardContent></Card>
+          <Card><CardContent className="py-12 text-center text-slate-400">Все още нямате насрочена защита.</CardContent></Card>
         ) : (
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5" />{myDefense.title}</CardTitle></CardHeader>

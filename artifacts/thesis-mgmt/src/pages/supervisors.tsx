@@ -95,7 +95,10 @@ export default function Supervisors() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-[#0a192f]">Научни ръководители</h1>
-        <p className="text-slate-500 text-sm mt-1">Преглед на наличните ръководители и свободните места</p>
+        {user?.role === "admin" 
+          ? <p className="text-slate-500 text-sm mt-1">Преглед на наличните ръководители, техните дипломанти и свободните места</p>
+          : <p className="text-slate-500 text-sm mt-1">Преглед на наличните ръководители и свободните места</p>
+        }
       </div>
 
       {isStudent && acceptedRequest && (
