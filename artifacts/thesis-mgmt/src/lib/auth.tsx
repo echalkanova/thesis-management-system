@@ -19,9 +19,10 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   activeRole: string | null;
+  originalRole: string | null;
   canSwitchRole: boolean;
   alternativeRole: string[];
-  switchRole: () => void;
+  switchRole: (targetRole?: string) => void;
   login: (data: { email: string; password: string }) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
@@ -29,7 +30,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-function getAlternativeRole(role: string | undefined): string[] {
+function getAlternativeRoles(role: string | undefined): string[] {
   if (role === "supervisor") return ["reviewer"];
   if (role === "reviewer") return ["supervisor"];
   if (role === "department_head") return ["supervisor", "reviewer"];
@@ -40,7 +41,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(() => localStorage.getItem("thesis_token"));
   const [isLoading, setIsLoading] = useState(true);
+  // activeRole е текущата активна роля (може да е различна от user.role)
   const [activeRole, setActiveRole] = useState<string | null>(null);
+  // originalRole е истинската роля от БД
+  const [originalRole, setOriginalRole] = useState<string | null>(null);
 
   useEffect(() => {
     setAuthTokenGetter(() => localStorage.getItem("thesis_token"));
@@ -54,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userData = await getMe();
         setUser(userData);
         setActiveRole(userData.role);
+        setOriginalRole(userData.role);
       } catch {
         setToken(null);
         localStorage.removeItem("thesis_token");
@@ -69,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(res.token);
     setUser(res.user);
     setActiveRole(res.user.role);
+    setOriginalRole(res.user.role);
     localStorage.setItem("thesis_token", res.token);
   };
 
@@ -83,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(json.token);
     setUser(json.user);
     setActiveRole(json.user.role);
+    setOriginalRole(json.user.role);
     localStorage.setItem("thesis_token", json.token);
   };
 
@@ -91,25 +98,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setUser(null);
     setActiveRole(null);
+    setOriginalRole(null);
     localStorage.removeItem("thesis_token");
   };
 
-  const alternativeRoles = getAlternativeRole(user?.role);
+  const alternativeRoles = getAlternativeRoles(originalRole ?? undefined);
   const canSwitchRole = alternativeRoles.length > 0;
-  const alternativeRole = alternativeRoles;
 
   const switchRole = (targetRole?: string) => {
-    if (!canSwitchRole || !user) return;
+    if (!canSwitchRole || !originalRole) return;
     if (targetRole) {
       setActiveRole(targetRole);
     } else {
+      // Toggle между оригиналната роля и първата алтернативна
       setActiveRole(prev =>
-        prev === user.role ? alternativeRoles[0] : user.role
+        prev === originalRole ? alternativeRoles[0] : originalRole
       );
     }
   };
 
-  const effectiveUser = user && activeRole && activeRole !== user.role
+  // effectiveUser използва activeRole като роля
+  const effectiveUser = user && activeRole
     ? { ...user, role: activeRole as RegisterInputRole }
     : user;
 
@@ -119,8 +128,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token,
       isLoading,
       activeRole,
+      originalRole,
       canSwitchRole,
-      alternativeRole,
+      alternativeRole: alternativeRoles,
       switchRole,
       login,
       register: registerUser,

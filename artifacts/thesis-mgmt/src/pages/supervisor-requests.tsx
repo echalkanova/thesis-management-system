@@ -42,12 +42,12 @@ export default function SupervisorRequests() {
     },
   });
 
-  const accept = useMutation({
-    mutationFn: async ({ id, reviewerId }: { id: number; reviewerId: number }) => {
+    const accept = useMutation({
+    mutationFn: async ({ id }: { id: number }) => {
       const res = await fetch(`/api/supervisor-requests/${id}/accept`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...apiHeaders() },
-        body: JSON.stringify({ reviewerId }),
+        body: JSON.stringify({}),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Грешка");
@@ -184,37 +184,11 @@ export default function SupervisorRequests() {
 
                 {r.status === "pending" && user?.role === "supervisor" && (
                   <>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-1">
-                          <CheckCircle className="h-4 w-4" /> Одобри
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader><DialogTitle>Изберете рецензент</DialogTitle></DialogHeader>
-                        <div className="space-y-4 pt-2">
-                          <Label>Рецензент *</Label>
-                          <Select
-                            value={selectedReviewer[r.id] ?? ""}
-                            onValueChange={v => setSelectedReviewer(prev => ({ ...prev, [r.id]: v }))}>
-                            <SelectTrigger><SelectValue placeholder="Изберете рецензент" /></SelectTrigger>
-                            <SelectContent>
-                              {reviewers?.map((rev: any) => (
-                                <SelectItem key={rev.id} value={String(rev.id)}>
-                                  {rev.firstName} {rev.lastName}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            className="w-full bg-green-600 hover:bg-green-700 text-white"
-                            disabled={!selectedReviewer[r.id] || accept.isPending}
-                            onClick={() => accept.mutate({ id: r.id, reviewerId: Number(selectedReviewer[r.id]) })}>
-                            Потвърди одобрението
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                    <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-1"
+                      disabled={accept.isPending}
+                      onClick={() => accept.mutate({ id: r.id })}>
+                      <CheckCircle className="h-4 w-4" /> Одобри
+                    </Button>
 
                     <Button
                       size="sm"

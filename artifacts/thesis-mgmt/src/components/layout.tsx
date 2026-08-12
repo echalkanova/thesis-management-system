@@ -40,7 +40,6 @@ const NAV_LINKS = [
   { href: "/reports", label: "Справки", icon: BarChart2, roles: ["supervisor"] },
   // Reviewer
   { href: "/dashboard", label: "Табло", icon: LayoutDashboard, roles: ["reviewer"] },
-  { href: "/theses", label: "Дипломни работи", icon: BookOpen, roles: ["reviewer"] },
   { href: "/reviews", label: "Рецензии", icon: FileText, roles: ["reviewer"] },
   { href: "/defenses", label: "Защити", icon: Calendar, roles: ["reviewer"] },
   // Student
@@ -54,6 +53,7 @@ const NAV_LINKS = [
 function useSidebarBadges(user: { id: number; role: string } | null | undefined) {
   const { data: supervisorRequests } = useQuery({
     queryKey: ["sidebar-supervisor-requests"],
+    
     queryFn: async () => {
       const token = localStorage.getItem("thesis_token");
       const res = await fetch("/api/supervisor-requests", { headers: token ? { Authorization: `Bearer ${token}` } : {} });
@@ -62,6 +62,19 @@ function useSidebarBadges(user: { id: number; role: string } | null | undefined)
       return Array.isArray(data) ? data : [];
     },
     enabled: user?.role === "supervisor",
+    refetchInterval: 15000,
+  });
+
+  const { data: studentRequests } = useQuery({
+    queryKey: ["sidebar-student-requests"],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch("/api/supervisor-requests", { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: user?.role === "student",
     refetchInterval: 15000,
   });
 
@@ -81,16 +94,25 @@ function useSidebarBadges(user: { id: number; role: string } | null | undefined)
   const pendingRequests = (supervisorRequests ?? []).filter((r: any) => r.status === "pending").length;
   const pendingReviews = (reviewerTheses ?? []).filter((t: any) => t.status === "under_review").length;
 
+  
+  const lastSeenKey = `supervisor_response_seen_${user?.id}`;
+  const lastSeen = localStorage.getItem(lastSeenKey);
+  const latestResponse = (studentRequests ?? []).find((r: any) => ["accepted", "rejected"].includes(r.status));
+  const hasNewResponse = latestResponse && lastSeen !== latestResponse.id?.toString();
+  const noSupervisor = user?.role === "student" && hasNewResponse ? 1 : 0;
+  
   return {
     "/supervisor-requests": pendingRequests,
     "/reviews": pendingReviews,
+    "/supervisors": noSupervisor,
   } as Record<string, number>;
 }
 
-function RoleSwitcher({ user, alternativeRole, switchRole }: {
+function RoleSwitcher({ user, alternativeRole, switchRole, originalRole }: {
   user: { firstName: string; lastName: string; role: string };
   alternativeRole: string[] | string | null;
   switchRole: (role?: string) => void;
+  originalRole: string | null;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -113,8 +135,7 @@ function RoleSwitcher({ user, alternativeRole, switchRole }: {
       {open && (
         <>
           <div className="absolute left-0 right-0 mt-1 z-20 bg-white border border-violet-200 rounded-xl shadow-lg overflow-hidden">
-            {(Array.isArray(alternativeRole) ? alternativeRole : [alternativeRole]).filter(Boolean).map((role: string) => (
-              <button
+          {[...(originalRole && originalRole !== user.role ? [originalRole] : []), ...(Array.isArray(alternativeRole) ? alternativeRole : [alternativeRole]).filter((r: string) => r !== user.role)].map((role: string) => (              <button
                 key={role}
                 onClick={() => { switchRole(role); setOpen(false); }}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-violet-50 transition-colors text-left border-b border-slate-50 last:border-0"
@@ -136,7 +157,7 @@ function RoleSwitcher({ user, alternativeRole, switchRole }: {
 }
 
 export function Sidebar() {
-  const { user, logout, canSwitchRole, alternativeRole, switchRole } = useAuth();
+  const { user, logout, canSwitchRole, alternativeRole, switchRole, originalRole } = useAuth();
   const [location] = useLocation();
   const badges = useSidebarBadges(user);
 
@@ -160,8 +181,7 @@ export function Sidebar() {
       {/* User card */}
       <div className="mx-3 mt-4 mb-1">
         {canSwitchRole ? (
-          <RoleSwitcher user={user} alternativeRole={alternativeRole} switchRole={switchRole} />
-        ) : (
+          <RoleSwitcher user={user} alternativeRole={alternativeRole} switchRole={switchRole} originalRole={originalRole} />        ) : (
           <Link
             href="/profile"
             data-testid="link-profile-card"

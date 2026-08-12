@@ -75,7 +75,7 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
   if (req.userRole === "student") {
     requests = await db.select().from(supervisorRequestsTable)
       .where(eq(supervisorRequestsTable.studentId, req.userId!));
-  } else if (req.userRole === "supervisor") {
+  } else if (req.userRole === "supervisor" || req.userRole === "department_head") {
     requests = await db.select().from(supervisorRequestsTable)
       .where(eq(supervisorRequestsTable.supervisorId, req.userId!));
   } else if (req.userRole === "admin" || req.userRole === "department_head") {
@@ -109,17 +109,13 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
 });
 
 router.post("/:id/accept", requireAuth, async (req: AuthRequest, res) => {
-  if (req.userRole !== "supervisor") {
+  if (!["supervisor", "department_head"].includes(req.userRole ?? "")) {
     res.status(403).json({ error: "Only supervisors can accept requests" });
     return;
   }
 
   const id = Number(req.params.id);
   const { reviewerId } = req.body;
-  if (!reviewerId) {
-    res.status(400).json({ error: "Reviewer is required" });
-    return;
-  }
 
   const [request] = await db.select().from(supervisorRequestsTable)
     .where(eq(supervisorRequestsTable.id, id)).limit(1);
@@ -129,7 +125,7 @@ router.post("/:id/accept", requireAuth, async (req: AuthRequest, res) => {
   }
 
   const [updated] = await db.update(supervisorRequestsTable)
-    .set({ status: "accepted", reviewerId })
+    .set({ status: "accepted" })
     .where(eq(supervisorRequestsTable.id, id)).returning();
 
   const studentTheses = await db.select().from(thesesTable)
@@ -151,7 +147,7 @@ router.post("/:id/accept", requireAuth, async (req: AuthRequest, res) => {
 });
 
 router.post("/:id/reject", requireAuth, async (req: AuthRequest, res) => {
-  if (req.userRole !== "supervisor") {
+  if (!["supervisor", "department_head"].includes(req.userRole ?? "")) {
     res.status(403).json({ error: "Only supervisors can reject requests" });
     return;
   }

@@ -33,11 +33,13 @@ const STATUS_BADGE_COLORS: Record<string, string> = {
 };
 
 const STEPS = [
-  { key: "draft",        label: "Чернова" },
-  { key: "submitted",    label: "Подадена" },
-  { key: "under_review", label: "В рецензия" },
-  { key: "approved",     label: "Одобрена" },
-  { key: "defended",     label: "Защитена" },
+  { key: "draft",                  label: "Чернова" },
+  { key: "submitted",              label: "Подадена" },
+  { key: "approved_by_supervisor", label: "Одобрена" },
+  { key: "under_review",           label: "В рецензия" },
+  { key: "reviewed",               label: "Рецензирана" },
+  { key: "approved_for_defense",   label: "Допусната" },
+  { key: "defended",               label: "Защитена" },
 ];
 
 function stepIndex(status: string) {
@@ -338,9 +340,9 @@ function ReviewerDashboard() {
   const recentNotifs = notifications?.slice(0, 4) ?? [];
 
   const metrics = [
-    { label: "За рецензиране", value: pending.length, icon: Hourglass, iconBg: "bg-amber-50", iconColor: "text-amber-600", slots: false },
-    { label: "Приключени рецензии", value: completed.length, icon: ClipboardCheck, iconBg: "bg-emerald-50", iconColor: "text-emerald-600", slots: false },
-    { label: "Общо назначени", value: theses.length, icon: FileText, iconBg: "bg-indigo-50", iconColor: "text-indigo-600", slots: true },
+    { label: "За рецензиране", value: pending.length, icon: Hourglass, iconBg: "bg-amber-50", iconColor: "text-amber-600", slots: false, href: "/reviews" },
+    { label: "Приключени рецензии", value: completed.length, icon: ClipboardCheck, iconBg: "bg-emerald-50", iconColor: "text-emerald-600", slots: false, href: "/reviews" },
+    { label: "Общо назначени", value: theses.length, icon: FileText, iconBg: "bg-indigo-50", iconColor: "text-indigo-600", slots: true, href: "/theses" },
   ];
 
   return (
@@ -352,12 +354,14 @@ function ReviewerDashboard() {
 
       <div className="grid grid-cols-3 gap-4">
         {metrics.map((metric) => {
-          const { label, value, icon: Icon, iconBg, iconColor, slots } = metric;
+          const { label, value, icon: Icon, iconBg, iconColor, slots, href } = metric;
           return (
-            <div key={label} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+            <Link key={label} href={href ?? "/dashboard"}>
+            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
               <div className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center mb-4`}>
                 <Icon size={20} className={iconColor} />
               </div>
+              
               {slots && reviewerInfo ? (
                 <div className="mb-0.5">
                   <span className="text-3xl font-bold text-slate-800">{value}</span>
@@ -369,6 +373,7 @@ function ReviewerDashboard() {
               )}
               <div className="text-xs text-slate-400">{label}</div>
             </div>
+            </Link>
           );
         })}
       </div>
@@ -470,8 +475,8 @@ function SupervisorDashboard() {
   const { user } = useAuth();
 
   const { data: myTheses, isLoading } = useListTheses(
-    {} as any,
-    { query: { queryKey: getListThesesQueryKey({} as any) } }
+    { supervisorId: user?.id } as any,
+    { query: { queryKey: getListThesesQueryKey({ supervisorId: user?.id } as any) } }
   );
 
   const { data: notifications } = useListNotifications(
@@ -509,10 +514,10 @@ function SupervisorDashboard() {
   const recentNotifs = (notifications ?? []).slice(0, 4);
 
   const metrics = [
-    { label: "Чакат одобрение", value: pendingApproval.length, icon: AlertCircle, iconBg: "bg-amber-50", iconColor: "text-amber-600" },
-    { label: "Активни дипломни работи", value: active.length, icon: BookOpen, iconBg: "bg-indigo-50", iconColor: "text-indigo-600" },
-    { label: "Запитвания от студенти", value: pendingRequests.length, icon: Inbox, iconBg: "bg-violet-50", iconColor: "text-violet-600" },
-    { label: "Успешно защитени", value: defended.length, icon: GraduationCap, iconBg: "bg-emerald-50", iconColor: "text-emerald-600" },
+    { label: "Чакат одобрение", value: pendingApproval.length, icon: AlertCircle, iconBg: "bg-amber-50", iconColor: "text-amber-600", href: "/theses" },
+    { label: "Активни дипломни работи", value: active.length, icon: BookOpen, iconBg: "bg-indigo-50", iconColor: "text-indigo-600", href: "/theses" },
+    { label: "Запитвания от студенти", value: pendingRequests.length, icon: Inbox, iconBg: "bg-violet-50", iconColor: "text-violet-600", href: "/supervisor-requests" },
+    { label: "Успешно защитени", value: defended.length, icon: GraduationCap, iconBg: "bg-emerald-50", iconColor: "text-emerald-600", href: "/theses" },
   ];
 
   return (
@@ -523,14 +528,16 @@ function SupervisorDashboard() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {metrics.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
-          <div key={label} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+        {metrics.map(({ label, value, icon: Icon, iconBg, iconColor, href }: any) => (
+          <Link key={label} href={href ?? "/dashboard"}>
+          <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
             <div className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center mb-4`}>
               <Icon size={20} className={iconColor} />
             </div>
             <div className="text-3xl font-bold text-slate-800 mb-0.5">{value}</div>
             <div className="text-xs text-slate-400">{label}</div>
           </div>
+          </Link>
         ))}
       </div>
 
@@ -686,10 +693,10 @@ function AdminDashboard() {
   if (!stats) return null;
 
   const metrics = [
-    { label: "Дипломни работи", value: stats.totalTheses, change: `${stats.totalTheses} общо`, up: true, icon: BookOpen, iconBg: "bg-indigo-50", iconColor: "text-indigo-600", changeColor: "text-emerald-600" },
-    { label: "Предстоящи защити", value: stats.upcomingDefenses, change: stats.upcomingDefenses > 0 ? `${stats.upcomingDefenses} насрочени` : "Няма насрочени", up: stats.upcomingDefenses > 0, icon: Calendar, iconBg: "bg-violet-50", iconColor: "text-violet-600", changeColor: stats.upcomingDefenses > 0 ? "text-emerald-600" : "text-slate-400" },
-    { label: "Чакащи рецензии", value: stats.pendingReviews, change: stats.pendingReviews > 0 ? `${stats.pendingReviews} за рецензия` : "Всички прегледани", up: false, icon: FileText, iconBg: "bg-amber-50", iconColor: "text-amber-600", changeColor: stats.pendingReviews > 0 ? "text-rose-500" : "text-emerald-600" },
-    { label: "Среден успех", value: stats.averageGrade > 0 ? stats.averageGrade.toFixed(2) : "—", change: stats.averageGrade > 0 ? gradeLabel(stats.averageGrade) : "Няма оценки", up: stats.averageGrade >= 4, icon: TrendingUp, iconBg: "bg-emerald-50", iconColor: "text-emerald-600", changeColor: stats.averageGrade >= 4 ? "text-emerald-600" : stats.averageGrade > 0 ? "text-rose-500" : "text-slate-400" },
+    { label: "Дипломни работи", value: stats.totalTheses, change: `${stats.totalTheses} общо`, up: true, icon: BookOpen, iconBg: "bg-indigo-50", iconColor: "text-indigo-600", changeColor: "text-emerald-600", href: "/theses" },
+    { label: "Предстоящи защити", value: stats.upcomingDefenses, change: stats.upcomingDefenses > 0 ? `${stats.upcomingDefenses} насрочени` : "Няма насрочени", up: stats.upcomingDefenses > 0, icon: Calendar, iconBg: "bg-violet-50", iconColor: "text-violet-600", changeColor: stats.upcomingDefenses > 0 ? "text-emerald-600" : "text-slate-400", href: "/defenses" },
+    { label: "Чакащи рецензии", value: stats.pendingReviews, change: stats.pendingReviews > 0 ? `${stats.pendingReviews} за рецензия` : "Всички прегледани", up: false, icon: FileText, iconBg: "bg-amber-50", iconColor: "text-amber-600", changeColor: stats.pendingReviews > 0 ? "text-rose-500" : "text-emerald-600", href: "/theses" },
+    { label: "Среден успех", value: stats.averageGrade > 0 ? stats.averageGrade.toFixed(2) : "—", change: stats.averageGrade > 0 ? gradeLabel(stats.averageGrade) : "Няма оценки", up: stats.averageGrade >= 4, icon: TrendingUp, iconBg: "bg-emerald-50", iconColor: "text-emerald-600", changeColor: stats.averageGrade >= 4 ? "text-emerald-600" : stats.averageGrade > 0 ? "text-rose-500" : "text-slate-400", href: "/reports" },
   ];
 
   return (
@@ -700,8 +707,9 @@ function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {metrics.map(({ label, value, change, up, icon: Icon, iconBg, iconColor, changeColor }) => (
-          <div key={label} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+        {metrics.map(({ label, value, change, up, icon: Icon, iconBg, iconColor, changeColor, href }: any) => (
+          <Link key={label} href={href ?? "/dashboard"}>
+          <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-start justify-between mb-4">
               <div className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center`}>
                 <Icon size={20} className={iconColor} />
@@ -714,6 +722,7 @@ function AdminDashboard() {
             <div className="text-xs text-slate-400 mb-1.5">{label}</div>
             <div className={`text-xs font-semibold ${changeColor}`}>{change}</div>
           </div>
+          </Link>
         ))}
       </div>
 

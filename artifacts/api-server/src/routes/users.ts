@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, usersTable, supervisorRequestsTable, thesesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
 import { createHmac } from "crypto";
 
@@ -46,7 +46,7 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
 // Must be before /:id to avoid route conflict
 router.get("/supervisors/list", requireAuth, async (req: AuthRequest, res) => {
   const supervisors = await db.select().from(usersTable)
-    .where(eq(usersTable.role, "supervisor"));
+    .where(inArray(usersTable.role, ["supervisor", "reviewer", "department_head"]));
 
   const result = await Promise.all(supervisors.map(async (s) => {
     const allRequests = await db.select().from(supervisorRequestsTable)

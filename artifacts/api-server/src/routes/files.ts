@@ -68,7 +68,7 @@ thesisFilesRouter.post("/", requireAuth, upload.single("file"), async (req: Auth
   const fileUrl = `/uploads/${req.file.filename}`;
   const [file] = await db.insert(thesisFilesTable).values({
     thesisId,
-    fileName: req.file.originalname,
+    fileName: Buffer.from(req.file.originalname, 'latin1').toString('utf8'),
     fileUrl,
     fileType: req.file.mimetype,
     fileSize: req.file.size,

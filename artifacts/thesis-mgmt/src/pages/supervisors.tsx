@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Users, Mail, BookOpen, Send } from "lucide-react";
+import { Users, Mail, BookOpen, Send, Crown, Timer } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function Supervisors() {
@@ -51,6 +51,15 @@ export default function Supervisors() {
     },
     enabled: isStudent,
   });
+
+  useEffect(() => {
+    if (user?.role === "student" && myRequests) {
+      const latestResponse = myRequests.find((r: any) => ["accepted", "rejected"].includes(r.status));
+      if (latestResponse) {
+        localStorage.setItem(`supervisor_response_seen_${user.id}`, latestResponse.id.toString());
+      }
+    }
+  }, [myRequests, user]);
 
   const sendRequest = useMutation({
     mutationFn: async (data: { supervisorId: number; thesisTitle: string; technologies: string; description: string }) => {
@@ -103,10 +112,7 @@ export default function Supervisors() {
 
       {isStudent && acceptedRequest && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-          <p className="text-green-800 font-medium">✓ Вашият научен ръководител е одобрен</p>
-          <p className="text-green-700 text-sm mt-1">
-            {acceptedRequest.supervisor?.firstName} {acceptedRequest.supervisor?.lastName}
-          </p>
+          <p className="text-green-800 font-medium">✓ {acceptedRequest.supervisor?.firstName} {acceptedRequest.supervisor?.lastName} одобри вашето запитване.</p>
         </div>
       )}
 
@@ -118,7 +124,13 @@ export default function Supervisors() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {(supervisors ?? []).map((s: any) => (
+        {(supervisors ?? []).slice().sort((a: any, b: any) => {
+          const aIsAccepted = acceptedRequest?.supervisor?.id === a.id;
+          const bIsAccepted = acceptedRequest?.supervisor?.id === b.id;
+          if (aIsAccepted) return -1;
+          if (bIsAccepted) return 1;
+          return 0;
+        }).map((s: any) => (
           <Card
             key={s.id}
             className={`hover:shadow-md transition-shadow ${user?.role === "admin" ? "cursor-pointer" : ""}`}
@@ -131,7 +143,13 @@ export default function Supervisors() {
           >
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
-                <CardTitle className="text-base font-semibold text-[#0a192f]">
+                <CardTitle className="text-base font-semibold text-[#0a192f] flex items-center gap-2">
+                  {acceptedRequest?.supervisor?.id === s.id && (
+                    <Crown className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                  )}
+                  {myRequests?.some((r: any) => r.supervisorId === s.id && r.status === "pending") && (
+                    <Timer className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                  )}
                   {s.firstName} {s.lastName}
                 </CardTitle>
                 <Badge
@@ -154,7 +172,7 @@ export default function Supervisors() {
               )}
               <div className="flex items-center gap-2 text-sm text-slate-500">
                 <Users className="h-4 w-4 text-slate-400" />
-                {s.acceptedStudents} / {s.maxStudents} места заети
+                {s.acceptedStudents} / {s.maxStudents} места 
               </div>
 
               {isStudent && !hasActiveRequest && s.freeSlots > 0 && (

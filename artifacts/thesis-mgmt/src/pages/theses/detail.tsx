@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, FileText, UserCheck, Star, Paperclip, Trash2 } from "lucide-react";
+import { ArrowLeft, FileText, UserCheck, Star, Paperclip, Trash2, Upload } from "lucide-react";
 import { FileUploadDialog } from "@/components/file-upload-dialog";
 import { ThesisTimeline } from "@/components/thesis-timeline";
 
@@ -55,25 +55,12 @@ export default function ThesisDetail() {
   const createReview = useCreateReview();
   const createGrade = useCreateGrade();
 
+  // All useState hooks first
   const [reviewContent, setReviewContent] = useState("");
   const [reviewRecommendation, setReviewRecommendation] = useState("approve");
+  const [reviewFile, setReviewFile] = useState<File | null>(null);
   const [gradeValue, setGradeValue] = useState("");
   const [gradeComment, setGradeComment] = useState("");
-  // Провери дали текущият потребител е председател на комисията на студента
-  const { data: isChairman } = useQuery({
-    queryKey: ["is-chairman", thesisId, user?.id],
-    queryFn: async () => {
-      if (!thesis) return false;
-      const token = localStorage.getItem("thesis_token");
-      const res = await fetch("/api/committees/my-committee", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const committee = await res.json();
-      if (!committee) return false;
-      return committee.members?.some((m: any) => m.id === user?.id && m.isChairman);
-    },
-    enabled: !!thesis && !!user,
-  });
   const [assignRole, setAssignRole] = useState<"supervisor" | "reviewer">("supervisor");
   const [assignUserId, setAssignUserId] = useState("");
   const [statusToSet, setStatusToSet] = useState("");
@@ -81,6 +68,36 @@ export default function ThesisDetail() {
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [reviewerDialogOpen, setReviewerDialogOpen] = useState(false);
   const [selectedReviewerForThesis, setSelectedReviewerForThesis] = useState("");
+
+  // All useQuery hooks after useState
+  const { data: isChairman } = useQuery({
+    queryKey: ["is-chairman", thesisId, user?.id],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch("/api/committees", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) return false;
+      const committees = await res.json();
+      if (!Array.isArray(committees)) return false;
+      return committees.some((c: any) =>
+        c.members?.some((m: any) => m.id === user?.id && m.isChairman)
+      );
+    },
+    enabled: !!user,
+  });
+
+  const { data: reviewerSlots } = useQuery({
+    queryKey: ["reviewer-slots-list"],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch("/api/users/reviewers/list", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      return res.json();
+    },
+    enabled: user?.role === "supervisor",
+  });
 
   const thesisAction = async (action: string, body?: Record<string, unknown>) => {
     setActionPending(action);
@@ -135,23 +152,45 @@ export default function ThesisDetail() {
   const supervisors = users?.filter(u => u.role === "supervisor") ?? [];
   const reviewers = users?.filter(u => u.role === "reviewer") ?? [];
 
-  const { data: reviewerSlots } = useQuery({
-    queryKey: ["reviewer-slots-list"],
-    queryFn: async () => {
-      const token = localStorage.getItem("thesis_token");
-      const res = await fetch("/api/users/reviewers/list", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      return res.json();
-    },
-    enabled: isSupervisor,
-  });
-
   const getReviewerSlots = (reviewerId: number) => {
     return reviewerSlots?.find((r: any) => r.id === reviewerId);
   };
 
   const avgGrade = grades && grades.length > 0 ? grades.reduce((s, g) => s + g.value, 0) / grades.length : null;
+
+  const submitReviewWithFile = async () => {
+    const token = localStorage.getItem("thesis_token");
+    if (reviewFile) {
+      const formData = new FormData();
+      formData.append("file", reviewFile);
+      formData.append("content", reviewContent);
+      formData.append("recommendation", reviewRecommendation);
+      formData.append("isPublished", "true");
+      const res = await fetch(`/api/theses/${thesisId}/reviews`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      if (res.ok) {
+        queryClient.invalidateQueries({ queryKey: getListThesisReviewsQueryKey(thesisId) });
+        invalidate();
+        toast({ title: "Рецензията е добавена" });
+        setReviewContent("");
+        setReviewFile(null);
+      } else {
+        const data = await res.json();
+        toast({ title: "Грешка", description: data.error, variant: "destructive" });
+      }
+    } else {
+      createReview.mutate({ id: thesisId, data: { content: reviewContent, recommendation: reviewRecommendation as "approve" | "reject" | "revise", isPublished: true } }, {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListThesisReviewsQueryKey(thesisId) });
+          setReviewContent("");
+          toast({ title: "Рецензията е добавена" });
+        }
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -190,7 +229,7 @@ export default function ThesisDetail() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2"><Paperclip className="h-4 w-4" /> Файлове ({files.length})</CardTitle>
-                  {(isOwner || isSupervisor || isAdmin) && (
+                  {(isOwner || isAdmin) && (
                     <FileUploadDialog thesisId={thesisId} />
                   )}
                 </div>
@@ -232,6 +271,12 @@ export default function ThesisDetail() {
                     </Badge>
                   </div>
                   <p className="text-sm text-slate-700 leading-relaxed">{r.content}</p>
+                  {(r as any).fileUrl && (
+                    <a href={(r as any).fileUrl} target="_blank" rel="noreferrer"
+                      className="flex items-center gap-2 text-sm text-blue-600 hover:underline mt-2">
+                      <Paperclip className="h-4 w-4" /> {(r as any).fileUrl.split("/").pop()}
+                    </a>
+                  )}
                   <p className="text-xs text-slate-400 mt-2">{new Date(r.createdAt).toLocaleDateString("bg")}</p>
                 </div>
               ))}
@@ -247,10 +292,26 @@ export default function ThesisDetail() {
                       <SelectItem value="revise">Препоръчвам корекции</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button className="bg-[#0a192f] text-white" disabled={createReview.isPending || !reviewContent} data-testid="button-submit-review"
-                    onClick={() => createReview.mutate({ id: thesisId, data: { content: reviewContent, recommendation: reviewRecommendation as "approve" | "reject" | "revise", isPublished: true } }, {
-                      onSuccess: () => { queryClient.invalidateQueries({ queryKey: getListThesisReviewsQueryKey(thesisId) }); setReviewContent(""); toast({ title: "Рецензията е добавена" }); }
-                    })}>
+                  <div className="space-y-2">
+                    <Label>Прикачи файл с рецензия (по избор)</Label>
+                    <input
+                      type="file"
+                      id="review-file-upload"
+                      className="hidden"
+                      accept=".pdf,.doc,.docx"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) setReviewFile(file);
+                      }}
+                    />
+                    <Button variant="outline" className="w-full border-slate-200"
+                      onClick={() => document.getElementById("review-file-upload")?.click()}>
+                      <Upload className="h-4 w-4 mr-2" />
+                      {reviewFile ? reviewFile.name : "Избери файл с рецензия"}
+                    </Button>
+                  </div>
+                  <Button className="bg-[#0a192f] text-white w-full" disabled={createReview.isPending || !reviewContent} data-testid="button-submit-review"
+                    onClick={submitReviewWithFile}>
                     {createReview.isPending ? "Запазване..." : "Добави рецензия"}
                   </Button>
                 </div>
@@ -259,7 +320,7 @@ export default function ThesisDetail() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><Star className="h-4 w-4 text-amber-500" /> Крайна оценка</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="flex items-center gap-2"><Star className="h-4 w-4 text-amber-500" />Крайна оценка</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               {avgGrade !== null && (
                 <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
@@ -276,8 +337,8 @@ export default function ThesisDetail() {
                   <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-200 text-base font-bold px-3">{g.value}</Badge>
                 </div>
               ))}
-                {(isChairman || isAdmin) && thesis.status === "defended" && (                
-                  <div className="border-t pt-4 space-y-3">
+              {(isChairman || isAdmin) && thesis.status === "defended" && (
+                <div className="border-t pt-4 space-y-3">
                   <Label className="font-semibold">Добавяне на оценка</Label>
                   <Input type="number" step="0.25" min="2" max="6" value={gradeValue} onChange={e => setGradeValue(e.target.value)} placeholder="2 - 6" data-testid="input-grade-value" />
                   <Input value={gradeComment} onChange={e => setGradeComment(e.target.value)} placeholder="Коментар (по избор)" data-testid="input-grade-comment" />
@@ -305,14 +366,20 @@ export default function ThesisDetail() {
             </CardContent>
           </Card>
 
+          {!isReviewer && (
           <Card>
             <CardHeader><CardTitle>Действия</CardTitle></CardHeader>
             <CardContent className="space-y-2">
+              {isStudent && !["draft", "returned_for_revision"].includes(thesis.status) && (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-green-50 border border-green-100 text-green-700 text-sm font-medium">
+                  ✓ Предадена на научния ръководител.
+                </div>
+              )}
 
               {/* STUDENT: status info while waiting on the supervisor */}
               {isOwner && ["submitted", "pending_supervisor_approval"].includes(thesis.status) && (
-                <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-blue-50 border border-blue-100 text-blue-700 text-sm font-medium" data-testid="status-info-submitted">
-                  Предадена — очаква преглед от научния ръководител
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-green-50 border border-green-100 text-green-700 text-sm font-medium" data-testid="status-info-submitted">
+                  ✓ Предадена на научния ръководител
                 </div>
               )}
 
@@ -327,11 +394,21 @@ export default function ThesisDetail() {
               {isOwner && ["draft", "returned_for_revision"].includes(thesis.status) && (
                 <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white" disabled={submitThesis.isPending} data-testid="button-submit-thesis"
                   onClick={() => {
+                    if (!thesis.supervisorId) {
+                      toast({ title: "Нямате избран научен ръководител!", description: "Моля, изберете научен ръководител преди да предадете работата.", variant: "destructive" });
+                      return;
+                    }
+                    
+                    if (!thesis.description || thesis.description.trim() === "") {
+                      toast({ title: "Липсва описание!", description: "Моля, добавете описание на дипломната работа преди да я предадете.", variant: "destructive" });
+                      return;
+                    }
+
                     if (!files || files.length === 0) {
                       toast({ title: "Няма прикачен файл", description: "Прикачете поне един файл на дипломната работа, преди да я предадете.", variant: "destructive" });
                       return;
                     }
-                    submitThesis.mutate({ id: thesisId }, { onSuccess: () => { invalidate(); toast({ title: "Дипломната работа е предадена на научния ръководител" }); } });
+                    submitThesis.mutate({ id: thesisId }, { onSuccess: () => { invalidate(); toast({ title: "Дипломната работа е предадена на вашия ръководител!" }); } });
                   }}>
                   {submitThesis.isPending
                     ? "Предаване..."
@@ -342,14 +419,19 @@ export default function ThesisDetail() {
               {/* SUPERVISOR: Approve */}
               {isSupervisor && thesis.supervisorId === user?.id && ["submitted", "pending_supervisor_approval", "returned_for_revision"].includes(thesis.status) && (
                 <Button className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={actionPending === "approve"} data-testid="button-approve"
-                  onClick={() => thesisAction("approve")
-                    .then(() => { toast({ title: "Дипломната работа е одобрена" }); setReviewerDialogOpen(true); })
-                    .catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}>
+                  onClick={() => setReviewerDialogOpen(true)}>
                   {actionPending === "approve" ? "Одобряване..." : "✓ Одобри"}
                 </Button>
               )}
 
-              {/* SUPERVISOR: Select reviewer dialog (after approve) */}
+              {/* SUPERVISOR: Status after sending to review */}
+              {isSupervisor && thesis.supervisorId === user?.id && thesis.status === "under_review" && (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-green-50 border border-green-100 text-green-700 text-sm font-medium">
+                  ✓ Дипломната работа е предадена за рецензия.
+                </div>
+              )}
+
+              {/* SUPERVISOR: Select reviewer dialog */}
               <Dialog open={reviewerDialogOpen} onOpenChange={setReviewerDialogOpen}>
                 <DialogContent>
                   <DialogHeader><DialogTitle>Изберете рецензент</DialogTitle></DialogHeader>
@@ -386,8 +468,9 @@ export default function ThesisDetail() {
                     </Select>
                     <Button className="w-full bg-[#0a192f] text-white"
                       disabled={!selectedReviewerForThesis || actionPending === "select-reviewer"}
-                      onClick={() => thesisAction("select-reviewer", { reviewerId: Number(selectedReviewerForThesis) })
-                        .then(() => { toast({ title: "Рецензентът е избран и работата е изпратена" }); setReviewerDialogOpen(false); setSelectedReviewerForThesis(""); })
+                      onClick={() => thesisAction("approve")
+                        .then(() => thesisAction("select-reviewer", { reviewerId: Number(selectedReviewerForThesis) }))
+                        .then(() => { toast({ title: "Дипломната работа е одобрена и изпратена за рецензия" }); setReviewerDialogOpen(false); setSelectedReviewerForThesis(""); })
                         .catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}>
                       {actionPending === "select-reviewer" ? "Изпращане..." : "Потвърди и изпрати за рецензия"}
                     </Button>
@@ -396,7 +479,7 @@ export default function ThesisDetail() {
               </Dialog>
 
               {/* SUPERVISOR: Return for revision */}
-              {isSupervisor && thesis.supervisorId === user?.id && ["submitted", "pending_supervisor_approval", "under_review"].includes(thesis.status) && (
+              {isSupervisor && thesis.supervisorId === user?.id && ["submitted", "pending_supervisor_approval", "returned_for_revision"].includes(thesis.status) && (
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button variant="outline" className="w-full border-orange-300 text-orange-700 hover:bg-orange-50" data-testid="button-return">
@@ -515,6 +598,7 @@ export default function ThesisDetail() {
 
             </CardContent>
           </Card>
+          )}
         </div>
       </div>
     </div>

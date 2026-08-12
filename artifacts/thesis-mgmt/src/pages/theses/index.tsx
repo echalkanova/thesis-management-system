@@ -13,9 +13,9 @@ export default function ThesesList() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   
-  const { data: theses, isLoading } = useListTheses({ search: search || undefined }, {
+    const supervisorFilter = (user?.role === "supervisor" || user?.role === "department_head") ? { supervisorId: user?.id } : {};  const { data: theses, isLoading } = useListTheses({ search: search || undefined, ...supervisorFilter } as any, {
     query: {
-      queryKey: getListThesesQueryKey({ search: search || undefined })
+      queryKey: getListThesesQueryKey({ search: search || undefined, ...supervisorFilter } as any)
     }
   });
 
@@ -29,13 +29,22 @@ export default function ThesesList() {
           )}
         </div>
         
-        {user?.role === "student" && (
-          <Button asChild className="bg-[#0a192f] hover:bg-[#112240] text-white">
-            <Link href="/theses/new" data-testid="link-new-thesis">
+        {user?.role === "student" && (() => {
+          const hasApproved = theses?.some(t =>
+            !["draft", "returned_for_revision"].includes(t.status)
+          );
+          return hasApproved ? (
+            <Button disabled className="bg-slate-300 text-slate-500 cursor-not-allowed">
               <Plus className="mr-2 h-4 w-4" /> Създай нова
-            </Link>
-          </Button>
-        )}
+            </Button>
+          ) : (
+            <Button asChild className="bg-[#0a192f] hover:bg-[#112240] text-white">
+              <Link href="/theses/new" data-testid="link-new-thesis">
+                <Plus className="mr-2 h-4 w-4" /> Създай нова
+              </Link>
+            </Button>
+          );
+        })()}
       </div>
 
       <div className="flex gap-4 items-center">

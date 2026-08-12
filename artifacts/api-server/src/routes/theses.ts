@@ -70,7 +70,7 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
   } else if (req.userRole === "supervisor") {
     theses = theses.filter(t => t.supervisorId === req.userId);
   } else if (req.userRole === "reviewer") {
-    theses = theses.filter(t => t.reviewerId === req.userId);
+    theses = theses.filter(t => t.reviewerId === req.userId && t.supervisorId !== req.userId);
   }
 
   if (status) theses = theses.filter(t => t.status === status);
@@ -184,7 +184,7 @@ router.post("/:id/submit", requireAuth, async (req: AuthRequest, res) => {
   const [updated] = await db.update(thesesTable).set({ status: "submitted", submittedAt: new Date() }).where(eq(thesesTable.id, id)).returning();
   await logAction(req.userId, "submit_thesis", "thesis", id, { title: thesis.title });
   if (thesis.supervisorId) {
-    await sendNotification(thesis.supervisorId, "Нова подадена дипломна работа", `Студент е подал дипломна работа: "${thesis.title}"`, "info", id);
+    await sendNotification(thesis.supervisorId, "Нова подадена дипломна работа", `Студент е предал своята дипломна работа: "${thesis.title}"`, "info", id);
   }
   res.json(await formatThesis(updated));
 });
