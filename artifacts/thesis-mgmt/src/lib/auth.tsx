@@ -20,7 +20,7 @@ interface AuthContextType {
   isLoading: boolean;
   activeRole: string | null;
   canSwitchRole: boolean;
-  alternativeRole: string | null;
+  alternativeRole: string[];
   switchRole: () => void;
   login: (data: { email: string; password: string }) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
@@ -29,10 +29,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-function getAlternativeRole(role: string | undefined): string | null {
-  if (role === "supervisor") return "reviewer";
-  if (role === "reviewer") return "supervisor";
-  return null;
+function getAlternativeRole(role: string | undefined): string[] {
+  if (role === "supervisor") return ["reviewer"];
+  if (role === "reviewer") return ["supervisor"];
+  if (role === "department_head") return ["supervisor", "reviewer"];
+  return [];
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -93,14 +94,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("thesis_token");
   };
 
-  const alternativeRole = getAlternativeRole(user?.role);
-  const canSwitchRole = alternativeRole !== null;
+  const alternativeRoles = getAlternativeRole(user?.role);
+  const canSwitchRole = alternativeRoles.length > 0;
+  const alternativeRole = alternativeRoles;
 
-  const switchRole = () => {
+  const switchRole = (targetRole?: string) => {
     if (!canSwitchRole || !user) return;
-    setActiveRole(prev =>
-      prev === user.role ? alternativeRole : user.role
-    );
+    if (targetRole) {
+      setActiveRole(targetRole);
+    } else {
+      setActiveRole(prev =>
+        prev === user.role ? alternativeRoles[0] : user.role
+      );
+    }
   };
 
   const effectiveUser = user && activeRole && activeRole !== user.role

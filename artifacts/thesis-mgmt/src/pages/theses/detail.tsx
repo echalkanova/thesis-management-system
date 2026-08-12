@@ -59,6 +59,21 @@ export default function ThesisDetail() {
   const [reviewRecommendation, setReviewRecommendation] = useState("approve");
   const [gradeValue, setGradeValue] = useState("");
   const [gradeComment, setGradeComment] = useState("");
+  // Провери дали текущият потребител е председател на комисията на студента
+  const { data: isChairman } = useQuery({
+    queryKey: ["is-chairman", thesisId, user?.id],
+    queryFn: async () => {
+      if (!thesis) return false;
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch("/api/committees/my-committee", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const committee = await res.json();
+      if (!committee) return false;
+      return committee.members?.some((m: any) => m.id === user?.id && m.isChairman);
+    },
+    enabled: !!thesis && !!user,
+  });
   const [assignRole, setAssignRole] = useState<"supervisor" | "reviewer">("supervisor");
   const [assignUserId, setAssignUserId] = useState("");
   const [statusToSet, setStatusToSet] = useState("");
@@ -244,7 +259,7 @@ export default function ThesisDetail() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><Star className="h-4 w-4 text-amber-500" /> Оценки ({grades?.length ?? 0})</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="flex items-center gap-2"><Star className="h-4 w-4 text-amber-500" /> Крайна оценка</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               {avgGrade !== null && (
                 <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
@@ -261,8 +276,8 @@ export default function ThesisDetail() {
                   <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-200 text-base font-bold px-3">{g.value}</Badge>
                 </div>
               ))}
-              {(user?.role as string === "committee_member" || isAdmin) && thesis.status === "defended" && (
-                <div className="border-t pt-4 space-y-3">
+                {(isChairman || isAdmin) && thesis.status === "defended" && (                
+                  <div className="border-t pt-4 space-y-3">
                   <Label className="font-semibold">Добавяне на оценка</Label>
                   <Input type="number" step="0.25" min="2" max="6" value={gradeValue} onChange={e => setGradeValue(e.target.value)} placeholder="2 - 6" data-testid="input-grade-value" />
                   <Input value={gradeComment} onChange={e => setGradeComment(e.target.value)} placeholder="Коментар (по избор)" data-testid="input-grade-comment" />

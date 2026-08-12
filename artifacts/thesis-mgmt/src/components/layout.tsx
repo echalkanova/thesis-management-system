@@ -89,8 +89,8 @@ function useSidebarBadges(user: { id: number; role: string } | null | undefined)
 
 function RoleSwitcher({ user, alternativeRole, switchRole }: {
   user: { firstName: string; lastName: string; role: string };
-  alternativeRole: string | null;
-  switchRole: () => void;
+  alternativeRole: string[] | string | null;
+  switchRole: (role?: string) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -113,18 +113,21 @@ function RoleSwitcher({ user, alternativeRole, switchRole }: {
       {open && (
         <>
           <div className="absolute left-0 right-0 mt-1 z-20 bg-white border border-violet-200 rounded-xl shadow-lg overflow-hidden">
-            <button
-              onClick={() => { switchRole(); setOpen(false); }}
-              className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-violet-50 transition-colors text-left"
-            >
-              <div className="w-7 h-7 rounded-full bg-white border border-violet-300 flex items-center justify-center text-violet-600 font-bold text-xs flex-shrink-0">
-                {user.firstName[0]}{user.lastName[0]}
-              </div>
-              <div>
-                <div className="text-xs font-medium text-slate-700">Превключи роля</div>
-                <div className="text-[10px] text-indigo-500">{formatRole(alternativeRole ?? "")}</div>
-              </div>
-            </button>
+            {(Array.isArray(alternativeRole) ? alternativeRole : [alternativeRole]).filter(Boolean).map((role: string) => (
+              <button
+                key={role}
+                onClick={() => { switchRole(role); setOpen(false); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-violet-50 transition-colors text-left border-b border-slate-50 last:border-0"
+              >
+                <div className="w-7 h-7 rounded-full bg-white border border-violet-300 flex items-center justify-center text-violet-600 font-bold text-xs flex-shrink-0">
+                  {user.firstName[0]}{user.lastName[0]}
+                </div>
+                <div>
+                  <div className="text-xs font-medium text-slate-700">Превключи роля</div>
+                  <div className="text-[10px] text-indigo-500">{formatRole(role)}</div>
+                </div>
+              </button>
+            ))}
           </div>
         </>
       )}

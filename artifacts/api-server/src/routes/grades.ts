@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, gradesTable, usersTable, thesesTable } from "@workspace/db";
 import { logAction } from "./auditLog";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 
 function formatUser(user: typeof usersTable.$inferSelect) {
@@ -65,27 +65,54 @@ thesisGradesRouter.get("/final", requireAuth, async (req, res) => {
 
 thesisGradesRouter.post("/", requireAuth, async (req: AuthRequest, res) => {
   const thesisId = Number(req.params.id);
-  if (!["admin", "commission_member", "supervisor", "reviewer"].includes(req.userRole ?? "")) {
-    res.status(403).json({ error: "You do not have permission to grade" });
+
+  // Намери дипломната работа
+  const [thesis] = await db.select().from(thesesTable)
+    .where(eq(thesesTable.id, thesisId)).limit(1);
+  if (!thesis) { res.status(404).json({ error: "Thesis not found" }); return; }
+
+  // Намери комисията на студента
+  const { studentCommitteesTable, committeeMembersTable } = await import("@workspace/db");
+  const [studentCommittee] = await db.select().from(studentCommitteesTable)
+    .where(eq(studentCommitteesTable.studentId, thesis.studentId));
+
+  if (!studentCommittee) {
+    res.status(403).json({ error: "Студентът не е назначен към комисия" });
     return;
   }
+
+  // Провери дали текущият потребител е председател на тази комисия
+  const [chairmanRecord] = await db.select().from(committeeMembersTable)
+    .where(and(
+      eq(committeeMembersTable.committeeId, studentCommittee.committeeId),
+      eq(committeeMembersTable.userId, req.userId!),
+      eq(committeeMembersTable.isChairman, true)
+    )).limit(1);
+
+  if (!chairmanRecord && req.userRole !== "admin") {
+    res.status(403).json({ error: "Само председателят на комисията може да нанася оценка" });
+    return;
+  }
+
   const { value, comment } = req.body;
   if (value === undefined) {
-    res.status(400).json({ error: "Value is required" });
-    return;
+    res.status(400).json({ error: "Value is required" }); return;
   }
   if (value < 2 || value > 6) {
-    res.status(400).json({ error: "Grade must be between 2 and 6" });
-    return;
+    res.status(400).json({ error: "Grade must be between 2 and 6" }); return;
   }
+
+  // Изтрий стари оценки и добави нова (крайна оценка)
+  await db.delete(gradesTable).where(eq(gradesTable.thesisId, thesisId));
+
   const [grade] = await db.insert(gradesTable).values({
     thesisId,
     graderId: req.userId!,
     value,
     comment: comment ?? null,
   }).returning();
+
   await recalculateFinalGrade(thesisId);
-  await logAction(req.userId, "create_grade", "grade", grade.id, { thesisId, value, comment: comment ?? null });
   res.status(201).json(await formatGrade(grade));
 });
 
