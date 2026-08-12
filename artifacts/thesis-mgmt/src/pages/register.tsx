@@ -123,7 +123,7 @@ export default function Register() {
                   <SelectItem value="student">Студент</SelectItem>
                   <SelectItem value="supervisor">Научен ръководител</SelectItem>
                   <SelectItem value="reviewer">Рецензент</SelectItem>
-                  <SelectItem value="department_head">Ръководител катедра</SelectItem>
+                  <SelectItem value="department_head">Ръководител-катедра</SelectItem>
                   <SelectItem value="admin">Администратор</SelectItem>
                 </SelectContent>
               </Select>

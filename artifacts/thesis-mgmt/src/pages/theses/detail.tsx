@@ -11,7 +11,7 @@ import {
   useCreateReview, useCreateGrade,
   getListThesesQueryKey
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { formatStatus, getStatusColor, formatRole } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -119,6 +119,22 @@ export default function ThesisDetail() {
 
   const supervisors = users?.filter(u => u.role === "supervisor") ?? [];
   const reviewers = users?.filter(u => u.role === "reviewer") ?? [];
+
+  const { data: reviewerSlots } = useQuery({
+    queryKey: ["reviewer-slots-list"],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch("/api/users/reviewers/list", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      return res.json();
+    },
+    enabled: isSupervisor,
+  });
+
+  const getReviewerSlots = (reviewerId: number) => {
+    return reviewerSlots?.find((r: any) => r.id === reviewerId);
+  };
 
   const avgGrade = grades && grades.length > 0 ? grades.reduce((s, g) => s + g.value, 0) / grades.length : null;
 
@@ -245,7 +261,7 @@ export default function ThesisDetail() {
                   <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-200 text-base font-bold px-3">{g.value}</Badge>
                 </div>
               ))}
-              {(user?.role === "committee_member" || isAdmin) && thesis.status === "defended" && (
+              {(user?.role as string === "committee_member" || isAdmin) && thesis.status === "defended" && (
                 <div className="border-t pt-4 space-y-3">
                   <Label className="font-semibold">Добавяне на оценка</Label>
                   <Input type="number" step="0.25" min="2" max="6" value={gradeValue} onChange={e => setGradeValue(e.target.value)} placeholder="2 - 6" data-testid="input-grade-value" />
@@ -286,7 +302,7 @@ export default function ThesisDetail() {
               )}
 
               {/* STUDENT: status info + resubmit when returned for revision */}
-              {isOwner && thesis.status === "returned_for_revision" && (
+              {isOwner && (thesis.status as string) === "returned_for_revision" && (
                 <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-orange-50 border border-orange-100 text-orange-700 text-sm font-medium" data-testid="status-info-returned">
                   Върната за корекции
                 </div>
@@ -304,7 +320,7 @@ export default function ThesisDetail() {
                   }}>
                   {submitThesis.isPending
                     ? "Предаване..."
-                    : thesis.status === "returned_for_revision" ? "Предай отново" : "Предай"}
+                    : thesis.status as string === "returned_for_revision" ? "Предай отново" : "Предай"}
                 </Button>
               )}
 
@@ -327,9 +343,30 @@ export default function ThesisDetail() {
                     <Select value={selectedReviewerForThesis} onValueChange={setSelectedReviewerForThesis}>
                       <SelectTrigger><SelectValue placeholder="Изберете рецензент" /></SelectTrigger>
                       <SelectContent>
-                        {reviewers.map(u => (
-                          <SelectItem key={u.id} value={String(u.id)}>{u.firstName} {u.lastName}</SelectItem>
-                        ))}
+                        {reviewers.map(u => {
+                          const slots = getReviewerSlots(u.id);
+                          const free = slots?.freeSlots ?? null;
+                          const max = slots?.maxStudents ?? null;
+                          return (
+                            <SelectItem key={u.id} value={String(u.id)} disabled={free === 0}>
+                              <span>{u.firstName} {u.lastName}</span>
+                              {free !== null && (
+                                <span className="ml-2 text-xs">
+                                  {free === 0 ? (
+                                    <span className="text-red-500">(Няма свободни места)</span>
+                                  ) : free === max ? (
+                                    <span className="text-green-600">({free} свободни места)</span>
+                                  ) : (
+                                    <>
+                                      <span className="text-green-600">({free}</span>
+                                      <span className="text-slate-400">/{max})</span>
+                                    </>
+                                  )}
+                                </span>
+                              )}
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                     <Button className="w-full bg-[#0a192f] text-white"
@@ -368,7 +405,7 @@ export default function ThesisDetail() {
               )}
 
               {/* ADMIN: Send to review */}
-              {isAdmin && thesis.status === "approved_by_supervisor" && (
+              {isAdmin && thesis.status as string === "approved_by_supervisor" && (
                 <Button className="w-full bg-amber-600 hover:bg-amber-700 text-white" disabled={actionPending === "send-to-review"} data-testid="button-send-to-review"
                   onClick={() => thesisAction("send-to-review").then(() => toast({ title: "Изпратена за рецензия" })).catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}>
                   {actionPending === "send-to-review" ? "Изпращане..." : "Изпрати за рецензия"}
@@ -376,7 +413,7 @@ export default function ThesisDetail() {
               )}
 
               {/* ADMIN: Approve for defense */}
-              {isAdmin && thesis.status === "reviewed" && (
+              {isAdmin && thesis.status as string === "reviewed" && (
                 <Button className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={actionPending === "approve-for-defense"} data-testid="button-approve-for-defense"
                   onClick={() => thesisAction("approve-for-defense").then(() => toast({ title: "Допусната до защита" })).catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}>
                   {actionPending === "approve-for-defense" ? "Обработка..." : "Допусни до защита"}
@@ -384,7 +421,7 @@ export default function ThesisDetail() {
               )}
 
               {/* COMMISSION / ADMIN: Mark defended */}
-              {(user?.role === "committee_member" || isAdmin) && thesis.status === "scheduled_for_defense" && (
+              {(user?.role as string === "committee_member" || isAdmin) && thesis.status as string === "scheduled_for_defense" && (
                 <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white" disabled={actionPending === "mark-defended"} data-testid="button-mark-defended"
                   onClick={() => thesisAction("mark-defended").then(() => toast({ title: "Маркирана като защитена" })).catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}>
                   {actionPending === "mark-defended" ? "Обработка..." : "Маркирай като защитена"}

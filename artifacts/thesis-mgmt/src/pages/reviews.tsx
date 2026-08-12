@@ -1,4 +1,4 @@
-import { useListTheses, getListThesesQueryKey, useListThesisReviews, getListThesisReviewsQueryKey } from "@workspace/api-client-react";
+import { useListTheses, getListThesesQueryKey } from "@workspace/api-client-react";
 import { useAuth } from "@/lib/auth";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";

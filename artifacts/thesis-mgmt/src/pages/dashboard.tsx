@@ -32,7 +32,6 @@ const STATUS_BADGE_COLORS: Record<string, string> = {
   defended: "bg-teal-100 text-teal-700",
 };
 
-/* ─── Thesis progress steps ─── */
 const STEPS = [
   { key: "draft",        label: "Чернова" },
   { key: "submitted",    label: "Подадена" },
@@ -68,7 +67,6 @@ function StudentDashboard() {
   const thesis = thesesList?.[0] ?? null;
   const currentStep = thesis ? stepIndex(thesis.status) : -1;
 
-  // Find defense for this thesis
   const myDefense = allDefenses?.find(d =>
     thesis && (d.thesisIds as number[])?.includes(thesis.id)
   ) ?? null;
@@ -89,15 +87,11 @@ function StudentDashboard() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
-          Добре дошли!
-        </h1>
+        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Добре дошли!</h1>
         <p className="text-sm text-slate-400 mt-0.5">Това е актуалното състояние на твоята дипломна работа.</p>
       </div>
 
-      {/* No thesis yet */}
       {!thesis && (
         <div className="bg-white rounded-2xl border border-dashed border-indigo-200 p-10 flex flex-col items-center text-center shadow-sm">
           <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center mb-4">
@@ -115,10 +109,8 @@ function StudentDashboard() {
         </div>
       )}
 
-      {/* Thesis exists */}
       {thesis && (
         <>
-          {/* Progress stepper */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-slate-800">Напредък на дипломната работа</h2>
@@ -130,7 +122,6 @@ function StudentDashboard() {
               {STEPS.map((step, i) => {
                 const done = i < currentStep;
                 const active = i === currentStep;
-                const future = i > currentStep;
                 return (
                   <div key={step.key} className="flex items-center flex-1 min-w-0">
                     <div className="flex flex-col items-center flex-shrink-0">
@@ -154,9 +145,7 @@ function StudentDashboard() {
             </div>
           </div>
 
-          {/* Thesis card + stats row */}
           <div className="grid grid-cols-3 gap-4">
-            {/* Thesis details */}
             <div className="col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
               <div className="flex items-start justify-between mb-4">
                 <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
@@ -169,7 +158,6 @@ function StudentDashboard() {
                 </Link>
               </div>
               <h3 className="font-bold text-slate-800 text-base leading-snug mb-3 line-clamp-2">{thesis.title}</h3>
-
               <div className="space-y-2">
                 {thesis.supervisor && (
                   <div className="flex items-center gap-2 text-sm">
@@ -208,9 +196,7 @@ function StudentDashboard() {
               </div>
             </div>
 
-            {/* Quick stats */}
             <div className="flex flex-col gap-4">
-              {/* Defense card */}
               {myDefense ? (
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex-1">
                   <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center mb-3">
@@ -233,7 +219,6 @@ function StudentDashboard() {
                 </div>
               )}
 
-              {/* Field badge */}
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex-1">
                 <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center mb-3">
                   <GraduationCap size={16} className="text-amber-600" />
@@ -249,7 +234,6 @@ function StudentDashboard() {
             </div>
           </div>
 
-          {/* Action banner if in draft */}
           {thesis.status === "draft" && (
             <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -271,7 +255,6 @@ function StudentDashboard() {
         </>
       )}
 
-      {/* Notifications */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -325,6 +308,19 @@ function ReviewerDashboard() {
     { query: { queryKey: getListNotificationsQueryKey() } }
   );
 
+  const { data: reviewerInfo } = useQuery({
+    queryKey: ["reviewer-info", user?.id],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch("/api/users/reviewers/list", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const all = await res.json();
+      return all.find((r: any) => r.id === user?.id) ?? null;
+    },
+    enabled: user?.role === "reviewer",
+  });
+
   if (isLoading) {
     return (
       <div className="space-y-5 animate-pulse">
@@ -342,9 +338,9 @@ function ReviewerDashboard() {
   const recentNotifs = notifications?.slice(0, 4) ?? [];
 
   const metrics = [
-    { label: "За рецензиране", value: pending.length, icon: Hourglass, iconBg: "bg-amber-50", iconColor: "text-amber-600" },
-    { label: "Приключени рецензии", value: completed.length, icon: ClipboardCheck, iconBg: "bg-emerald-50", iconColor: "text-emerald-600" },
-    { label: "Общо назначени", value: theses.length, icon: FileText, iconBg: "bg-indigo-50", iconColor: "text-indigo-600" },
+    { label: "За рецензиране", value: pending.length, icon: Hourglass, iconBg: "bg-amber-50", iconColor: "text-amber-600", slots: false },
+    { label: "Приключени рецензии", value: completed.length, icon: ClipboardCheck, iconBg: "bg-emerald-50", iconColor: "text-emerald-600", slots: false },
+    { label: "Общо назначени", value: theses.length, icon: FileText, iconBg: "bg-indigo-50", iconColor: "text-indigo-600", slots: true },
   ];
 
   return (
@@ -354,20 +350,29 @@ function ReviewerDashboard() {
         <p className="text-sm text-slate-400 mt-0.5">Добре дошли! Това са дипломните работи, назначени за рецензия.</p>
       </div>
 
-      {/* Metric cards */}
       <div className="grid grid-cols-3 gap-4">
-        {metrics.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
-          <div key={label} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-            <div className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center mb-4`}>
-              <Icon size={20} className={iconColor} />
+        {metrics.map((metric) => {
+          const { label, value, icon: Icon, iconBg, iconColor, slots } = metric;
+          return (
+            <div key={label} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+              <div className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center mb-4`}>
+                <Icon size={20} className={iconColor} />
+              </div>
+              {slots && reviewerInfo ? (
+                <div className="mb-0.5">
+                  <span className="text-3xl font-bold text-slate-800">{value}</span>
+                  <span className="text-slate-400 mx-1 text-3xl">/</span>
+                  <span className="text-green-600 font-bold text-3xl">{reviewerInfo.maxStudents}</span>
+                </div>
+              ) : (
+                <div className="text-3xl font-bold text-slate-800 mb-0.5">{value}</div>
+              )}
+              <div className="text-xs text-slate-400">{label}</div>
             </div>
-            <div className="text-3xl font-bold text-slate-800 mb-0.5">{value}</div>
-            <div className="text-xs text-slate-400">{label}</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Pending reviews — the reviewer's actual queue */}
       <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-slate-800">Чакащи рецензия</h2>
@@ -396,7 +401,6 @@ function ReviewerDashboard() {
         )}
       </div>
 
-      {/* Recently completed */}
       <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-slate-800">Последно рецензирани</h2>
@@ -424,7 +428,6 @@ function ReviewerDashboard() {
         )}
       </div>
 
-      {/* Notifications */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -519,7 +522,6 @@ function SupervisorDashboard() {
         <p className="text-sm text-slate-400 mt-0.5">Добре дошли! Това е актуалното ниво на вашите дипломанти.</p>
       </div>
 
-      {/* Metric cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {metrics.map(({ label, value, icon: Icon, iconBg, iconColor }) => (
           <div key={label} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
@@ -532,7 +534,6 @@ function SupervisorDashboard() {
         ))}
       </div>
 
-      {/* Pending approvals */}
       <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-slate-800">Чакат вашето одобрение</h2>
@@ -549,14 +550,10 @@ function SupervisorDashboard() {
                 <div className="flex items-center justify-between p-3 rounded-xl hover:bg-amber-50 border border-transparent hover:border-amber-100 transition-all cursor-pointer group">
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm text-slate-800 truncate group-hover:text-amber-800">{thesis.title}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Студент: {thesis.student?.firstName} {thesis.student?.lastName}
-                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">Студент: {thesis.student?.firstName} {thesis.student?.lastName}</p>
                   </div>
                   <div className="flex items-center gap-2 ml-3 flex-shrink-0">
-                    <Badge className="text-xs bg-amber-50 text-amber-700 border-amber-200" variant="outline">
-                      Чака одобрение
-                    </Badge>
+                    <Badge className="text-xs bg-amber-50 text-amber-700 border-amber-200" variant="outline">Чака одобрение</Badge>
                     <ChevronRight size={14} className="text-slate-300 group-hover:text-amber-400" />
                   </div>
                 </div>
@@ -566,7 +563,6 @@ function SupervisorDashboard() {
         )}
       </div>
 
-      {/* All supervised theses */}
       <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-slate-800">Мои дипломанти</h2>
@@ -600,7 +596,6 @@ function SupervisorDashboard() {
         )}
       </div>
 
-      {/* Pending student requests */}
       {pendingRequests.length > 0 && (
         <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
@@ -615,9 +610,7 @@ function SupervisorDashboard() {
                     <p className="font-medium text-sm text-slate-800 truncate">{r.student?.firstName} {r.student?.lastName}</p>
                     <p className="text-xs text-slate-400 truncate mt-0.5">{r.message ?? "Запитване за ръководство"}</p>
                   </div>
-                  <Badge className="ml-3 flex-shrink-0 text-xs bg-violet-50 text-violet-700 border-violet-200" variant="outline">
-                    Ново
-                  </Badge>
+                  <Badge className="ml-3 flex-shrink-0 text-xs bg-violet-50 text-violet-700 border-violet-200" variant="outline">Ново</Badge>
                 </div>
               </Link>
             ))}
@@ -625,7 +618,6 @@ function SupervisorDashboard() {
         </div>
       )}
 
-      {/* Notifications */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -707,7 +699,6 @@ function AdminDashboard() {
         <p className="text-sm text-slate-400 mt-0.5">Добре дошли! Обобщението на дипломния процес е:</p>
       </div>
 
-      {/* Metric cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {metrics.map(({ label, value, change, up, icon: Icon, iconBg, iconColor, changeColor }) => (
           <div key={label} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
@@ -726,7 +717,6 @@ function AdminDashboard() {
         ))}
       </div>
 
-      {/* Status breakdown badges */}
       {stats.thesesByStatus && Object.keys(stats.thesesByStatus).length > 0 && (
         <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
           <h2 className="font-semibold text-slate-800 mb-3">Разпределение по статус</h2>
@@ -743,7 +733,6 @@ function AdminDashboard() {
         </div>
       )}
 
-      {/* Charts */}
       <div className="grid grid-cols-5 gap-4">
         <div className="col-span-3 bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
@@ -794,7 +783,6 @@ function AdminDashboard() {
         </div>
       </div>
 
-      {/* Recent theses + Defenses */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
@@ -862,7 +850,7 @@ function AdminDashboard() {
 }
 
 /* ═══════════════════════════════════════════════════
-   ROUTER — picks view by role
+   ROUTER
 ═══════════════════════════════════════════════════ */
 export default function Dashboard() {
   const { user } = useAuth();

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, usersTable, supervisorRequestsTable } from "@workspace/db";
+import { db, usersTable, supervisorRequestsTable, thesesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
 import { createHmac } from "crypto";
@@ -65,6 +65,33 @@ router.get("/supervisors/list", requireAuth, async (req: AuthRequest, res) => {
     };
   }));
 
+  res.json(result);
+});
+
+router.get("/reviewers/list", requireAuth, async (req: AuthRequest, res) => {
+  const reviewers = await db.select().from(usersTable)
+    .where(eq(usersTable.role, "reviewer"));
+  
+  const result = await Promise.all(reviewers.map(async (r) => {
+    const assignedTheses = await db.select().from(thesesTable)
+      .where(eq(thesesTable.reviewerId, r.id));
+    const activeCount = assignedTheses.filter((t: any) => 
+      !["defended", "draft"].includes(t.status)
+    ).length;
+    const maxSlots = r.maxStudents ?? 10;
+    return {
+      id: r.id,
+      firstName: r.firstName,
+      lastName: r.lastName,
+      email: r.email,
+      subjectTaught: r.subjectTaught ?? null,
+      facultyNumber: r.facultyNumber ?? null,
+      maxStudents: maxSlots,
+      activeReviews: activeCount,
+      freeSlots: maxSlots - activeCount,
+    };
+  }));
+  
   res.json(result);
 });
 
