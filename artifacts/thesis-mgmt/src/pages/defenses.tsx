@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Calendar, Clock, MapPin, Users } from "lucide-react";
+import { Plus, Trash2, Calendar, Clock, MapPin, Users, ChevronDown } from "lucide-react";
 
 export default function Defenses() {
   const { user } = useAuth();
@@ -28,17 +28,26 @@ export default function Defenses() {
     startTime: "", endTime: "", committeeId: "", notes: ""
   });
   const [addStudentId, setAddStudentId] = useState<Record<number,string>>({});
+  const [selectedStudentIds, setSelectedStudentIds] = useState<Record<number, Set<number>>>({});
+  const [defenseDropdownOpen, setDefenseDropdownOpen] = useState<Record<number, boolean>>({});
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   const token = localStorage.getItem("thesis_token");
   const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
-  const { data: defenses, isLoading } = useQuery({
+  const { data: allDefenses, isLoading } = useQuery({
     queryKey: ["defenses"],
     queryFn: async () => {
       const res = await fetch("/api/defenses", { headers: authHeaders });
       return res.json();
     },
   });
+
+  const defenses = (user?.role === "supervisor" || user?.role === "reviewer")
+    ? (allDefenses ?? []).filter((d: any) =>
+        d.committee?.members?.some((m: any) => m.id === user?.id)
+      )
+    : allDefenses;
 
   const { data: myDefense } = useQuery({
     queryKey: ["my-defense"],
@@ -58,10 +67,11 @@ export default function Defenses() {
   });
 
   const { data: students } = useQuery({
-    queryKey: ["students-only"],
+    queryKey: ["students-approved-for-defense"],
     queryFn: async () => {
-      const res = await fetch("/api/users?role=student", { headers: authHeaders });
-      return res.json();
+      const res = await fetch("/api/theses?status=approved_for_defense", { headers: authHeaders });
+      const theses = await res.json();
+      return theses.map((t: any) => t.student).filter(Boolean);
     },
     enabled: isDeptHead,
   });
@@ -81,6 +91,7 @@ export default function Defenses() {
       toast({ title: "Защитата е насрочена" });
       queryClient.invalidateQueries({ queryKey: ["defenses"] });
       setForm({ title: "", scheduledAt: "", room: "", startTime: "", endTime: "", committeeId: "", notes: "" });
+      setCreateDialogOpen(false);
     },
     onError: (e: Error) => toast({ title: "Грешка", description: e.message, variant: "destructive" }),
   });
@@ -150,19 +161,19 @@ export default function Defenses() {
                 )}
                 {myDefense.room && (
                   <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg">
+                    <Users className="h-4 w-4 text-slate-400" />
+                    <div>
+                      <p className="text-xs text-slate-400">Комисия</p>
+                      <p className="font-medium text-sm">Комисия {myDefense.committee?.romanNumeral}</p>
+                    </div>
+                  </div>
+                )}
+                {myDefense.room && (
+                  <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg">
                     <MapPin className="h-4 w-4 text-slate-400" />
                     <div>
                       <p className="text-xs text-slate-400">Зала</p>
                       <p className="font-medium text-sm">{myDefense.room}</p>
-                    </div>
-                  </div>
-                )}
-                {myDefense.committee && (
-                  <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg">
-                    <Users className="h-4 w-4 text-slate-400" />
-                    <div>
-                      <p className="text-xs text-slate-400">Комисия</p>
-                      <p className="font-medium text-sm">Комисия {myDefense.committee.romanNumeral}</p>
                     </div>
                   </div>
                 )}
@@ -191,7 +202,7 @@ export default function Defenses() {
           )}
         </div>
         {isDeptHead && (
-          <Dialog>
+          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-[#0a192f] text-white"><Plus className="h-4 w-4 mr-2" />Насрочи защита</Button>
             </DialogTrigger>
@@ -208,19 +219,19 @@ export default function Defenses() {
                 </div>
                 <div className="space-y-2">
                   <Label>Начален час</Label>
-                  <select
-                    value={form.startTime}
-                    onChange={e => setForm(p => ({ ...p, startTime: e.target.value }))}
-                    className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
-                  >
-                    <option value="">Изберете час...</option>
-                    {Array.from({ length: 19 }, (_, i) => {
-                      const hour = Math.floor(i / 2) + 8;
-                      const min = i % 2 === 0 ? "00" : "30";
-                      const time = `${String(hour).padStart(2, "0")}:${min}`;
-                      return <option key={time} value={time}>{time}</option>;
-                    })}
-                  </select>
+                  <Select value={form.startTime} onValueChange={v => setForm(p => ({ ...p, startTime: v }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Изберете час..." />
+                    </SelectTrigger>
+                    <SelectContent side="bottom" className="max-h-48 overflow-y-auto">
+                      {Array.from({ length: 19 }, (_, i) => {
+                        const hour = Math.floor(i / 2) + 8;
+                        const min = i % 2 === 0 ? "00" : "30";
+                        const time = `${String(hour).padStart(2, "0")}:${min}`;
+                        return <SelectItem key={time} value={time}>{time}</SelectItem>;
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Зала</Label>
@@ -233,17 +244,7 @@ export default function Defenses() {
                     <SelectContent>
                       {committees?.map((c: any) => (
                         <SelectItem key={c.id} value={String(c.id)}>
-                          <div className="flex flex-col">
-                            <span>Комисия {c.romanNumeral}</span>
-                            {c.chairman && (
-                              <span className="text-xs text-amber-600">Председател: {c.chairman.firstName} {c.chairman.lastName}</span>
-                            )}
-                            {c.members?.length > 0 && (
-                              <span className="text-xs text-slate-400">
-                                {c.members.filter((m: any) => !m.isChairman).map((m: any) => `${m.firstName} ${m.lastName}`).join(", ")}
-                              </span>
-                            )}
-                          </div>
+                          Комисия {c.romanNumeral}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -256,7 +257,7 @@ export default function Defenses() {
                       <div className="mt-2 p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-1">
                         {selected.chairman && (
                           <p className="text-xs text-amber-700 font-medium">
-                            👑 Председател: {selected.chairman.firstName} {selected.chairman.lastName}
+                            Председател: {selected.chairman.firstName} {selected.chairman.lastName}
                           </p>
                         )}
                         {selected.members?.filter((m: any) => !m.isChairman).map((m: any) => (
@@ -302,10 +303,28 @@ export default function Defenses() {
                   </div>
                 </div>
                 {isDeptHead && (
-                  <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-600"
-                    onClick={() => deleteDefense.mutate(d.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-600">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-sm">
+                      <DialogHeader>
+                        <DialogTitle>Изтриване на защита</DialogTitle>
+                      </DialogHeader>
+                      <p className="text-sm text-slate-600">Сигурни ли сте, че искате да изтриете тази защита?</p>
+                      <div className="flex gap-2 pt-2">
+                        <Button className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-300"
+                          onClick={() => deleteDefense.mutate(d.id)}>
+                          Да, изтрий
+                        </Button>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" className="flex-1">Отказ</Button>
+                        </DialogTrigger>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 )}
               </div>
             </CardHeader>
@@ -316,34 +335,78 @@ export default function Defenses() {
                   {d.students?.map((s: any) => (
                     <div key={s.id} className="flex items-center justify-between p-2 bg-slate-50 rounded">
                       <span className="text-sm">{s.firstName} {s.lastName}</span>
-                      {isDeptHead && (
-                        <Button size="icon" variant="ghost" className="h-6 w-6 text-red-400"
-                          onClick={() => removeStudent.mutate({ defenseId: d.id, studentId: s.id })}>
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      )}
                     </div>
                   ))}
                 </div>
               </div>
 
               {isDeptHead && (
-                <div className="flex gap-2 pt-2 border-t">
-                  <Select onValueChange={v => setAddStudentId(prev => ({ ...prev, [d.id]: v }))}>
-                    <SelectTrigger className="flex-1 h-8 text-xs">
-                      <SelectValue placeholder="Добави студент..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {students?.map((s: any) => (
-                        <SelectItem key={s.id} value={String(s.id)}>{s.firstName} {s.lastName}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button size="sm" className="h-8 bg-[#0a192f] text-white px-3"
-                    disabled={!addStudentId[d.id] || addStudent.isPending}
-                    onClick={() => addStudent.mutate({ defenseId: d.id, studentId: Number(addStudentId[d.id]) })}>
-                    <Plus className="h-3 w-3" />
-                  </Button>
+                <div className="pt-2 border-t space-y-2">
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setDefenseDropdownOpen(prev => ({ ...prev, [d.id]: !prev[d.id] }))}
+                      className="w-full h-8 px-3 rounded-lg border border-slate-200 bg-white text-xs text-left flex items-center justify-between"
+                    >
+                      <span className={selectedStudentIds[d.id]?.size > 0 ? "text-slate-800" : "text-slate-400"}>
+                        {selectedStudentIds[d.id]?.size > 0 ? `Избрани: ${selectedStudentIds[d.id].size}` : "Добави студенти..."}
+                      </span>
+                      <ChevronDown className="h-3 w-3 text-slate-400" />
+                    </button>
+                    {defenseDropdownOpen[d.id] && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setDefenseDropdownOpen(prev => ({ ...prev, [d.id]: false }))} />
+                        <div className="absolute left-0 right-0 mt-1 z-20 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
+                          <div className="max-h-40 overflow-y-auto">
+                            {students?.filter((s: any) => {
+  // Скрий студенти вече добавени в тази защита
+  if (d.students?.some((ds: any) => ds.id === s.id)) return false;
+  // Скрий студенти вече добавени в друга защита
+  if (defenses?.some((def: any) => def.id !== d.id && def.students?.some((ds: any) => ds.id === s.id))) return false;
+  return true;
+}).map((s: any) => (
+                              <label key={s.id}
+                                onClick={() => setSelectedStudentIds(prev => {
+                                  const current = new Set(prev[d.id] ?? []);
+                                  current.has(s.id) ? current.delete(s.id) : current.add(s.id);
+                                  return { ...prev, [d.id]: current };
+                                })}
+                                className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-slate-50 text-xs ${selectedStudentIds[d.id]?.has(s.id) ? "bg-indigo-50" : ""}`}>
+                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${selectedStudentIds[d.id]?.has(s.id) ? "bg-indigo-600 border-indigo-600" : "border-slate-300"}`}>
+                                  {selectedStudentIds[d.id]?.has(s.id) && <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                                </div>
+                                {s.firstName} {s.lastName}
+                              </label>
+                            ))}
+                          </div>
+                          <div className="border-t p-2">
+                            <Button className="w-full bg-[#0a192f] text-white h-7 text-xs"
+                              onClick={() => setDefenseDropdownOpen(prev => ({ ...prev, [d.id]: false }))}>
+                              {selectedStudentIds[d.id]?.size > 0 ? `Избери (${selectedStudentIds[d.id].size})` : "Избери"}
+                            </Button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <Button size="sm" className="w-full h-8 bg-[#0a192f] text-white text-xs"
+                    disabled={!selectedStudentIds[d.id]?.size || addStudent.isPending}
+                    onClick={async () => {
+                      for (const studentId of (selectedStudentIds[d.id] ?? new Set())) {
+                        const res = await fetch(`/api/defenses/${d.id}/add-student`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json", ...authHeaders },
+                          body: JSON.stringify({ studentId }),
+                        });
+                        const json = await res.json();
+                        if (!res.ok) {
+                          toast({ title: "Грешка", description: json.error, variant: "destructive" });
+                        }
+                      }
+                      queryClient.invalidateQueries({ queryKey: ["defenses"] });
+                      setSelectedStudentIds(prev => ({ ...prev, [d.id]: new Set() }));
+                    }}>
+                    <Plus className="h-3 w-3 mr-1" /> {selectedStudentIds[d.id]?.size > 0 ? `Добави (${selectedStudentIds[d.id].size})` : "Добави"}                  </Button>
                 </div>
               )}
             </CardContent>

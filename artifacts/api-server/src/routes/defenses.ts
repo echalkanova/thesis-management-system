@@ -1,6 +1,5 @@
 import { Router } from "express";
-import { db, defensesTable, usersTable, notificationsTable, committeesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, defensesTable, usersTable, notificationsTable, committeesTable, thesesTable, committeeMembersTable } from "@workspace/db";import { eq } from "drizzle-orm";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { pushNotification } from "../sse";
 
@@ -18,11 +17,19 @@ async function sendNotification(userId: number, title: string, message: string, 
 }
 
 async function formatDefense(defense: typeof defensesTable.$inferSelect) {
-  let committee = null;
+ let committee = null;
   if (defense.committeeId) {
     const [c] = await db.select().from(committeesTable)
       .where(eq(committeesTable.id, defense.committeeId)).limit(1);
-    if (c) committee = { id: c.id, romanNumeral: c.romanNumeral };
+    if (c) {
+      const members = await db.select().from(committeeMembersTable)
+        .where(eq(committeeMembersTable.committeeId, c.id));
+      const memberUsers = await Promise.all(members.map(async (m) => {
+        const [u] = await db.select().from(usersTable).where(eq(usersTable.id, m.userId)).limit(1);
+        return u ? { id: u.id, firstName: u.firstName, lastName: u.lastName, isChairman: m.isChairman } : null;
+      }));
+      committee = { id: c.id, romanNumeral: c.romanNumeral, members: memberUsers.filter(Boolean) };
+    }
   }
 
   const studentUsers = await Promise.all(
@@ -80,6 +87,29 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
   if (!title || !scheduledAt) {
     res.status(400).json({ error: "Title and scheduledAt are required" }); return;
   }
+
+  if (!title || !scheduledAt) {
+    res.status(400).json({ error: "Title and scheduledAt are required" }); return;
+  }
+
+  
+  const allDefenses = await db.select().from(defensesTable);
+  const sameDateTime = allDefenses.filter(d => {
+    const sameDay = new Date(d.scheduledAt).toDateString() === new Date(scheduledAt).toDateString();
+    const sameTime = d.startTime && startTime && d.startTime === startTime;
+    return sameDay && sameTime;
+  });
+
+  if (committeeId && sameDateTime.some(d => d.committeeId === Number(committeeId))) {
+    res.status(400).json({ error: "Тази комисия вече има насрочена защита в същия ден и час" });
+    return;
+  }
+
+  if (room && sameDateTime.some(d => d.room === room)) {
+    res.status(400).json({ error: "Тази зала вече е заета в същия ден и час" });
+    return;
+  }
+
   const [defense] = await db.insert(defensesTable).values({
     title,
     scheduledAt: new Date(scheduledAt),
@@ -131,6 +161,27 @@ router.post("/:id/add-student", requireAuth, async (req: AuthRequest, res) => {
     .where(eq(defensesTable.id, id)).limit(1);
   if (!defense) { res.status(404).json({ error: "Defense not found" }); return; }
 
+  if (!defense) { res.status(404).json({ error: "Defense not found" }); return; }
+  
+  // Провери конфликт с ръководител/рецензент
+  const [thesis] = await db.select().from(thesesTable)
+    .where(eq(thesesTable.studentId, studentId)).limit(1);
+  
+  if (thesis && defense.committeeId) {
+    const committeeMembers = await db.select().from(committeeMembersTable)
+      .where(eq(committeeMembersTable.committeeId, defense.committeeId));
+    const memberIds = committeeMembers.map(m => m.userId);
+    
+    if (thesis.supervisorId && memberIds.includes(thesis.supervisorId)) {
+      res.status(400).json({ error: "Научният ръководител на студента е член на тази комисия" });
+      return;
+    }
+    if (thesis.reviewerId && memberIds.includes(thesis.reviewerId)) {
+      res.status(400).json({ error: "Рецензентът на студента е член на тази комисия" });
+      return;
+    }
+  }
+
   const currentIds = defense.thesisIds ?? [];
   if (!currentIds.includes(studentId)) {
     await db.update(defensesTable)
@@ -171,7 +222,39 @@ router.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
   if (!["department_head", "admin"].includes(req.userRole ?? "")) {
     res.status(403).json({ error: "Forbidden" }); return;
   }
-  await db.delete(defensesTable).where(eq(defensesTable.id, Number(req.params.id)));
+  const defenseId = Number(req.params.id);
+  
+  // Намери защитата преди изтриване
+  const [defense] = await db.select().from(defensesTable)
+    .where(eq(defensesTable.id, defenseId)).limit(1);
+
+  if (defense) {
+    // Известие до студентите
+    for (const studentId of (defense.thesisIds ?? [])) {
+      await sendNotification(
+        studentId,
+        "Защита изтрита",
+        `Защитата "${defense.title}" е изтрита.`,
+        "warning"
+      );
+    }
+
+    // Известие до членовете на комисията
+    if (defense.committeeId) {
+      const members = await db.select().from(committeeMembersTable)
+        .where(eq(committeeMembersTable.committeeId, defense.committeeId));
+      for (const member of members) {
+        await sendNotification(
+          member.userId,
+          "Защита изтрита",
+          `Защитата "${defense.title}" е изтрита.`,
+          "warning"
+        );
+      }
+    }
+  }
+
+  await db.delete(defensesTable).where(eq(defensesTable.id, defenseId));
   res.json({ message: "Defense deleted" });
 });
 

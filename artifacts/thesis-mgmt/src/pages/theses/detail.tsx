@@ -146,6 +146,7 @@ export default function ThesisDetail() {
   const isAdmin = user?.role === "admin";
   const isSupervisor = user?.role === "supervisor";
   const isReviewer = user?.role === "reviewer";
+  const isDeptHead = user?.role === "department_head";
   const isOwner = thesis.studentId === user?.id;
   const isAssignedReviewer = thesis.reviewerId === user?.id;
 
@@ -212,8 +213,7 @@ export default function ThesisDetail() {
         </div>
       </div>
 
-      <ThesisTimeline currentStatus={thesis.status} finalGrade={(thesis as any).finalGrade} />
-
+        {!isDeptHead && <ThesisTimeline currentStatus={thesis.status} finalGrade={(thesis as any).finalGrade} />}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <Card>
@@ -510,12 +510,33 @@ export default function ThesisDetail() {
                 </Button>
               )}
 
-              {/* ADMIN: Approve for defense */}
-              {isAdmin && thesis.status as string === "reviewed" && (
-                <Button className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={actionPending === "approve-for-defense"} data-testid="button-approve-for-defense"
-                  onClick={() => thesisAction("approve-for-defense").then(() => toast({ title: "Допусната до защита" })).catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}>
-                  {actionPending === "approve-for-defense" ? "Обработка..." : "Допусни до защита"}
-                </Button>
+              {/* DEPT HEAD / ADMIN: Approve for defense */}
+              {(isAdmin || isDeptHead) && (thesis.status as string) === "reviewed" && (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button className="w-full bg-green-600 hover:bg-green-700 text-white">
+                      Допусни до защита
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                      <DialogTitle>Допускане до защита</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-slate-600">Сигурни ли сте, че искате да допуснете студента до защита?</p>
+                    <div className="flex gap-2 pt-2">
+                      <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                        disabled={actionPending === "approve-for-defense"}
+                        onClick={() => thesisAction("approve-for-defense")
+                          .then(() => toast({ title: "Студентът е допуснат до защита" }))
+                          .catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}>
+                        {actionPending === "approve-for-defense" ? "Обработка..." : "Допусни"}
+                      </Button>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" className="flex-1">Отказ</Button>
+                      </DialogTrigger>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               )}
 
               {/* COMMISSION / ADMIN: Mark defended */}

@@ -14,7 +14,7 @@ export default function ThesesList() {
   const [search, setSearch] = useState("");
   
     const roleFilter = 
-    (user?.role === "supervisor" || user?.role === "department_head") ? { supervisorId: user?.id } :
+    user?.role === "supervisor" ? { supervisorId: user?.id } :
     user?.role === "reviewer" ? { reviewerId: user?.id } : {};
   const { data: theses, isLoading } = useListTheses({ search: search || undefined, ...roleFilter } as any, {
     query: {
@@ -67,9 +67,12 @@ export default function ThesesList() {
         <div className="py-8 text-center text-slate-500">Зареждане...</div>
       ) : (
         <div className="grid gap-4">
-          {theses?.map((thesis) => (
-            <Link key={thesis.id} href={`/theses/${thesis.id}`} data-testid={`link-thesis-${thesis.id}`}>
-              <Card className="hover:border-slate-300 transition-colors cursor-pointer">
+          {(user?.role === "department_head" 
+            ? (theses ?? []).filter(t => ["reviewed", "approved_for_defense"].includes(t.status as string))
+            : theses ?? []
+          ).map((thesis) => (
+            <Link key={thesis.id} href={`/theses/${thesis.id}`}>
+              <Card className={`hover:shadow-md transition-shadow cursor-pointer ${user?.role === "department_head" && (thesis.status as string) === "approved_for_defense" ? "opacity-60" : ""}`}>
                 <CardContent className="p-6">
                   <div className="flex flex-col md:flex-row justify-between gap-4">
                     <div className="space-y-2">

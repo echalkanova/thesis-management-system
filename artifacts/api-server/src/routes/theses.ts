@@ -265,8 +265,8 @@ router.post("/:id/send-to-review", requireAuth, async (req: AuthRequest, res) =>
 
 // Approve for defense (admin)
 router.post("/:id/approve-for-defense", requireAuth, async (req: AuthRequest, res) => {
-  if (req.userRole !== "admin") {
-    res.status(403).json({ error: "Only admin can approve for defense" });
+  if (!["admin", "department_head"].includes(req.userRole ?? "")) {
+    res.status(403).json({ error: "Only admin or department head can approve for defense" });
     return;
   }
   const id = Number(req.params.id);

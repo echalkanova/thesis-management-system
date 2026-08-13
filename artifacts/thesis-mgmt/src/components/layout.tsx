@@ -18,7 +18,6 @@ const NAV_LINKS = [
   { href: "/theses", label: "Дипломни работи", icon: BookOpen, roles: ["admin"] },
   { href: "/committees", label: "Комисии", icon: UsersRound, roles: ["admin"] },
   { href: "/defenses", label: "Защити", icon: Calendar, roles: ["admin"] },
-  { href: "/supervisor-requests", label: "Запитвания", icon: Inbox, roles: ["admin"] },
   { href: "/supervisors", label: "Ръководители", icon: UserCheck, roles: ["admin"] },
   { href: "/reports", label: "Справки", icon: BarChart2, roles: ["admin"] },
   { href: "/users", label: "Потребители", icon: Users, roles: ["admin"] },
@@ -47,8 +46,8 @@ const NAV_LINKS = [
   { href: "/dashboard", label: "Табло", icon: LayoutDashboard, roles: ["student"] },
   { href: "/theses", label: "Дипломни работи", icon: BookOpen, roles: ["student"] },
   { href: "/supervisors", label: "Ръководители", icon: UserCheck, roles: ["student"] },
-  { href: "/defenses", label: "Защити", icon: Calendar, roles: ["student"] },
   { href: "/committees", label: "Моята комисия", icon: UsersRound, roles: ["student"] },
+  { href: "/defenses", label: "Защити", icon: Calendar, roles: ["student"] },
 ];
 
 function useSidebarBadges(user: { id: number; role: string } | null | undefined) {
@@ -132,8 +131,7 @@ function useSidebarBadges(user: { id: number; role: string } | null | undefined)
   const committeeSeen = localStorage.getItem(committeeSeenKey);
   
   const hasDefense = user?.role === "student" && studentDefense && !defenseSeen ? 1 : 0;
-  const hasCommittee = user?.role === "student" && studentCommittee && !committeeSeen ? 1 : 0;
-  
+  const hasCommittee = user?.role === "student" && studentCommittee && !committeeSeen ? 1 : 0;  
   return {
     "/supervisor-requests": pendingRequests,
     "/reviews": pendingReviews,

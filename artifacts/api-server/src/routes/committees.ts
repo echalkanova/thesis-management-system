@@ -103,6 +103,19 @@ router.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
     );
   }
 
+// Изпрати известие до членовете на комисията
+  const members = await db.select().from(committeeMembersTable)
+    .where(eq(committeeMembersTable.committeeId, committeeId));
+  for (const member of members) {
+    await sendNotification(
+      member.userId,
+      "Комисия изтрита",
+      `Комисия ${committee?.romanNumeral ?? ""} е изтрита.`,
+      "warning"
+    );
+  }
+  await db.delete(committeesTable).where(eq(committeesTable.id, committeeId));
+
   await db.delete(committeesTable).where(eq(committeesTable.id, committeeId));
   res.json({ message: "Committee deleted" });
 });
@@ -118,7 +131,8 @@ router.post("/:id/members", requireAuth, async (req: AuthRequest, res) => {
 
   const currentMembers = await db.select().from(committeeMembersTable)
     .where(eq(committeeMembersTable.committeeId, committeeId));
-  if (currentMembers.length >= 5) {
+  const isAlreadyMember = currentMembers.some(m => m.userId === userId);
+  if (!isAlreadyMember && currentMembers.length >= 5) {
     res.status(400).json({ error: "Комисията е достигнала максималния брой членове (5)" });
     return;
   }
@@ -129,23 +143,28 @@ router.post("/:id/members", requireAuth, async (req: AuthRequest, res) => {
       eq(committeeMembersTable.committeeId, committeeId),
       eq(committeeMembersTable.userId, userId)
     ));
-  if (existing.length > 0) {
+  if (existing.length > 0 && !isChairman) {
     res.status(400).json({ error: "Този потребител вече е член на тази комисия" });
     return;
   }
 
-  // If setting as chairman, remove previous chairman
   if (isChairman) {
     await db.update(committeeMembersTable)
       .set({ isChairman: false })
       .where(eq(committeeMembersTable.committeeId, committeeId));
+  
+    await db.delete(committeeMembersTable)
+      .where(and(
+        eq(committeeMembersTable.committeeId, committeeId),
+        eq(committeeMembersTable.userId, userId)
+      ));
   }
 
   await db.insert(committeeMembersTable)
     .values({ committeeId, userId, isChairman: isChairman ?? false })
     .returning();
 
-  // Get committee info for notification
+  
   const [committee] = await db.select().from(committeesTable)
     .where(eq(committeesTable.id, committeeId)).limit(1);
 

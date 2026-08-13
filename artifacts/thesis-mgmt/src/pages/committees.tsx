@@ -40,13 +40,19 @@ export default function Committees() {
   const token = localStorage.getItem("thesis_token");
   const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
-  const { data: committees, isLoading } = useQuery({
+  const { data: allCommittees, isLoading } = useQuery({
     queryKey: ["committees"],
     queryFn: async () => {
       const res = await fetch("/api/committees", { headers: authHeaders });
       return res.json();
     },
   });
+
+  const committees = (user?.role === "supervisor" || user?.role === "reviewer")
+    ? (allCommittees ?? []).filter((c: any) =>
+        c.members?.some((m: any) => m.id === user?.id)
+      )
+    : allCommittees;
 
   const { data: myCommittee } = useQuery({
     queryKey: ["my-committee"],
@@ -56,6 +62,16 @@ export default function Committees() {
     },
     enabled: isStudent,
   });
+
+  useEffect(() => {
+    if (user?.role === "student" && myCommittee) {
+      const timer = setTimeout(() => {
+        localStorage.setItem(`committee_seen_${user.id}`, "true");
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [user, myCommittee]);
 
   const supervisorCommittee = isSupervisor
     ? committees?.find((c: any) => c.members?.some((m: any) => m.id === user?.id))
@@ -74,9 +90,13 @@ export default function Committees() {
   const { data: students } = useQuery({
     queryKey: ["students-only"],
     queryFn: async () => {
-      const res = await fetch("/api/theses?status=reviewed", { headers: authHeaders });
-      const theses = await res.json();
-      return theses.map((t: any) => t.student).filter(Boolean);
+      const [res1, res2] = await Promise.all([
+        fetch("/api/theses?status=reviewed", { headers: authHeaders }),
+        fetch("/api/theses?status=approved_for_defense", { headers: authHeaders }),
+      ]);
+      const [reviewed, approved] = await Promise.all([res1.json(), res2.json()]);
+      const all = [...reviewed, ...approved];
+      return all.map((t: any) => t.student).filter(Boolean);
     },
     enabled: isDeptHead,
   });
@@ -328,8 +348,8 @@ export default function Committees() {
               <Label>Комисия</Label>
                 <Select value={assignCommitteeId} onValueChange={setAssignCommitteeId}>
                   <SelectTrigger>
-                    <SelectValue>
-                      <span className="text-slate-400">Изберете комисия</span>
+                    <SelectValue placeholder="Изберете комисия">
+                      {assignCommitteeId ? `Комисия ${committees?.find((c: any) => String(c.id) === assignCommitteeId)?.romanNumeral}` : "Изберете комисия"}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -435,14 +455,27 @@ export default function Committees() {
               className="bg-[#0a192f] text-white"
               disabled={assignStudentIds.size === 0 || !assignCommitteeId}
               onClick={async () => {
+                let successCount = 0;
+                let errors: string[] = [];
                 for (const studentId of assignStudentIds) {
-                  await fetch("/api/committees/assign-student", {
+                  const res = await fetch("/api/committees/assign-student", {
                     method: "POST",
                     headers: { "Content-Type": "application/json", ...authHeaders },
                     body: JSON.stringify({ studentId, committeeId: Number(assignCommitteeId) }),
                   });
+                  const json = await res.json();
+                  if (res.ok) {
+                    successCount++;
+                  } else {
+                    errors.push(json.error ?? "Грешка");
+                  }
                 }
-                toast({ title: `${assignStudentIds.size} студент${assignStudentIds.size === 1 ? "" : "а"} назначен${assignStudentIds.size === 1 ? "" : "и"}` });
+                if (successCount > 0) {
+                  toast({ title: `${successCount} студент${successCount === 1 ? "" : "а"} назначен${successCount === 1 ? "" : "и"}` });
+                }
+                if (errors.length > 0) {
+                  toast({ title: "Грешка при назначаване!", description: errors[0], variant: "destructive" });
+                }
                 queryClient.invalidateQueries({ queryKey: ["committees"] });
                 setAssignStudentIds(new Set());
                 setAssignCommitteeId("");
@@ -516,10 +549,10 @@ export default function Committees() {
             <DialogTitle>Избери председател — Комисия {getCommittee(chairmanCommitteeId)?.romanNumeral}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-            {(teachers ?? []).length === 0 ? (
-              <p className="text-sm text-slate-400 text-center py-4">Няма налични преподаватели</p>
+            {(getCommittee(chairmanCommitteeId)?.members ?? []).length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-4">Няма членове в комисията</p>
             ) : (
-              (teachers ?? []).map((t: any) => (
+              (getCommittee(chairmanCommitteeId)?.members ?? []).filter((m: any) => !m.isChairman).map((t: any) => (
                 <button key={t.id} type="button" onClick={() => setChairmanUserId(t.id)}
                   className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${
                     chairmanUserId === t.id ? "bg-amber-50 border-amber-300" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
@@ -602,7 +635,11 @@ export default function Committees() {
                 <Badge variant="outline" className="w-fit">{c.members?.length ?? 0} членa</Badge>
               </CardHeader>
               <CardContent className="space-y-2">
-                {c.members?.map((m: any) => (
+                {[...(c.members ?? [])].sort((a: any, b: any) => {
+                  if (a.isChairman) return -1;
+                  if (b.isChairman) return 1;
+                  return 0;
+                }).map((m: any) => (
                   <div key={m.id} className={`flex items-center justify-between p-2 rounded-lg ${m.isChairman ? "bg-amber-50 border border-amber-200" : "bg-slate-50"}`}>
                     <div className="flex items-center gap-2">
                       {m.isChairman && <Crown className="h-3 w-3 text-amber-600 flex-shrink-0" />}
@@ -612,12 +649,31 @@ export default function Committees() {
                       </div>
                     </div>
                     {isDeptHead && (
-                      <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-600 h-7 w-7"
-                        onClick={() => removeMember.mutate({ committeeId: c.id, userId: m.id })}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-600 h-7 w-7">
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-sm">
+                          <DialogHeader>
+                            <DialogTitle>Премахване на член</DialogTitle>
+                          </DialogHeader>
+                          <p className="text-sm text-slate-600">Сигурни ли сте, че искате да премахнете <span className="font-medium">{m.firstName} {m.lastName}</span> от комисията?</p>
+                          <div className="flex gap-2 pt-2">
+                            <Button className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-300"
+                              onClick={() => removeMember.mutate({ committeeId: c.id, userId: m.id })}>
+                              Да, премахни
+                            </Button>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" className="flex-1">Отказ</Button>
+                            </DialogTrigger>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     )}
                   </div>
+                  
                 ))}
 
                 {isDeptHead && (

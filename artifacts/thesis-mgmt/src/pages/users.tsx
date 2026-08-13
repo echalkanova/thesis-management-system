@@ -20,8 +20,7 @@ function apiHeaders() {
 
 const ROLES = [
   { value: "student", label: "Студент" },
-  { value: "supervisor", label: "Научен ръководител" },
-  { value: "reviewer", label: "Рецензент" },
+  { value: "supervisor", label: "Преподавател" },
   { value: "department_head", label: "Ръководител-катедра" },
   { value: "admin", label: "Администратор" },
 ];
@@ -29,8 +28,8 @@ const ROLES = [
 const roleColors: Record<string, string> = {
   student: "bg-blue-50 text-blue-700 border-blue-200",
   supervisor: "bg-purple-50 text-purple-700 border-purple-200",
-  reviewer: "bg-amber-50 text-amber-700 border-amber-200",
-  department_head: "bg-green-50 text-green-700 border-green-200",
+  reviewer: "bg-purple-50 text-purple-700 border-purple-200",
+  department_head: "bg-purple-50 text-purple-700 border-purple-200",
   admin: "bg-red-50 text-red-700 border-red-200",
 };
 
@@ -59,11 +58,15 @@ export default function Users() {
   const ef = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setEditForm(prev => ({ ...prev, [k]: e.target.value }));
 
-  const activeRole = roleFilter === "all" ? undefined : roleFilter;
+  const activeRole = (roleFilter === "all" || roleFilter === "teachers") ? undefined : roleFilter;
   const { data: users, isLoading } = useListUsers(
     { search: search || undefined, role: activeRole },
     { query: { queryKey: getListUsersQueryKey({ search: search || undefined, role: activeRole }) } }
   );
+
+  const filteredUsers = roleFilter === "teachers"
+    ? users?.filter(u => ["supervisor", "reviewer", "department_head"].includes(u.role))
+    : users;
 
   const updateUser = useUpdateUser();
   const deleteUser = useDeleteUser();
@@ -166,7 +169,7 @@ export default function Users() {
     setForm(prev => ({ ...prev, [k]: e.target.value }));
 
   const isStudent = form.role === "student";
-  const isTeacher = ["supervisor", "reviewer", "department_head"].includes(form.role);
+  const isTeacher = ["supervisor", "department_head"].includes(form.role);
 
   return (
     <div className="space-y-6">
@@ -200,7 +203,7 @@ export default function Users() {
 
               <div className="space-y-1.5">
                 <Label>Имейл <span className="text-red-500">*</span></Label>
-                <Input type="email" value={form.email} onChange={f("email")} placeholder="ivan@uni.bg" />
+                <Input type="email" value={form.email} onChange={f("email")} placeholder="gtodorov@uni.bg" />
               </div>
 
               <div className="space-y-1.5">
@@ -310,14 +313,22 @@ export default function Users() {
           <Input placeholder="Търсене по име или имейл..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} data-testid="input-search-users" />
         </div>
         <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger className="w-48" data-testid="select-role-filter">
-            <SelectValue placeholder="Всички роли" />
-          </SelectTrigger>
-          <SelectContent>
+            <SelectTrigger className="w-48" data-testid="select-role-filter">
+              <SelectValue placeholder="Всички роли" />
+            </SelectTrigger>
+            <SelectContent>
             <SelectItem value="all">Всички роли</SelectItem>
-            {ROLES.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+            <SelectItem value="student">Студент</SelectItem>
+            <SelectItem value="admin">Администратор</SelectItem>
+            <div className="px-2 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider border-t mt-1 pt-2">
+              Преподаватели
+            </div>
+            <SelectItem value="teachers">Всички преподаватели</SelectItem>
+            <SelectItem value="department_head">— Ръководител-катедра</SelectItem>
+            <SelectItem value="supervisor">— Научен ръководител</SelectItem>
+            <SelectItem value="reviewer">— Рецензент</SelectItem>
           </SelectContent>
-        </Select>
+          </Select>
       </div>
 
       <Card>
@@ -336,12 +347,14 @@ export default function Users() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users?.map(u => (
+                {filteredUsers?.map(u => (
                   <TableRow key={u.id} data-testid={`row-user-${u.id}`}>
                     <TableCell className="font-medium">{u.firstName} {u.lastName}</TableCell>
                     <TableCell className="text-slate-500">{u.email}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={roleColors[u.role] ?? ""}>{formatRole(u.role)}</Badge>
+                      <Badge variant="outline" className={roleColors[u.role] ?? ""}>
+                        {u.role === "student" ? "Студент" : u.role === "admin" ? "Администратор" : "Преподавател"}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-slate-500 text-sm">{u.faculty ?? "-"}</TableCell>
                     <TableCell className="text-right">
@@ -447,7 +460,7 @@ export default function Users() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {users?.length === 0 && (
+                {filteredUsers?.length === 0 && (
                   <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-400">Няма намерени потребители</TableCell></TableRow>
                 )}
               </TableBody>
