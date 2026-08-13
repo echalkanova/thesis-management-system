@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Shield, Search } from "lucide-react";
 import { formatRole } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface AuditEntry {
   id: number;
@@ -25,6 +26,9 @@ const ACTION_LABELS: Record<string, string> = {
   publish_review: "Публикува рецензия",
   login: "Влезе в системата",
   assign_thesis: "Назначи дипломна работа",
+  create_user: "Създаде профил",
+  update_user: "Редактира профил",
+  delete_user: "Изтри профил",
 };
 
 const ACTION_COLORS: Record<string, string> = {
@@ -44,6 +48,7 @@ export default function AuditLog() {
   const [logs, setLogs] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [actionFilter, setActionFilter] = useState("all");
 
   useEffect(() => {
     const token = localStorage.getItem("thesis_token");
@@ -61,14 +66,14 @@ export default function AuditLog() {
 
   const filtered = logs.filter(log => {
     const q = search.toLowerCase();
-    return (
-      !q ||
+    const matchesSearch = !q ||
       log.action.includes(q) ||
       log.user?.firstName?.toLowerCase().includes(q) ||
       log.user?.lastName?.toLowerCase().includes(q) ||
       log.user?.email?.toLowerCase().includes(q) ||
-      log.entityType.includes(q)
-    );
+      log.entityType.includes(q);
+    const matchesAction = actionFilter === "all" || log.action === actionFilter;
+    return matchesSearch && matchesAction;
   });
 
   return (
@@ -81,14 +86,27 @@ export default function AuditLog() {
           </h1>
           <p className="text-slate-500 mt-1 text-sm">Пълна история на действията в системата</p>
         </div>
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <Input
-            placeholder="Търсене по име или имейл..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex gap-3">
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              placeholder="Търсене по име или имейл..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={actionFilter} onValueChange={setActionFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Всички дейности" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Всички дейности</SelectItem>
+              {Object.entries(ACTION_LABELS).map(([key, label]) => (
+                <SelectItem key={key} value={key}>{label as string}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

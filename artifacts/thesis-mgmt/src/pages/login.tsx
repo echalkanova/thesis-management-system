@@ -59,7 +59,7 @@ export default function Login() {
               <input
                 id="email"
                 type="email"
-                placeholder="Enter your email"
+                placeholder="example@uni.bg"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
@@ -113,24 +113,6 @@ export default function Login() {
             <LogIn className="h-4 w-4" />
             {loading ? "Зареждане..." : "Sign In"}
           </button>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-slate-100" />
-            <span className="text-xs text-slate-400">or</span>
-            <div className="flex-1 h-px bg-slate-100" />
-          </div>
-
-          {/* Create account */}
-          <Link href="/register" data-testid="link-register">
-            <button
-              type="button"
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-sm transition"
-            >
-              <UserPlus className="h-4 w-4 text-slate-500" />
-              Create an account
-            </button>
-          </Link>
         </form>
       </div>
     </div>

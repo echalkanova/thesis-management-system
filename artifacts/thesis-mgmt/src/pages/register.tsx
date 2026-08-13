@@ -26,8 +26,13 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const needsFacultyNumber = role === "student" || role === "supervisor";
 
-  const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.endsWith("@uni.bg")) {
+      toast({ title: "Невалиден имейл", description: "Имейлът трябва да завършва на @uni.bg", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
     setLoading(true);
     try {
       await register({ email, password, firstName, lastName, role, facultyNumber: facultyNumber || undefined } as any);
@@ -88,6 +93,7 @@ export default function Register() {
                 type="email" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                placeholder="example@uni.bg"
                 required
                 data-testid="input-email"
               />

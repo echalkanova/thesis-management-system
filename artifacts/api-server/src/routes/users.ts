@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, usersTable, supervisorRequestsTable, thesesTable } from "@workspace/db";
 import { eq, inArray } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
+import { logAction } from "./auditLog";
 import { createHmac } from "crypto";
 
 const router = Router();
@@ -114,6 +115,7 @@ router.post("/", requireAuth, requireRole("admin"), async (req: AuthRequest, res
     subjectTaught: subjectTaught ?? null,
     maxStudents: maxStudents ?? 40,
   }).returning();
+  await logAction(req.userId!, "create_user", "user", user.id, { email: user.email, role: user.role, name: `${user.firstName} ${user.lastName}` });
   res.status(201).json(formatUser(user));
 });
 
@@ -150,6 +152,7 @@ router.patch("/:id", requireAuth, async (req: AuthRequest, res) => {
     res.status(404).json({ error: "User not found" });
     return;
   }
+  await logAction(req.userId!, "update_user", "user", user.id, { name: `${user.firstName} ${user.lastName}` });
   res.json(formatUser(user));
 });
 
@@ -176,7 +179,9 @@ router.post("/:id/change-password", requireAuth, async (req: AuthRequest, res) =
 
 router.delete("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   const id = Number(req.params.id);
+  const [deletedUser] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
   await db.delete(usersTable).where(eq(usersTable.id, id));
+  await logAction((req as AuthRequest).userId!, "delete_user", "user", id, { name: `${deletedUser?.firstName} ${deletedUser?.lastName}`, email: deletedUser?.email });
   res.json({ message: "User deleted" });
 });
 
