@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,11 @@ import { Plus, Trash2, Calendar, Clock, MapPin, Users } from "lucide-react";
 
 export default function Defenses() {
   const { user } = useAuth();
+  useEffect(() => {
+    if (user?.role === "student") {
+      localStorage.setItem(`defense_seen_${user.id}`, "true");
+    }
+  }, [user]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isDeptHead = user?.role === "department_head";
@@ -201,15 +206,21 @@ export default function Defenses() {
                   <Label>Дата *</Label>
                   <Input type="date" value={form.scheduledAt} onChange={e => setForm(p => ({ ...p, scheduledAt: e.target.value }))} />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>Начален час</Label>
-                    <Input type="time" value={form.startTime} onChange={e => setForm(p => ({ ...p, startTime: e.target.value }))} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Краен час</Label>
-                    <Input type="time" value={form.endTime} onChange={e => setForm(p => ({ ...p, endTime: e.target.value }))} />
-                  </div>
+                <div className="space-y-2">
+                  <Label>Начален час</Label>
+                  <select
+                    value={form.startTime}
+                    onChange={e => setForm(p => ({ ...p, startTime: e.target.value }))}
+                    className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+                  >
+                    <option value="">Изберете час...</option>
+                    {Array.from({ length: 19 }, (_, i) => {
+                      const hour = Math.floor(i / 2) + 8;
+                      const min = i % 2 === 0 ? "00" : "30";
+                      const time = `${String(hour).padStart(2, "0")}:${min}`;
+                      return <option key={time} value={time}>{time}</option>;
+                    })}
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <Label>Зала</Label>
@@ -221,10 +232,42 @@ export default function Defenses() {
                     <SelectTrigger><SelectValue placeholder="Изберете комисия" /></SelectTrigger>
                     <SelectContent>
                       {committees?.map((c: any) => (
-                        <SelectItem key={c.id} value={String(c.id)}>Комисия {c.romanNumeral}</SelectItem>
+                        <SelectItem key={c.id} value={String(c.id)}>
+                          <div className="flex flex-col">
+                            <span>Комисия {c.romanNumeral}</span>
+                            {c.chairman && (
+                              <span className="text-xs text-amber-600">Председател: {c.chairman.firstName} {c.chairman.lastName}</span>
+                            )}
+                            {c.members?.length > 0 && (
+                              <span className="text-xs text-slate-400">
+                                {c.members.filter((m: any) => !m.isChairman).map((m: any) => `${m.firstName} ${m.lastName}`).join(", ")}
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+
+                  {form.committeeId && (() => {
+                    const selected = committees?.find((c: any) => String(c.id) === form.committeeId);
+                    if (!selected) return null;
+                    return (
+                      <div className="mt-2 p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-1">
+                        {selected.chairman && (
+                          <p className="text-xs text-amber-700 font-medium">
+                            👑 Председател: {selected.chairman.firstName} {selected.chairman.lastName}
+                          </p>
+                        )}
+                        {selected.members?.filter((m: any) => !m.isChairman).map((m: any) => (
+                          <p key={m.id} className="text-xs text-slate-500">
+                            • {m.firstName} {m.lastName}
+                          </p>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
                 </div>
                 <div className="space-y-2">
                   <Label>Бележки</Label>

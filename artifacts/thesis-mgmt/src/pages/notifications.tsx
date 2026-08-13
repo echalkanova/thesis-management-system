@@ -1,4 +1,5 @@
 import { useListNotifications, getListNotificationsQueryKey, useMarkNotificationRead, useMarkAllNotificationsRead } from "@workspace/api-client-react";
+import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,16 @@ export default function Notifications() {
   const markAll = useMarkAllNotificationsRead();
 
   const unreadCount = notifications?.filter(n => !n.isRead).length ?? 0;
+
+  useEffect(() => {
+    if (unreadCount > 0) {
+      markAll.mutate(undefined as any, {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+        }
+      });
+    }
+  }, []);
 
   const handleMarkAll = () => {
     markAll.mutate(undefined, {

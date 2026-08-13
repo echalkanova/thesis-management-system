@@ -199,4 +199,32 @@ reviewsRouter.get("/:id/download", requireAuth, async (req, res) => {
   const filePath = path.join(process.cwd(), fileUrl);
   if (!fs.existsSync(filePath)) { res.status(404).json({ error: "File not found on disk" }); return; }
   res.download(filePath);
+
+  reviewsRouter.get("/my-reviews", requireAuth, async (req: AuthRequest, res) => {
+  const reviews = await db.select().from(reviewsTable)
+    .where(eq(reviewsTable.reviewerId, req.userId!));
+  
+  const formatted = await Promise.all(reviews.map(async (r) => {
+    const [thesis] = await db.select().from(thesesTable)
+      .where(eq(thesesTable.id, r.thesisId)).limit(1);
+    let student = null;
+    if (thesis?.studentId) {
+      const [s] = await db.select().from(usersTable)
+        .where(eq(usersTable.id, thesis.studentId)).limit(1);
+      if (s) student = { id: s.id, firstName: s.firstName, lastName: s.lastName };
+    }
+    return {
+      ...await formatReview(r),
+      thesis: thesis ? {
+        id: thesis.id,
+        title: thesis.title,
+        field: thesis.field ?? null,
+        student,
+      } : null,
+    };
+  }));
+  
+  res.json(formatted);
+});
+
 });

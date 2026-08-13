@@ -13,9 +13,12 @@ export default function ThesesList() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   
-    const supervisorFilter = (user?.role === "supervisor" || user?.role === "department_head") ? { supervisorId: user?.id } : {};  const { data: theses, isLoading } = useListTheses({ search: search || undefined, ...supervisorFilter } as any, {
+    const roleFilter = 
+    (user?.role === "supervisor" || user?.role === "department_head") ? { supervisorId: user?.id } :
+    user?.role === "reviewer" ? { reviewerId: user?.id } : {};
+  const { data: theses, isLoading } = useListTheses({ search: search || undefined, ...roleFilter } as any, {
     query: {
-      queryKey: getListThesesQueryKey({ search: search || undefined, ...supervisorFilter } as any)
+      queryKey: getListThesesQueryKey({ search: search || undefined, ...roleFilter } as any)
     }
   });
 

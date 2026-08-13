@@ -84,7 +84,26 @@ router.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
   if (!["department_head", "admin"].includes(req.userRole ?? "")) {
     res.status(403).json({ error: "Forbidden" }); return;
   }
-  await db.delete(committeesTable).where(eq(committeesTable.id, Number(req.params.id)));
+  const committeeId = Number(req.params.id);
+
+  // Намери комисията преди изтриване
+  const [committee] = await db.select().from(committeesTable)
+    .where(eq(committeesTable.id, committeeId)).limit(1);
+
+  // Намери студентите в тази комисия и им изпрати известие
+  const studentAssignments = await db.select().from(studentCommitteesTable)
+    .where(eq(studentCommitteesTable.committeeId, committeeId));
+
+  for (const assignment of studentAssignments) {
+    await sendNotification(
+      assignment.studentId,
+      "Премахнати сте от комисия",
+      `Комисия ${committee?.romanNumeral ?? ""} е изтрита и вие сте премахнати от нея.`,
+      "warning"
+    );
+  }
+
+  await db.delete(committeesTable).where(eq(committeesTable.id, committeeId));
   res.json({ message: "Committee deleted" });
 });
 
@@ -96,6 +115,13 @@ router.post("/:id/members", requireAuth, async (req: AuthRequest, res) => {
   const committeeId = Number(req.params.id);
   const { userId, isChairman } = req.body;
   if (!userId) { res.status(400).json({ error: "userId is required" }); return; }
+
+  const currentMembers = await db.select().from(committeeMembersTable)
+    .where(eq(committeeMembersTable.committeeId, committeeId));
+  if (currentMembers.length >= 5) {
+    res.status(400).json({ error: "Комисията е достигнала максималния брой членове (5)" });
+    return;
+  }
 
   // Check user is not already in THIS committee
   const existing = await db.select().from(committeeMembersTable)
@@ -251,7 +277,22 @@ router.post("/assign-student", requireAuth, async (req: AuthRequest, res) => {
   } else {
     await db.insert(studentCommitteesTable).values({ studentId, committeeId });
   }
+  
+  const [committee] = await db.select().from(committeesTable)
+    .where(eq(committeesTable.id, committeeId)).limit(1);
+  await sendNotification(
+    studentId,
+    "Назначени сте към комисия",
+    `Назначени сте към Комисия ${committee?.romanNumeral ?? ""}`,
+    "info"
+  );
   res.json({ message: "Студентът е назначен към комисията" });
+});
+
+// GET all assigned students
+router.get("/assigned-students", requireAuth, async (req: AuthRequest, res) => {
+  const assignments = await db.select().from(studentCommitteesTable);
+  res.json(assignments.map(a => a.studentId));
 });
 
 // GET student's own committee

@@ -40,6 +40,7 @@ const NAV_LINKS = [
   { href: "/reports", label: "Справки", icon: BarChart2, roles: ["supervisor"] },
   // Reviewer
   { href: "/dashboard", label: "Табло", icon: LayoutDashboard, roles: ["reviewer"] },
+  { href: "/theses", label: "Дипломни работи", icon: BookOpen, roles: ["reviewer"] },
   { href: "/reviews", label: "Рецензии", icon: FileText, roles: ["reviewer"] },
   { href: "/defenses", label: "Защити", icon: Calendar, roles: ["reviewer"] },
   // Student
@@ -78,6 +79,30 @@ function useSidebarBadges(user: { id: number; role: string } | null | undefined)
     refetchInterval: 15000,
   });
 
+  const { data: studentDefense } = useQuery({
+    queryKey: ["sidebar-student-defense"],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch("/api/defenses/my-defense", { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: user?.role === "student",
+    refetchInterval: 30000,
+  });
+
+  const { data: studentCommittee } = useQuery({
+    queryKey: ["sidebar-student-committee"],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch("/api/committees/my-committee", { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: user?.role === "student",
+    refetchInterval: 30000,
+  });
+
   const { data: reviewerTheses } = useQuery({
     queryKey: ["sidebar-reviewer-theses"],
     queryFn: async () => {
@@ -101,10 +126,20 @@ function useSidebarBadges(user: { id: number; role: string } | null | undefined)
   const hasNewResponse = latestResponse && lastSeen !== latestResponse.id?.toString();
   const noSupervisor = user?.role === "student" && hasNewResponse ? 1 : 0;
   
+  const defenseSeenKey = `defense_seen_${user?.id}`;
+  const committeeSeenKey = `committee_seen_${user?.id}`;
+  const defenseSeen = localStorage.getItem(defenseSeenKey);
+  const committeeSeen = localStorage.getItem(committeeSeenKey);
+  
+  const hasDefense = user?.role === "student" && studentDefense && !defenseSeen ? 1 : 0;
+  const hasCommittee = user?.role === "student" && studentCommittee && !committeeSeen ? 1 : 0;
+  
   return {
     "/supervisor-requests": pendingRequests,
     "/reviews": pendingReviews,
     "/supervisors": noSupervisor,
+    "/defenses": hasDefense,
+    "/committees": hasCommittee,
   } as Record<string, number>;
 }
 
