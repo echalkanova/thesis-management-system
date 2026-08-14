@@ -133,8 +133,8 @@ export default function Users() {
     };
     if (editForm.role === "student") {
       body.facultyNumber = editForm.facultyNumber || undefined;
-      body.specialty = editForm.specialty || undefined;
-      body.degree = editForm.degree || undefined;
+      body.specialty = editForm.specialty || null;
+      body.degree = editForm.degree || null;
     }
     if (["supervisor", "reviewer", "department_head"].includes(editForm.role)) {
       body.subjectTaught = editForm.subjectTaught || undefined;

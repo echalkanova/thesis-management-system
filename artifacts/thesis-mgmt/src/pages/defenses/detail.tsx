@@ -89,6 +89,11 @@ export default function DefenseDetail() {
             {defenseStudents.length === 0 ? <p className="text-slate-400 text-sm italic">Няма добавени студенти</p> : defenseStudents.map((s: any) => (
               <div key={s.id} className="p-3 bg-slate-50 rounded-lg border border-slate-100">
                 <p className="font-medium text-sm text-[#0a192f]">{s.firstName} {s.lastName}</p>
+                {(s.specialty || s.faculty || s.degree) && (
+                  <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                    {[s.specialty, s.faculty, s.degree === "bachelor" ? "Бакалавър" : s.degree === "master" ? "Магистър" : s.degree].filter(Boolean).join(" · ")}
+                  </p>
+                )}
               </div>
             ))}
           </CardContent>

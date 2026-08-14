@@ -25,6 +25,8 @@ function formatUser(user: typeof usersTable.$inferSelect) {
     facultyNumber: user.facultyNumber ?? null,
     subjectTaught: user.subjectTaught ?? null,
     maxStudents: user.maxStudents ?? 40,
+    specialty: (user as any).specialty ?? null,
+    degree: (user as any).degree ?? null,
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -97,7 +99,7 @@ router.get("/reviewers/list", requireAuth, async (req: AuthRequest, res) => {
 });
 
 router.post("/", requireAuth, requireRole("admin"), async (req: AuthRequest, res) => {
-  const { email, password, firstName, lastName, role, faculty, department, phoneNumber, facultyNumber, subjectTaught, maxStudents } = req.body;
+  const { email, password, firstName, lastName, role, faculty, department, phoneNumber, facultyNumber, subjectTaught, maxStudents, specialty, degree } = req.body;
   if (!email || !password || !firstName || !lastName || !role) {
     res.status(400).json({ error: "Missing required fields" });
     return;
@@ -113,6 +115,8 @@ router.post("/", requireAuth, requireRole("admin"), async (req: AuthRequest, res
     phoneNumber: phoneNumber ?? null,
     facultyNumber: facultyNumber ?? null,
     subjectTaught: subjectTaught ?? null,
+    specialty: specialty ?? null,
+    degree: degree ?? null,
     maxStudents: maxStudents ?? 40,
   }).returning();
   await logAction(req.userId!, "create_user", "user", user.id, { email: user.email, role: user.role, name: `${user.firstName} ${user.lastName}` });
@@ -135,7 +139,7 @@ router.patch("/:id", requireAuth, async (req: AuthRequest, res) => {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
-  const { firstName, lastName, faculty, department, phoneNumber, avatarUrl, role, subjectTaught, maxStudents, facultyNumber } = req.body;
+  const { firstName, lastName, faculty, department, phoneNumber, avatarUrl, role, subjectTaught, maxStudents, facultyNumber, specialty, degree } = req.body;
   const updates: Partial<typeof usersTable.$inferInsert> = {};
   if (firstName !== undefined) updates.firstName = firstName;
   if (lastName !== undefined) updates.lastName = lastName;
@@ -147,6 +151,8 @@ router.patch("/:id", requireAuth, async (req: AuthRequest, res) => {
   if (subjectTaught !== undefined) updates.subjectTaught = subjectTaught;
   if (maxStudents !== undefined && req.userRole === "admin") updates.maxStudents = maxStudents;
   if (facultyNumber !== undefined) updates.facultyNumber = facultyNumber || null;
+  if (specialty !== undefined) (updates as any).specialty = specialty || null;
+  if (degree !== undefined) (updates as any).degree = degree || null;
   const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, id)).returning();
   if (!user) {
     res.status(404).json({ error: "User not found" });

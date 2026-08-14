@@ -35,7 +35,15 @@ async function formatDefense(defense: typeof defensesTable.$inferSelect) {
   const studentUsers = await Promise.all(
     (defense.thesisIds ?? []).map(async (sid: number) => {
       const [u] = await db.select().from(usersTable).where(eq(usersTable.id, sid)).limit(1);
-      return u ? { id: u.id, firstName: u.firstName, lastName: u.lastName } : null;
+      return u ? { 
+        id: u.id, 
+        firstName: u.firstName, 
+        lastName: u.lastName,
+        faculty: u.faculty ?? null,
+        department: u.department ?? null,
+        specialty: (u as any).specialty ?? null,
+        degree: (u as any).degree ?? null,
+      } : null;
     })
   );
 
@@ -195,9 +203,14 @@ router.post("/:id/add-student", requireAuth, async (req: AuthRequest, res) => {
     await db.update(defensesTable)
       .set({ thesisIds: [...currentIds, studentId] } as any)
       .where(eq(defensesTable.id, id));
+    
+    if (thesis) {
+      await db.update(thesesTable)
+        .set({ status: "scheduled_for_defense" } as any)
+        .where(eq(thesesTable.studentId, studentId));
+    }
   }
 
-  // Notify student
   await sendNotification(
     studentId,
     "Насрочена защита",

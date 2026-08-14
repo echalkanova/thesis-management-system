@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { Bell, CheckCheck } from "lucide-react";
+import { Bell, CheckCheck, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const typeColors: Record<string, string> = {
@@ -50,14 +50,21 @@ export default function Notifications() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[#0a192f] tracking-tight">Известия</h1>
+
           <p className="text-slate-500">{unreadCount > 0 ? `${unreadCount} непрочетени известия` : "Всички известия са прочетени"}</p>
         </div>
-        {unreadCount > 0 && (
-          <Button variant="outline" onClick={handleMarkAll} disabled={markAll.isPending} className="flex items-center gap-2" data-testid="button-mark-all-read">
-            <CheckCheck className="h-4 w-4" />
-            {markAll.isPending ? "..." : "Маркирай всички"}
+        <div className="flex items-center gap-2">
+          {unreadCount > 0 && (
+            <Button variant="outline" onClick={handleMarkAll} disabled={markAll.isPending} className="flex items-center gap-2" data-testid="button-mark-all-read">
+              <CheckCheck className="h-4 w-4" />
+              {markAll.isPending ? "..." : "Маркирай всички"}
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-slate-600"
+            onClick={() => window.history.back()}>
+            <X className="h-5 w-5" />
           </Button>
-        )}
+        </div>
       </div>
 
       {isLoading ? (

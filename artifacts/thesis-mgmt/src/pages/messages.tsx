@@ -285,16 +285,6 @@ export default function Messages() {
               <div ref={bottomRef} />
             </div>
 
-            {attachedFile && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-lg border border-indigo-100 mb-2">
-                  <Paperclip size={12} className="text-indigo-400" />
-                  <span className="text-xs text-indigo-700 truncate flex-1">{attachedFile.name}</span>
-                  <button onClick={() => setAttachedFile(null)} className="text-slate-400 hover:text-slate-600">
-                    <X size={12} />
-                  </button>
-                </div>
-              )}
-
             {/* Input */}
             <div className="bg-white border-t border-slate-100 px-5 py-3 flex-shrink-0">
               {attachedFile && (

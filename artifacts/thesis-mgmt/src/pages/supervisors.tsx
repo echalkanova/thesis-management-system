@@ -257,7 +257,7 @@ export default function Supervisors() {
                     </div>
                     <div>
                       <p className="text-sm font-medium">{t.student?.firstName} {t.student?.lastName}</p>
-                      <p className="text-xs text-slate-400 truncate max-w-[200px]">
+                      <p className="text-xs text-slate-400 break-words">
                         {t.status === "pending_thesis" ? "Одобрено запитване" : t.title}
                       </p>
                     </div>

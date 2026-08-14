@@ -15,6 +15,8 @@ export const usersTable = pgTable("users", {
   avatarUrl: text("avatar_url"),
   facultyNumber: text("faculty_number").unique(),
   subjectTaught: text("subject_taught"),
+  specialty: text("specialty"),
+  degree: text("degree"),
   maxStudents: integer("max_students").default(10),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
