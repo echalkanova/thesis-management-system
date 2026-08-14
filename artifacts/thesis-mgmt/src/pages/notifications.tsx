@@ -25,14 +25,16 @@ export default function Notifications() {
   const unreadCount = notifications?.filter(n => !n.isRead).length ?? 0;
 
   useEffect(() => {
-    if (unreadCount > 0) {
-      markAll.mutate(undefined as any, {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
-        }
-      });
-    }
-  }, []);
+    return () => {
+      if (unreadCount > 0) {
+        markAll.mutate(undefined as any, {
+          onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+          }
+        });
+      }
+    };
+  }, [unreadCount]);
 
   const handleMarkAll = () => {
     markAll.mutate(undefined, {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -291,17 +292,24 @@ export default function Defenses() {
         )}
         {defenses?.map((d: any) => (
           <Card key={d.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-lg">{d.title}</CardTitle>
-                  <div className="flex flex-wrap gap-3 mt-2 text-sm text-slate-600">
-                    <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{new Date(d.scheduledAt).toLocaleDateString("bg")}</span>
-                    {d.startTime && <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{d.startTime}{d.endTime ? ` – ${d.endTime}` : ""}</span>}
-                    {d.room && <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />Зала {d.room}</span>}
-                    {d.committee && <Badge variant="outline">Комисия {d.committee.romanNumeral}</Badge>}
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-[#0a192f] truncate">{d.title}</p>
+                  <div className="flex flex-wrap gap-3 mt-1 text-xs text-slate-500">
+                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(d.scheduledAt).toLocaleDateString("bg")}</span>
+                    {d.startTime && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{d.startTime}</span>}
+                    {d.room && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />Зала {d.room}</span>}
                   </div>
                 </div>
+                <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                  {d.committee && (
+                    <Link href={`/defenses/${d.id}`}>
+                      <Button variant="outline" size="sm" className="text-xs">
+                        Виж комисия →
+                      </Button>
+                    </Link>
+                  )}
                 {isDeptHead && (
                   <Dialog>
                     <DialogTrigger asChild>
@@ -327,10 +335,15 @@ export default function Defenses() {
                   </Dialog>
                 )}
               </div>
-            </CardHeader>
+              </div>
+            </CardContent>
             <CardContent className="space-y-3">
               <div>
-                <p className="text-sm font-medium text-slate-600 mb-2">Студенти ({d.students?.length ?? 0})</p>
+                {d.students && d.students.length > 0 ? (
+                  <p className="text-sm font-medium text-slate-600 mb-2">Студенти ({d.students.length})</p>
+                ) : (
+                  <p className="text-sm text-slate-400 italic mb-2">Няма назначени студенти</p>
+                )}
                 <div className="space-y-1">
                   {d.students?.map((s: any) => (
                     <div key={s.id} className="flex items-center justify-between p-2 bg-slate-50 rounded">
@@ -359,12 +372,11 @@ export default function Defenses() {
                         <div className="absolute left-0 right-0 mt-1 z-20 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
                           <div className="max-h-40 overflow-y-auto">
                             {students?.filter((s: any) => {
-  // Скрий студенти вече добавени в тази защита
-  if (d.students?.some((ds: any) => ds.id === s.id)) return false;
-  // Скрий студенти вече добавени в друга защита
-  if (defenses?.some((def: any) => def.id !== d.id && def.students?.some((ds: any) => ds.id === s.id))) return false;
-  return true;
-}).map((s: any) => (
+                                if (d.students?.some((ds: any) => ds.id === s.id)) return false;
+                                // Скрий студенти вече добавени в друга защита
+                                if (defenses?.some((def: any) => def.id !== d.id && def.students?.some((ds: any) => ds.id === s.id))) return false;
+                                return true;
+                              }).map((s: any) => (
                               <label key={s.id}
                                 onClick={() => setSelectedStudentIds(prev => {
                                   const current = new Set(prev[d.id] ?? []);

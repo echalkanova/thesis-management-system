@@ -229,7 +229,7 @@ export default function ThesisDetail() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2"><Paperclip className="h-4 w-4" /> Файлове ({files.length})</CardTitle>
-                  {(isOwner || isAdmin) && (
+                  {(isAdmin || (isOwner && ["draft", "returned_for_revision"].includes(thesis.status as string))) && (
                     <FileUploadDialog thesisId={thesisId} />
                   )}
                 </div>
@@ -245,7 +245,7 @@ export default function ThesisDetail() {
                           <FileText className="h-4 w-4" />
                           {f.fileName}
                         </a>
-                        {(isAdmin || f.uploadedBy === user?.id) && (
+                        {(isAdmin || (f.uploadedBy === user?.id && ["draft", "returned_for_revision"].includes(thesis.status as string))) && (
                           <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-600" data-testid={`button-delete-file-${f.id}`}
                             onClick={() => deleteFile.mutate({ id: f.id }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListThesisFilesQueryKey(thesisId) }) })}>
                             <Trash2 className="h-4 w-4" />
@@ -425,7 +425,7 @@ export default function ThesisDetail() {
               )}
 
               {/* SUPERVISOR: Status after sending to review */}
-              {isSupervisor && thesis.supervisorId === user?.id && thesis.status === "under_review" && (
+              {isSupervisor && thesis.supervisorId === user?.id && ["under_review", "reviewed", "approved_for_defense", "scheduled_for_defense", "defended"].includes(thesis.status as string) && (
                 <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-green-50 border border-green-100 text-green-700 text-sm font-medium">
                   ✓ Дипломната работа е предадена за рецензия.
                 </div>

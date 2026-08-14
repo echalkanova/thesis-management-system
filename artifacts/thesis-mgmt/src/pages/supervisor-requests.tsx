@@ -25,6 +25,7 @@ export default function SupervisorRequests() {
   const [selectedReviewer, setSelectedReviewer] = useState<Record<number, string>>({});
   const [msgText, setMsgText] = useState<Record<number, string>>({});
   const [msgOpen, setMsgOpen] = useState<Record<number, boolean>>({});
+  const [activeTab, setActiveTab] = useState<"all" | "pending" | "accepted" | "rejected">("all");
 
   const { data: requests, isLoading } = useQuery({
     queryKey: ["supervisor-requests"],
@@ -72,7 +73,7 @@ export default function SupervisorRequests() {
   });
 
   const sendMessage = useMutation({
-    mutationFn: async ({ receiverId, content }: { receiverId: number; content: string }) => {
+    mutationFn: async ({ requestId, receiverId, content }: { requestId: number; receiverId: number; content: string }) => {
       const res = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...apiHeaders() },
@@ -80,12 +81,16 @@ export default function SupervisorRequests() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Грешка");
-      return json;
+      return { ...json, requestId, receiverId };
     },
     onSuccess: (_, vars) => {
       toast({ title: "Съобщението е изпратено" });
-      setMsgText(prev => ({ ...prev }));
-      setMsgOpen(prev => ({ ...prev }));
+      setMsgText(prev => {
+        const next = { ...prev };
+        delete next[vars.requestId];
+        return next;
+      });
+      setMsgOpen(prev => ({ ...prev, [vars.requestId]: false }));
       setLocation(`/messages/${vars.receiverId}`);
     },
     onError: (e: Error) => toast({ title: "Грешка", description: e.message, variant: "destructive" }),
@@ -108,6 +113,25 @@ export default function SupervisorRequests() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-[#0a192f]">Запитвания от студенти</h1>
+        <div className="flex gap-0 border-b border-slate-200 mt-4">
+          {(["all", "pending", "accepted", "rejected"] as const).map(tab => {
+            const labels = { all: "Всички", pending: "Изчакващи", accepted: "Одобрени", rejected: "Отказани" };
+            const count = tab === "all" ? requests?.length : (Array.isArray(requests) ? requests : []).filter((r: any) => r.status === tab).length;
+            return (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === tab
+                    ? "border-[#0a192f] text-[#0a192f]"
+                    : "border-transparent text-slate-500 hover:text-slate-700"
+                }`}>
+                {labels[tab]}
+                {count > 0 && tab === "pending" && (
+                  <span className="ml-1.5 bg-amber-50 text-amber-700 text-xs px-1.5 py-0.5 rounded-full">{count}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
         {user?.role !== "supervisor" && (
           <p className="text-slate-500 text-sm mt-1">Управлявайте запитванията</p>
         )}
@@ -118,8 +142,12 @@ export default function SupervisorRequests() {
       )}
 
       <div className="space-y-4">
-        {(Array.isArray(requests) ? requests : []).map((r: any) => (
-          <Card key={r.id}>
+{(() => {
+          const filtered = (Array.isArray(requests) ? requests : []).filter((r: any) => activeTab === "all" || r.status === activeTab);
+          const emptyMsg = activeTab === "rejected" ? "Няма отказани запитвания" : activeTab === "accepted" ? "Няма одобрени запитвания" : activeTab === "pending" ? "Няма изчакващи запитвания" : "Няма запитвания";
+          if (filtered.length === 0) return [<Card key="empty"><CardContent className="py-12 text-center text-slate-400">{emptyMsg}</CardContent></Card>];
+          return filtered.map((r: any) => (        
+             <Card key={r.id} className={r.status === "accepted" ? "opacity-60 shadow-sm" : ""}>
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div>
@@ -171,7 +199,7 @@ export default function SupervisorRequests() {
                         <Button
                           className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
                           disabled={!msgText[r.id]?.trim() || sendMessage.isPending}
-                          onClick={() => sendMessage.mutate({ receiverId: r.student.id, content: msgText[r.id] })}>
+                          onClick={() => sendMessage.mutate({ requestId: r.id, receiverId: r.student.id, content: msgText[r.id] })}>
                           {sendMessage.isPending ? "Изпращане..." : "Изпрати"}
                         </Button>
                         <Button variant="outline" onClick={() => setMsgOpen(prev => ({ ...prev, [r.id]: false }))}>
@@ -182,7 +210,7 @@ export default function SupervisorRequests() {
                   </DialogContent>
                 </Dialog>
 
-                {r.status === "pending" && user?.role === "supervisor" && (
+                {r.status === "pending" && ["supervisor", "admin", "department_head"].includes(user?.role ?? "") && (
                   <>
                     <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-1"
                       disabled={accept.isPending}
@@ -209,7 +237,7 @@ export default function SupervisorRequests() {
               )}
             </CardContent>
           </Card>
-        ))}
+        ));})()}
       </div>
     </div>
   );

@@ -78,6 +78,14 @@ router.get("/my-defense", requireAuth, async (req: AuthRequest, res) => {
   res.json(await formatDefense(myDefense));
 });
 
+router.get("/:id", requireAuth, async (req: AuthRequest, res) => {
+  const id = Number(req.params.id);
+  const [defense] = await db.select().from(defensesTable)
+    .where(eq(defensesTable.id, id)).limit(1);
+  if (!defense) { res.status(404).json({ error: "Defense not found" }); return; }
+  res.json(await formatDefense(defense));
+});
+
 // POST create defense (department_head / admin only)
 router.post("/", requireAuth, async (req: AuthRequest, res) => {
   if (!["department_head", "admin"].includes(req.userRole ?? "")) {

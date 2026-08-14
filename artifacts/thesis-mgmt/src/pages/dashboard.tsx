@@ -70,7 +70,7 @@ function StudentDashboard() {
   const currentStep = thesis ? stepIndex(thesis.status) : -1;
 
   const myDefense = allDefenses?.find(d =>
-    thesis && (d.thesisIds as number[])?.includes(thesis.id)
+    user?.id && (d.thesisIds as number[])?.includes(user.id)
   ) ?? null;
 
   const recentNotifs = notifications?.slice(0, 4) ?? [];
@@ -200,18 +200,20 @@ function StudentDashboard() {
 
             <div className="flex flex-col gap-4">
               {myDefense ? (
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex-1">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center mb-3">
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex-1 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
                     <Calendar size={16} className="text-emerald-600" />
                   </div>
-                  <div className="text-xs text-slate-400 mb-0.5">Защита насрочена</div>
-                  <div className="font-bold text-slate-800 text-sm">
-                    {new Date(myDefense.scheduledAt).toLocaleDateString("bg", { day: "numeric", month: "long" })}
-                  </div>
-                  <div className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-                    <Clock size={11} />
-                    {new Date(myDefense.scheduledAt).toLocaleTimeString("bg", { hour: "2-digit", minute: "2-digit" })}
-                    {myDefense.roomOrLink && <> · {myDefense.roomOrLink}</>}
+                  <div>
+                    <div className="text-xs text-slate-400 mb-0.5">Насрочена защита</div>
+                    <div className="font-bold text-slate-800 text-sm">
+                      {new Date(myDefense.scheduledAt).toLocaleDateString("bg", { day: "numeric", month: "long" })}
+                    </div>
+                    <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                      <Clock size={11} />
+                      {(myDefense as any).startTime ?? new Date(myDefense.scheduledAt).toLocaleTimeString("bg", { hour: "2-digit", minute: "2-digit" })}
+                      {(myDefense as any).room && <> · {(myDefense as any).room}</>}
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -220,21 +222,24 @@ function StudentDashboard() {
                   <div className="text-xs text-slate-400">Защитата не е насрочена</div>
                 </div>
               )}
-
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex-1">
-                <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center mb-3">
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex-1 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
                   <GraduationCap size={16} className="text-amber-600" />
                 </div>
-                <div className="text-xs text-slate-400 mb-0.5">Направление</div>
-                <div className="font-semibold text-slate-800 text-sm">
-                  {thesis.field ?? "Не е посочено"}
+                <div>
+                  <div className="text-xs text-slate-400 mb-0.5">Направление</div>
+                  <div className="font-semibold text-slate-800 text-sm">
+                    {thesis.field ?? "Не е посочено"}
+                  </div>
+                  {thesis.keywords && (
+                    <div className="text-xs text-slate-400 mt-0.5 line-clamp-1">{thesis.keywords}</div>
+                  )}
                 </div>
-                {thesis.keywords && (
-                  <div className="text-xs text-slate-400 mt-1 line-clamp-1">{thesis.keywords}</div>
-                )}
               </div>
             </div>
-          </div>
+              </div>
+            
+          
 
           {thesis.status === "draft" && (
             <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between">
@@ -838,7 +843,7 @@ function AdminDashboard() {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-sm text-slate-800 truncate">{defense.title}</p>
                       <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-                        <Clock size={11} />{d.toLocaleTimeString("bg", { hour: "2-digit", minute: "2-digit" })}
+                        <Clock size={11} />{(defense as any).startTime || (defense as any).start_time || d.toLocaleTimeString("bg", { hour: "2-digit", minute: "2-digit" })}
                         {defense.roomOrLink && <><MapPin size={11} /><span className="truncate">{defense.roomOrLink}</span></>}
                       </div>
                     </div>
