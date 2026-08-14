@@ -10,3 +10,4 @@ export * from "./auditLog";
 export * from "./supervisorRequests";
 export * from "./messages";
 export * from "./defenseStudents";
+export * from "./defenseGrades";

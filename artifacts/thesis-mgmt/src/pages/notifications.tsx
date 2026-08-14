@@ -27,10 +27,10 @@ export default function Notifications() {
   useEffect(() => {
     return () => {
       if (unreadCount > 0) {
-        markAll.mutate(undefined as any, {
-          onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
-          }
+        const token = localStorage.getItem("thesis_token");
+        fetch("/api/notifications/mark-all-read", {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
       }
     };

@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { db, defensesTable, usersTable, notificationsTable, committeesTable, thesesTable, committeeMembersTable } from "@workspace/db";import { eq } from "drizzle-orm";
+import { db, defensesTable, usersTable, notificationsTable, committeesTable, thesesTable, committeeMembersTable, defenseGradesTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { pushNotification } from "../sse";
 
@@ -245,12 +246,11 @@ router.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
   }
   const defenseId = Number(req.params.id);
   
-  // Намери защитата преди изтриване
   const [defense] = await db.select().from(defensesTable)
     .where(eq(defensesTable.id, defenseId)).limit(1);
 
   if (defense) {
-    // Известие до студентите
+
     for (const studentId of (defense.thesisIds ?? [])) {
       await sendNotification(
         studentId,
@@ -260,7 +260,6 @@ router.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
       );
     }
 
-    // Известие до членовете на комисията
     if (defense.committeeId) {
       const members = await db.select().from(committeeMembersTable)
         .where(eq(committeeMembersTable.committeeId, defense.committeeId));
@@ -277,6 +276,67 @@ router.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
 
   await db.delete(defensesTable).where(eq(defensesTable.id, defenseId));
   res.json({ message: "Defense deleted" });
+});
+
+router.get("/:id/grades", requireAuth, async (req: AuthRequest, res) => {
+  const defenseId = Number(req.params.id);
+  const grades = await db.select().from(defenseGradesTable)
+    .where(eq(defenseGradesTable.defenseId, defenseId));
+  res.json(grades);
+});
+
+
+router.post("/:id/grades", requireAuth, async (req: AuthRequest, res) => {
+  const defenseId = Number(req.params.id);
+  const { studentId, grade } = req.body;
+  
+  if (!studentId || !grade) {
+    res.status(400).json({ error: "studentId and grade are required" }); return;
+  }
+  if (grade < 2 || grade > 6) {
+    res.status(400).json({ error: "Оценката трябва да е между 2 и 6" }); return;
+  }
+
+  const existing = await db.select().from(defenseGradesTable)
+    .where(and(eq(defenseGradesTable.defenseId, defenseId), eq(defenseGradesTable.studentId, studentId)));
+  
+  let result;
+  if (existing.length > 0) {
+    [result] = await db.update(defenseGradesTable)
+      .set({ grade })
+      .where(and(eq(defenseGradesTable.defenseId, defenseId), eq(defenseGradesTable.studentId, studentId)))
+      .returning();
+  } else {
+    [result] = await db.insert(defenseGradesTable)
+      .values({ defenseId, studentId, grade })
+      .returning();
+  }
+
+  await sendNotification(
+    studentId,
+    "Нанесена оценка от защита",
+    `Вашата оценка от защитата е ${grade.toFixed(2)} (${grade >= 5.5 ? "Отличен" : grade >= 4.5 ? "Много добър" : grade >= 3.5 ? "Добър" : grade >= 2.5 ? "Среден" : "Слаб"})`,
+    "success"
+  );
+
+  res.json(result);
+});
+router.post("/:id/mark-defended", requireAuth, async (req: AuthRequest, res) => {
+  const { studentId } = req.body;
+  if (!studentId) { res.status(400).json({ error: "studentId is required" }); return; }
+  
+  await db.update(thesesTable)
+    .set({ status: "defended" } as any)
+    .where(eq(thesesTable.studentId, studentId));
+
+  await sendNotification(
+    studentId,
+    "Успешно защитена дипломна работа",
+    "Вашата дипломна работа е маркирана като успешно защитена.",
+    "success"
+  );
+
+  res.json({ message: "Marked as defended" });
 });
 
 export default router;

@@ -286,30 +286,44 @@ export default function Defenses() {
         )}
       </div>
 
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {!defenses?.length && (
           <Card><CardContent className="py-12 text-center text-slate-400">Няма насрочени защити</CardContent></Card>
         )}
         {defenses?.map((d: any) => (
           <Card key={d.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-[#0a192f] truncate">{d.title}</p>
-                  <div className="flex flex-wrap gap-3 mt-1 text-xs text-slate-500">
-                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(d.scheduledAt).toLocaleDateString("bg")}</span>
-                    {d.startTime && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{d.startTime}</span>}
-                    {d.room && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />Зала {d.room}</span>}
+            <CardContent className="p-6">
+              <div className="space-y-5">
+                <div className="flex items-start justify-between gap-6">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-[#0a192f] truncate">{d.title}</p>
+                    <div className="flex flex-wrap gap-3 mt-1 text-xs text-slate-500">
+                      <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(d.scheduledAt).toLocaleDateString("bg")}</span>
+                      {d.startTime && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{d.startTime}</span>}
+                      {d.room && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />Зала {d.room}</span>}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                    {new Date(d.scheduledAt) < new Date() ? (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 font-medium">✓ Проведена</span>
+                    ) : (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 font-medium">Изчаква провеждане</span>
+                    )}
+                    {d.students?.some((s: any) => d.grades?.find((g: any) => g.studentId === s.id)) ? (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">✓ Оценена</span>
+                    ) : (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-slate-50 text-slate-500 border border-slate-200 font-medium">🕐 Изчаква оценяване</span>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 ml-4 flex-shrink-0">
-                  {d.committee && (
-                    <Link href={`/defenses/${d.id}`}>
-                      <Button variant="outline" size="sm" className="text-xs">
-                        Виж комисия →
-                      </Button>
-                    </Link>
-                  )}
+                {d.committee && (
+                  <Link href={`/defenses/${d.id}`}>
+                    <Button variant="outline" size="sm" className="text-xs w-full">
+                      Виж подробности →
+                    </Button>
+                  </Link>
+                )}
+                <div className="flex justify-end">
                 {isDeptHead && (
                   <Dialog>
                     <DialogTrigger asChild>
@@ -338,21 +352,6 @@ export default function Defenses() {
               </div>
             </CardContent>
             <CardContent className="space-y-3">
-              <div>
-                {d.students && d.students.length > 0 ? (
-                  <p className="text-sm font-medium text-slate-600 mb-2">Студенти ({d.students.length})</p>
-                ) : (
-                  <p className="text-sm text-slate-400 italic mb-2">Няма назначени студенти</p>
-                )}
-                <div className="space-y-1">
-                  {d.students?.map((s: any) => (
-                    <div key={s.id} className="flex items-center justify-between p-2 bg-slate-50 rounded">
-                      <span className="text-sm">{s.firstName} {s.lastName}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               {isDeptHead && (
                 <div className="pt-2 border-t space-y-2">
                   <div className="relative">

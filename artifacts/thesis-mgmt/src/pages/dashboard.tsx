@@ -39,7 +39,9 @@ const STEPS = [
   { key: "under_review",           label: "В рецензия" },
   { key: "reviewed",               label: "Рецензирана" },
   { key: "approved_for_defense",   label: "Допусната" },
+  { key: "scheduled_for_defense",  label: "Насрочена" },
   { key: "defended",               label: "Защитена" },
+  { key: "graded",                 label: "Оценена" },
 ];
 
 function stepIndex(status: string) {
@@ -500,6 +502,22 @@ function SupervisorDashboard() {
     },
   });
 
+  const { data: myDefenses } = useQuery({
+    queryKey: ["supervisor-defenses-dashboard", user?.id],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch("/api/defenses", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) return [];
+      const all = await res.json();
+      return all.filter((d: any) =>
+        d.committee?.members?.some((m: any) => m.id === user?.id && m.isChairman) &&
+        new Date(d.scheduledAt) < new Date()
+      );
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="space-y-5 animate-pulse">
@@ -531,6 +549,26 @@ function SupervisorDashboard() {
         <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Табло</h1>
         <p className="text-sm text-slate-400 mt-0.5">Добре дошли! Това е актуалното ниво на вашите дипломанти.</p>
       </div>
+
+      {myDefenses && myDefenses.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="font-semibold text-slate-700 text-sm">Оценяване</h2>
+          {myDefenses.map((d: any) => (
+            <Link key={d.id} href={`/defenses/${d.id}`}>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between hover:shadow-md transition-shadow cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <Star size={18} className="text-amber-500 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium text-slate-800 text-sm">{d.title}</p>
+                    <p className="text-xs text-amber-700">{new Date(d.scheduledAt).toLocaleDateString("bg")} · {d.students?.length ?? 0} студент/а за оценяване</p>
+                  </div>
+                </div>
+                <span className="text-xs text-amber-700 font-medium">Нанеси оценки →</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {metrics.map(({ label, value, icon: Icon, iconBg, iconColor, href }: any) => (

@@ -10,12 +10,13 @@ const WORKFLOW_STEPS = [
   { status: "approved_for_defense", label: "Допусната до защита", description: "Одобрена за защита" },
   { status: "scheduled_for_defense", label: "Насрочена защита", description: "Датата е определена" },
   { status: "defended", label: "Защитена", description: "Успешно защитена" },
+  { status: "graded", label: "Оценена", description: "Оценката е нанесена" },
 ];
 
 const STATUS_ORDER = [
   "draft", "submitted", "pending_supervisor_approval",
   "approved_by_supervisor", "under_review", "reviewed",
-  "approved_for_defense", "scheduled_for_defense", "defended",
+  "approved_for_defense", "scheduled_for_defense", "defended", "graded",
 ];
 
 function getStepState(stepStatus: string, currentStatus: string): "completed" | "current" | "pending" {
