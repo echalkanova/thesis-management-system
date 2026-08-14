@@ -1,3 +1,6 @@
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { Router } from "express";
 import { db, messagesTable, usersTable } from "@workspace/db";
 import { eq, and, or, desc } from "drizzle-orm";
@@ -81,6 +84,28 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
     content: String(content).trim(),
   }).returning();
   res.status(201).json({ ...msg, createdAt: msg.createdAt.toISOString() });
+});
+
+const msgUploadDir = path.join(process.cwd(), "uploads/messages");
+if (!fs.existsSync(msgUploadDir)) fs.mkdirSync(msgUploadDir, { recursive: true });
+
+const msgStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const dir = path.join(process.cwd(), "uploads");
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (_req, file, cb) => {
+    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`);
+  },
+});
+const msgUpload = multer({ storage: msgStorage });
+
+router.post("/upload", requireAuth, msgUpload.single("file"), async (req: AuthRequest, res) => {
+  if (!req.file) { res.status(400).json({ error: "No file" }); return; }
+  const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+  const url = `/uploads/${req.file.filename}`;
+  res.json({ url, name: originalName });
 });
 
 export default router;

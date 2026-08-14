@@ -1,0 +1,20 @@
+theses.ts 
+
+router.post("/:id/submit", requireAuth, async (req: AuthRequest, res) => {
+  const id = Number(req.params.id);
+  const [thesis] = await db.select().from(thesesTable).where(eq(thesesTable.id, id)).limit(1);
+  if (!thesis) {
+    res.status(404).json({ error: "Thesis not found" });
+    return;
+  }
+  if (thesis.studentId !== req.userId) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  const [updated] = await db.update(thesesTable).set({ status: "submitted", submittedAt: new Date() }).where(eq(thesesTable.id, id)).returning();
+  await logAction(req.userId, "submit_thesis", "thesis", id, { title: thesis.title });
+  if (thesis.supervisorId) {
+    await sendNotification(thesis.supervisorId, "Нова подадена дипломна работа", `Студент е подал дипломна работа: "${thesis.title}"`, "info", id);
+  }
+  res.json(await formatThesis(updated));
+});

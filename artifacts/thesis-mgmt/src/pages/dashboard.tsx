@@ -843,7 +843,7 @@ function AdminDashboard() {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-sm text-slate-800 truncate">{defense.title}</p>
                       <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-                        <Clock size={11} />{(defense as any).startTime || (defense as any).start_time || d.toLocaleTimeString("bg", { hour: "2-digit", minute: "2-digit" })}
+                        {console.log('defense:', defense)}<Clock size={11} />{(defense as any).startTime || (defense as any).start_time || d.toLocaleTimeString("bg", { hour: "2-digit", minute: "2-digit" })}
                         {defense.roomOrLink && <><MapPin size={11} /><span className="truncate">{defense.roomOrLink}</span></>}
                       </div>
                     </div>

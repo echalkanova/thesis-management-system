@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatStatus, getStatusColor } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -87,10 +88,32 @@ export default function Supervisors() {
     queryKey: ["supervisor-students", adminViewSupervisor?.id],
     queryFn: async () => {
       const token = localStorage.getItem("thesis_token");
-      const res = await fetch(`/api/theses?supervisorId=${adminViewSupervisor?.id}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      return res.json();
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      
+      const [thesesRes, requestsRes] = await Promise.all([
+        fetch(`/api/theses?supervisorId=${adminViewSupervisor?.id}`, { headers }),
+        fetch(`/api/supervisor-requests`, { headers }),
+      ]);
+      
+      const theses = await thesesRes.json();
+      const requests = await requestsRes.json();
+      
+      const acceptedRequests = (Array.isArray(requests) ? requests : [])
+        .filter((r: any) => r.supervisorId === adminViewSupervisor?.id && r.status === "accepted");
+      
+      const thesisStudentIds = (Array.isArray(theses) ? theses : []).map((t: any) => t.studentId);
+      const requestOnly = acceptedRequests.filter((r: any) => !thesisStudentIds.includes(r.studentId));
+      
+      return [
+        ...(Array.isArray(theses) ? theses : []),
+        ...requestOnly.map((r: any) => ({
+          id: null,
+          title: "Одобрено запитване",
+          status: "pending_thesis",
+          student: r.student,
+          studentId: r.studentId,
+        }))
+      ];
     },
     enabled: !!adminViewSupervisor?.id,
   });
@@ -216,7 +239,7 @@ export default function Supervisors() {
         ))}
         {/* Admin dialog — списък студенти */}
       <Dialog open={adminDialogOpen} onOpenChange={setAdminDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
               Студенти на {adminViewSupervisor?.firstName} {adminViewSupervisor?.lastName}
@@ -234,10 +257,16 @@ export default function Supervisors() {
                     </div>
                     <div>
                       <p className="text-sm font-medium">{t.student?.firstName} {t.student?.lastName}</p>
-                      <p className="text-xs text-slate-400 truncate max-w-[200px]">{t.title}</p>
+                      <p className="text-xs text-slate-400 truncate max-w-[200px]">
+                        {t.status === "pending_thesis" ? "Одобрено запитване" : t.title}
+                      </p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-xs">{t.status}</Badge>
+                  {t.status === "pending_thesis" ? (
+                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">Одобрено запитване</Badge>
+                  ) : (
+                    <Badge variant="outline" className={`text-xs ${getStatusColor(t.status)}`}>{formatStatus(t.status)}</Badge>
+                  )}
                 </div>
               ))
             )}

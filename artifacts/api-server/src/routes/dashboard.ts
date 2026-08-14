@@ -68,6 +68,8 @@ router.get("/stats", requireAuth, async (req: AuthRequest, res) => {
     scheduledAt: d.scheduledAt.toISOString(),
     location: d.location ?? null,
     roomOrLink: d.roomOrLink ?? null,
+    startTime: d.startTime ?? null,
+    room: d.room ?? null,
     thesisIds: d.thesisIds,
     committeeIds: d.committeeIds,
     notes: d.notes ?? null,

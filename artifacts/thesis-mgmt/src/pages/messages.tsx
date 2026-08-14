@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Send, MessageSquare, Search } from "lucide-react";
+import { Send, MessageSquare, Search, X, Paperclip } from "lucide-react";
 import { formatRole, cn } from "@/lib/utils";
 
 function apiHeaders() : Record<string, string> {
@@ -29,6 +29,7 @@ export default function Messages() {
   const [search, setSearch] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
 
   const { data: conversations = [] } = useQuery({
     queryKey: ["messages-conversations"],
@@ -80,6 +81,36 @@ export default function Messages() {
       queryClient.invalidateQueries({ queryKey: ["messages-conversations"] });
     },
   });
+
+  const handleSend = async () => {
+    if (attachedFile) {
+      const formData = new FormData();
+      formData.append("file", attachedFile);
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch(`/api/messages/upload`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const content = input.trim()
+          ? `${input}\n📎 [${attachedFile.name}](${data.url})`
+          : `📎 [${attachedFile.name}](${data.url})`;
+        await fetch("/api/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...apiHeaders() },
+          body: JSON.stringify({ receiverId: selectedId, content }),
+        });
+        queryClient.invalidateQueries({ queryKey: ["messages-chat", selectedId] });
+        queryClient.invalidateQueries({ queryKey: ["messages-conversations"] });
+        setInput("");
+        setAttachedFile(null);
+      }
+    } else {
+      send.mutate();
+    }
+  };
 
   const handleSelect = (id: number) => {
     setSelectedId(id);
@@ -199,10 +230,14 @@ export default function Messages() {
               <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">
                 {partnerUser?.firstName?.[0]}{partnerUser?.lastName?.[0]}
               </div>
-              <div>
+              <div className="flex-1">
                 <div className="text-sm font-semibold text-slate-800">{partnerUser?.firstName} {partnerUser?.lastName}</div>
                 {partnerUser?.role && <div className="text-xs text-slate-400">{formatRole(partnerUser.role)}</div>}
               </div>
+              <Button size="icon" variant="ghost" className="text-slate-400 hover:text-slate-600"
+                onClick={() => { setSelectedId(null); setLocation("/dashboard"); }}>
+                <X size={16} />
+              </Button>
             </div>
 
             {/* Messages */}
@@ -220,7 +255,26 @@ export default function Messages() {
                         ? "bg-indigo-600 text-white rounded-tr-sm"
                         : "bg-white border border-slate-100 text-slate-800 shadow-sm rounded-tl-sm"
                     )}>
-                      <p>{m.content}</p>
+                      {m.content.includes("📎 [") ? (
+                        (() => {
+                          const match = m.content.match(/📎 \[(.+?)\]\((.+?)\)/);
+                          const prefix = m.content.split("\n📎")[0];
+                          return (
+                            <>
+                              {prefix !== m.content && <p className="mb-1">{prefix}</p>}
+                              {match && (
+                                <a href={match[2]} target="_blank" rel="noreferrer"
+                                  className="flex items-center gap-1.5 underline text-xs mt-1">
+                                  <Paperclip size={11} />
+                                  {match[1]}
+                                </a>
+                              )}
+                            </>
+                          );
+                        })()
+                      ) : (
+                        <p>{m.content}</p>
+                      )}
                       <p className={cn("text-[10px] mt-1 text-right", isMine ? "text-indigo-200" : "text-slate-400")}>
                         {timeLabel(m.createdAt)}
                       </p>
@@ -231,21 +285,53 @@ export default function Messages() {
               <div ref={bottomRef} />
             </div>
 
+            {attachedFile && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-lg border border-indigo-100 mb-2">
+                  <Paperclip size={12} className="text-indigo-400" />
+                  <span className="text-xs text-indigo-700 truncate flex-1">{attachedFile.name}</span>
+                  <button onClick={() => setAttachedFile(null)} className="text-slate-400 hover:text-slate-600">
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+
             {/* Input */}
-            <div className="bg-white border-t border-slate-100 px-5 py-3 flex gap-2 flex-shrink-0">
-              <Input
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                placeholder="Напишете съобщение..."
-                className="flex-1"
-                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && input.trim()) { e.preventDefault(); send.mutate(); } }}
-              />
-              <Button
-                onClick={() => send.mutate()}
-                disabled={!input.trim() || send.isPending}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4">
-                <Send size={15} />
-              </Button>
+            <div className="bg-white border-t border-slate-100 px-5 py-3 flex-shrink-0">
+              {attachedFile && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-lg border border-indigo-100 mb-2">
+                  <Paperclip size={12} className="text-indigo-400" />
+                  <span className="text-xs text-indigo-700 truncate flex-1">{attachedFile.name}</span>
+                  <button onClick={() => setAttachedFile(null)} className="text-slate-400 hover:text-slate-600">
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <input type="file" id="msg-file" className="hidden"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) setAttachedFile(file);
+                    e.target.value = "";
+                  }}
+                />
+                <Button size="icon" variant="ghost" className="text-slate-400 hover:text-slate-600"
+                  onClick={() => document.getElementById("msg-file")?.click()}>
+                  <Paperclip size={16} />
+                </Button>
+                <Input
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  placeholder="Напишете съобщение..."
+                  className="flex-1"
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && (input.trim() || attachedFile)) { e.preventDefault(); handleSend(); } }}
+                />
+                <Button
+                  onClick={handleSend}
+                  disabled={(!input.trim() && !attachedFile) || send.isPending}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 border-0 shadow-none">
+                  <Send size={15} />
+                </Button>
+              </div>
             </div>
           </>
         )}
