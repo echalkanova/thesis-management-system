@@ -17,18 +17,28 @@ interface AuditEntry {
 }
 
 const ACTION_LABELS: Record<string, string> = {
+  login: "Влезе в системата",
   create_thesis: "Създаде дипломна работа",
   submit_thesis: "Подаде дипломна работа",
   approve_thesis: "Одобри дипломна работа",
   return_thesis: "Върна за корекции",
+  select_reviewer: "Избра рецензент",
+  approve_for_defense: "Допусна до защита",
   create_grade: "Добави оценка",
   create_review: "Добави рецензия",
   publish_review: "Публикува рецензия",
-  login: "Влезе в системата",
   assign_thesis: "Назначи дипломна работа",
   create_user: "Създаде профил",
   update_user: "Редактира профил",
   delete_user: "Изтри профил",
+  create_defense: "Създаде защита",
+  delete_defense: "Изтри защита",
+  add_committee_member: "Добави член на комисия",
+  create_committee: "Създаде комисия",
+  delete_committee: "Изтри комисия",
+  assign_student_committee: "Назначи студент към комисия",
+  accept_request: "Одобри запитване",
+  reject_request: "Отказа запитване",
 };
 
 const ACTION_COLORS: Record<string, string> = {
@@ -41,6 +51,19 @@ const ACTION_COLORS: Record<string, string> = {
   publish_review: "bg-purple-50 text-purple-700 border-purple-200",
   login: "bg-slate-50 text-slate-600 border-slate-200",
   assign_thesis: "bg-violet-50 text-violet-700 border-violet-200",
+  create_user: "bg-teal-50 text-teal-700 border-teal-200",
+  update_user: "bg-sky-50 text-sky-700 border-sky-200",
+  delete_user: "bg-red-50 text-red-700 border-red-200",
+  select_reviewer: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  approve_for_defense: "bg-green-50 text-green-700 border-green-200",
+  create_defense: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  delete_defense: "bg-red-50 text-red-700 border-red-200",
+  add_committee_member: "bg-violet-50 text-violet-700 border-violet-200",
+  create_committee: "bg-blue-50 text-blue-700 border-blue-200",
+  delete_committee: "bg-red-50 text-red-700 border-red-200",
+  assign_student_committee: "bg-teal-50 text-teal-700 border-teal-200",
+  accept_request: "bg-green-50 text-green-700 border-green-200",
+  reject_request: "bg-red-50 text-red-700 border-red-200",
 };
 
 export default function AuditLog() {
@@ -100,7 +123,7 @@ export default function AuditLog() {
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Всички дейности" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-h-96 overflow-y-auto">
               <SelectItem value="all">Всички дейности</SelectItem>
               {Object.entries(ACTION_LABELS).map(([key, label]) => (
                 <SelectItem key={key} value={key}>{label as string}</SelectItem>

@@ -373,14 +373,14 @@ export default function Defenses() {
                     )}
                   </div>
                 </div>
-                {d.committee && (
-                  <Link href={`/defenses/${d.id}`}>
-                    <Button variant="outline" size="sm" className="text-xs w-full">
-                      Виж подробности →
-                    </Button>
-                  </Link>
-                )}
-                <div className="flex justify-end">
+                <div className="flex items-center gap-2">
+                  {d.committee && (
+                    <Link href={`/defenses/${d.id}`} className="flex-1">
+                      <Button variant="outline" size="sm" className="text-xs w-full">
+                        Виж подробности →
+                      </Button>
+                    </Link>
+                  )}
                 {isDeptHead && (
                   <Dialog>
                     <DialogTrigger asChild>

@@ -3,6 +3,7 @@ import { db, committeesTable, committeeMembersTable, studentCommitteesTable, use
 import { eq, and } from "drizzle-orm";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { pushNotification } from "../sse";
+import { logAction } from "./auditLog";
 
 const router = Router();
 
@@ -60,6 +61,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
   const [committee] = await db.insert(committeesTable)
     .values({ romanNumeral, description: description ?? null })
     .returning();
+    await logAction(req.userId!, "create_committee", "committee", committee.id, { romanNumeral: committee.romanNumeral });
   res.status(201).json(await formatCommittee(committee));
 });
 
@@ -117,6 +119,7 @@ router.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
   await db.delete(committeesTable).where(eq(committeesTable.id, committeeId));
 
   await db.delete(committeesTable).where(eq(committeesTable.id, committeeId));
+  await logAction(req.userId!, "delete_committee", "committee", committeeId, { romanNumeral: committee?.romanNumeral });
   res.json({ message: "Committee deleted" });
 });
 
@@ -176,6 +179,7 @@ router.post("/:id/members", requireAuth, async (req: AuthRequest, res) => {
     "info"
   );
 
+  await logAction(req.userId!, "add_committee_member", "committee", committeeId, { userId, isChairman, romanNumeral: committee?.romanNumeral });
   res.status(201).json({ message: "Member added" });
 });
 
@@ -305,6 +309,7 @@ router.post("/assign-student", requireAuth, async (req: AuthRequest, res) => {
     `Назначени сте към Комисия ${committee?.romanNumeral ?? ""}`,
     "info"
   );
+  await logAction(req.userId!, "assign_student_committee", "committee", committeeId, { studentId, romanNumeral: committee?.romanNumeral });
   res.json({ message: "Студентът е назначен към комисията" });
 });
 

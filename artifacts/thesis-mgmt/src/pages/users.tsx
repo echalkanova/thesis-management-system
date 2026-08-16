@@ -53,7 +53,7 @@ export default function Users() {
   const [editForm, setEditForm] = useState({
     firstName: "", lastName: "", email: "", role: "student",
     facultyNumber: "", faculty: "", department: "", specialty: "",
-    degree: "", subjectTaught: "", maxStudents: "10",
+    degree: "", subjectTaught: "", maxStudents: "10", newPassword: "",
   });
   const ef = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setEditForm(prev => ({ ...prev, [k]: e.target.value }));
@@ -118,6 +118,7 @@ export default function Users() {
       degree: (u as any).degree ?? "",
       subjectTaught: (u as any).subjectTaught ?? "",
       maxStudents: String((u as any).maxStudents ?? "10"),
+      newPassword: "",
     });
   };
 
@@ -136,6 +137,8 @@ export default function Users() {
       body.specialty = editForm.specialty || null;
       body.degree = editForm.degree || null;
     }
+    console.log("newPassword:", editForm.newPassword);
+    if (editForm.newPassword) body.password = editForm.newPassword;
     if (["supervisor", "reviewer", "department_head"].includes(editForm.role)) {
       body.subjectTaught = editForm.subjectTaught || undefined;
       body.maxStudents = Number(editForm.maxStudents) || 10;
@@ -379,8 +382,8 @@ export default function Users() {
                                 </div>
                               </div>
                               <div className="space-y-1.5">
-                                <Label>Имейл</Label>
-                                <Input type="email" value={editForm.email} onChange={ef("email")} />
+                                <Label>Нова парола (незадължително)</Label>
+                                <Input type="password" value={editForm.newPassword} onChange={ef("newPassword")} placeholder="Оставете празно, ако не искате да смените" />
                               </div>
                               <div className="space-y-1.5">
                                 <Label>Роля</Label>

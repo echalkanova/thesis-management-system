@@ -139,7 +139,7 @@ router.patch("/:id", requireAuth, async (req: AuthRequest, res) => {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
-  const { firstName, lastName, faculty, department, phoneNumber, avatarUrl, role, subjectTaught, maxStudents, facultyNumber, specialty, degree } = req.body;
+  const { firstName, lastName, faculty, department, phoneNumber, avatarUrl, role, subjectTaught, maxStudents, facultyNumber, specialty, degree, password } = req.body;
   const updates: Partial<typeof usersTable.$inferInsert> = {};
   if (firstName !== undefined) updates.firstName = firstName;
   if (lastName !== undefined) updates.lastName = lastName;
@@ -151,6 +151,14 @@ router.patch("/:id", requireAuth, async (req: AuthRequest, res) => {
   if (subjectTaught !== undefined) updates.subjectTaught = subjectTaught;
   if (maxStudents !== undefined && req.userRole === "admin") updates.maxStudents = maxStudents;
   if (facultyNumber !== undefined) updates.facultyNumber = facultyNumber || null;
+  if (specialty !== undefined) (updates as any).specialty = specialty || null;
+  if (degree !== undefined) (updates as any).degree = degree || null;
+  console.log("password received:", password);
+  if (password) {
+    const { createHmac } = await import("crypto");
+    (updates as any).passwordHash = createHmac("sha256", "thesis-pw-salt").update(password).digest("hex");
+    console.log("passwordHash updated");
+  }
   if (specialty !== undefined) (updates as any).specialty = specialty || null;
   if (degree !== undefined) (updates as any).degree = degree || null;
   const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, id)).returning();

@@ -18,6 +18,7 @@ function formatUser(user: typeof usersTable.$inferSelect) {
     department: user.department ?? null,
     phoneNumber: user.phoneNumber ?? null,
     avatarUrl: user.avatarUrl ?? null,
+    facultyNumber: user.facultyNumber ?? null,
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -84,7 +85,8 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
       t.title.toLowerCase().includes(s) || 
       (t.description ?? "").toLowerCase().includes(s) ||
       (t.keywords ?? "").toLowerCase().includes(s) ||
-      `${t.supervisor?.firstName ?? ""} ${t.supervisor?.lastName ?? ""}`.toLowerCase().includes(s)
+      `${t.supervisor?.firstName ?? ""} ${t.supervisor?.lastName ?? ""}`.toLowerCase().includes(s) ||
+      (t.student?.facultyNumber ?? "").toLowerCase().includes(s)
     );
     res.json(filtered);
     return;
@@ -287,6 +289,7 @@ router.post("/:id/approve-for-defense", requireAuth, async (req: AuthRequest, re
     .where(eq(thesesTable.id, id)).returning();
   await sendNotification(thesis.studentId, "Допуснати сте до защита!",
     `"${thesis.title}" е допусната до защита`, "success", id);
+  await logAction(req.userId!, "approve_for_defense", "thesis", id, { title: thesis.title });
   res.json(await formatThesis(updated));
 });
 
@@ -369,6 +372,7 @@ router.post("/:id/select-reviewer", requireAuth, async (req: AuthRequest, res) =
     "info", id
   );
 
+  await logAction(req.userId!, "select_reviewer", "thesis", id, { title: thesis.title, reviewerId });
   res.json(await formatThesis(updated));
 });
 

@@ -123,70 +123,94 @@ export default function Profile() {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="firstName" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Собствено име</Label>
-              <Input id="firstName" name="firstName" value={form.firstName} onChange={handleChange}
-                className="border-slate-200 focus:ring-indigo-500 focus:border-indigo-400"
-                data-testid="input-first-name" />
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Собствено име</Label>
+              {user?.role === "student" ? (
+                <Input value={form.firstName} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />
+              ) : (
+                <Input id="firstName" name="firstName" value={form.firstName} onChange={handleChange}
+                  className="border-slate-200 focus:ring-indigo-500 focus:border-indigo-400"
+                  data-testid="input-first-name" />
+              )}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="lastName" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Фамилно име</Label>
-              <Input id="lastName" name="lastName" value={form.lastName} onChange={handleChange}
-                className="border-slate-200 focus:ring-indigo-500 focus:border-indigo-400"
-                data-testid="input-last-name" />
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Фамилно име</Label>
+              {user?.role === "student" ? (
+                <Input value={form.lastName} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />
+              ) : (
+                <Input id="lastName" name="lastName" value={form.lastName} onChange={handleChange}
+                  className="border-slate-200 focus:ring-indigo-500 focus:border-indigo-400"
+                  data-testid="input-last-name" />
+              )}
             </div>
           </div>
-
           <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
               <Mail size={11} /> Имейл адрес
             </Label>
-            <Input value={user.email} disabled className="bg-slate-50 text-slate-400 border-slate-200" />
-            <p className="text-xs text-slate-400">Имейлът не може да се промени.</p>
+            <Input value={user.email} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />
           </div>
-
+          {user?.role === "student" && (user as any).facultyNumber && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Факултетен номер</Label>
+              <Input value={(user as any).facultyNumber} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />
+            </div>
+          )}
           <div className="space-y-1.5">
-            <Label htmlFor="faculty" className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
               <Building2 size={11} /> Факултет
             </Label>
-            <Input id="faculty" name="faculty" value={form.faculty} onChange={handleChange}
-              placeholder="напр. Факултет по математика и информатика"
-              className="border-slate-200"
-              data-testid="input-faculty" />
+            {user?.role === "student" ? (
+              <Input value={form.faculty ?? "Не е посочен"} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />
+            ) : (
+              <Input id="faculty" name="faculty" value={form.faculty} onChange={handleChange}
+                placeholder="напр. Факултет по математика и информатика"
+                className="border-slate-200"
+                data-testid="input-faculty" />
+            )}
           </div>
+          
+          {user?.role === "student" && (
+            <>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Специалност</Label>
+                <Input value={(user as any).specialty ?? "Не е посочена"} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Степен</Label>
+                <Input value={(user as any).degree === "bachelor" ? "Бакалавър" : (user as any).degree === "master" ? "Магистър" : "Не е посочена"} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />
+              </div>
+            </>
+          )}
 
-          <div className="space-y-1.5">
-            <Label htmlFor="department" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Катедра</Label>
-            <Input id="department" name="department" value={form.department} onChange={handleChange}
-              placeholder="напр. Катедра Информатика"
-              className="border-slate-200"
-              data-testid="input-department" />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="phoneNumber" className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
-              <Phone size={11} /> Телефон
-            </Label>
-            <Input id="phoneNumber" name="phoneNumber" value={form.phoneNumber} onChange={handleChange}
-              placeholder="+359 88 888 8888"
-              className="border-slate-200"
-              data-testid="input-phone" />
-          </div>
-
-          <div className="pt-1">
-            <Button
-              type="submit"
-              disabled={updateUser.isPending}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-200 flex items-center gap-2"
-              data-testid="button-save-profile"
-            >
-              <Save size={14} />
-              {updateUser.isPending ? "Запазване..." : "Запази промените"}
-            </Button>
-          </div>
-        </form>
+          {user?.role !== "student" && (
+            <div className="space-y-1.5">
+              <Label htmlFor="phoneNumber" className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+                <Phone size={11} /> Телефон
+              </Label>
+              <Input id="phoneNumber" name="phoneNumber" value={form.phoneNumber} onChange={handleChange}
+                placeholder="+359 88 888 8888"
+                className="border-slate-200"
+                data-testid="input-phone" />
+            </div>
+          )}
+          
+          {user?.role !== "student" && (
+            <div className="pt-1">
+              <Button
+                type="submit"
+                disabled={updateUser.isPending}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-200 flex items-center gap-2"
+                data-testid="button-save-profile"
+              >
+                <Save size={14} />
+                {updateUser.isPending ? "Запазване..." : "Запази промените"}
+              </Button>
+            </div>
+          )}
+          </form>
       </div>
 
-      {/* Password change form */}
+      {user?.role !== "student" && (
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">
@@ -205,7 +229,6 @@ export default function Profile() {
               placeholder="Въведете текущата парола"
               data-testid="input-current-password" />
           </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="newPassword" className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Нова парола</Label>
@@ -227,7 +250,6 @@ export default function Profile() {
               )}
             </div>
           </div>
-
           <div className="pt-1">
             <Button
               type="submit"
@@ -241,6 +263,7 @@ export default function Profile() {
           </div>
         </form>
       </div>
+      )}
     </div>
   );
 }

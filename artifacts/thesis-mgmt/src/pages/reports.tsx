@@ -29,11 +29,11 @@ export default function Reports() {
   const { data: thesesReport, isLoading: loadingTheses } = useGetThesesReport({}, { query: { queryKey: getGetThesesReportQueryKey({}) } });
   const { data: gradesReport, isLoading: loadingGrades } = useGetGradesReport({ query: { queryKey: getGetGradesReportQueryKey() } });
 
-  const allStatuses = thesesReport ? Object.keys(thesesReport.byStatus as Record<string, number>) : [];
-  const allFields = thesesReport ? Object.keys(thesesReport.byField as Record<string, number>).filter(f => f !== "Неопределено") : [];
+  const allStatuses = thesesReport ? Object.keys((thesesReport as any).byStatus as Record<string, number>) : [];
+  const allFields = thesesReport ? Object.keys((thesesReport as any).byField as Record<string, number>).filter(f => f !== "Неопределено") : [];
 
   const statusData = thesesReport
-    ? Object.entries(thesesReport.byStatus as Record<string, number>)
+    ? Object.entries((thesesReport as any).byStatus as Record<string, number>)
         .filter(([s]) => statusFilter === "all" || s === statusFilter)
         .map(([status, count]) => ({
           name: formatStatus(status),
@@ -43,7 +43,7 @@ export default function Reports() {
     : [];
 
   const fieldData = thesesReport
-    ? Object.entries(thesesReport.byField as Record<string, number>)
+    ? Object.entries((thesesReport as any).byField as Record<string, number>)
         .filter(([f]) => fieldFilter === "all" || f === fieldFilter)
         .map(([field, count]) => ({ name: field, count: count as number }))
     : [];
@@ -123,7 +123,7 @@ export default function Reports() {
                     <BarChart data={statusData} margin={{ top: 5, right: 10, bottom: 5, left: -10 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                       <Tooltip />
                       <Bar dataKey="count" name="Брой" radius={[4, 4, 0, 0]}>
                         {statusData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
@@ -162,7 +162,7 @@ export default function Reports() {
                     <LineChart data={monthData as any[]} margin={{ top: 5, right: 10, bottom: 5, left: -10 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                       <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                       <Tooltip />
                       <Line type="monotone" dataKey="count" name="Брой" stroke="#0a192f" strokeWidth={2} dot={{ r: 4 }} />
                     </LineChart>

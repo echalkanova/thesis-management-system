@@ -3,6 +3,7 @@ import { db, defensesTable, usersTable, notificationsTable, committeesTable, the
 import { eq, and } from "drizzle-orm";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { pushNotification } from "../sse";
+import { logAction } from "./auditLog";
 
 const router = Router();
 
@@ -140,6 +141,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
     committeeIds: committeeId ? [committeeId] : [],
     notes: notes ?? null,
   } as any).returning();
+  await logAction(req.userId!, "create_defense", "defense", defense.id, { title: defense.title });
   res.status(201).json(await formatDefense(defense));
 });
 
@@ -275,6 +277,7 @@ router.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
   }
 
   await db.delete(defensesTable).where(eq(defensesTable.id, defenseId));
+  await logAction(req.userId!, "delete_defense", "defense", defenseId, { title: defense?.title });
   res.json({ message: "Defense deleted" });
 });
 
@@ -319,6 +322,7 @@ router.post("/:id/grades", requireAuth, async (req: AuthRequest, res) => {
     "success"
   );
 
+  await logAction(req.userId!, "create_grade", "defense", defenseId, { studentId: Number(studentId), grade: Number(grade) });
   res.json(result);
 });
 router.post("/:id/mark-defended", requireAuth, async (req: AuthRequest, res) => {

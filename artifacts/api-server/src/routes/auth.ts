@@ -24,9 +24,11 @@ function formatUser(user: typeof usersTable.$inferSelect) {
     phoneNumber: user.phoneNumber ?? null,
     avatarUrl: user.avatarUrl ?? null,
     facultyNumber: user.facultyNumber ?? null,
-    subjectTaught: user.subjectTaught ?? null,
-    maxStudents: user.maxStudents ?? 40,
+    maxStudents: user.maxStudents ?? 10,
+    specialty: (user as any).specialty ?? null,
+    degree: (user as any).degree ?? null,
     createdAt: user.createdAt.toISOString(),
+    subjectTaught: user.subjectTaught ?? null,
   };
 }
 
@@ -147,7 +149,7 @@ router.post("/reset-password", async (req, res) => {
   }
   
   const { createHmac } = await import("crypto");
-  const hash = createHmac("sha256", process.env.JWT_SECRET ?? "secret").update(password).digest("hex");
+  const hash = createHmac("sha256", "thesis-pw-salt").update(password).digest("hex");
   
   await db.update(usersTable)
     .set({ passwordHash: hash, resetToken: null, resetTokenExpiry: null } as any)

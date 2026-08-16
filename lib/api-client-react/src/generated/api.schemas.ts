@@ -38,6 +38,15 @@ export interface User {
   phoneNumber?: string | null;
   /** @nullable */
   avatarUrl?: string | null;
+  /** @nullable */
+  specialty?: string | null;
+  /** @nullable */
+  degree?: string | null;
+  /** @nullable */
+  facultyNumber?: string | null;
+  /** @nullable */
+  subjectTaught?: string | null;
+  maxStudents?: number | null;
   createdAt: string;
 }
 

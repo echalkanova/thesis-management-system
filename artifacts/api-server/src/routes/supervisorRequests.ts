@@ -3,6 +3,7 @@ import { db, usersTable, notificationsTable, supervisorRequestsTable, thesesTabl
 import { eq, and } from "drizzle-orm";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { pushNotification } from "../sse";
+import { logAction } from "./auditLog";
 
 const router = Router();
 
@@ -143,6 +144,15 @@ router.post("/:id/accept", requireAuth, async (req: AuthRequest, res) => {
     "success"
   );
 
+  await logAction(req.userId!, "accept_request", "supervisor_request", id, {
+    studentId: request.studentId,
+    thesisTitle: request.thesisTitle,
+  });
+
+  await logAction(req.userId!, "accept_request", "supervisor_request", id, {
+    studentId: request.studentId,
+    thesisTitle: request.thesisTitle,
+  });
   res.json(updated);
 });
 
@@ -170,6 +180,10 @@ router.post("/:id/reject", requireAuth, async (req: AuthRequest, res) => {
     `За съжаление запитването ви за "${request.thesisTitle}" е отхвърлено.`,
     "warning"
   );
+  await logAction(req.userId!, "reject_request", "supervisor_request", id, {
+    studentId: request.studentId,
+    thesisTitle: request.thesisTitle,
+  });
 
   res.json(updated);
 });

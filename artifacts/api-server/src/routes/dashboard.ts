@@ -90,27 +90,25 @@ router.get("/stats", requireAuth, async (req: AuthRequest, res) => {
   });
 });
 
-router.get("/reports/theses", requireAuth, async (req, res) => {
+router.get("/theses", requireAuth, async (req, res) => {
   const allTheses = await db.select().from(thesesTable);
-
+  const allStudents = await db.select().from(usersTable).then(u => u.filter(u => u.role === "student"));
   const byStatus: Record<string, number> = {};
   const byField: Record<string, number> = {};
   const byMonthMap: Record<string, number> = {};
-
   for (const t of allTheses) {
     byStatus[t.status] = (byStatus[t.status] ?? 0) + 1;
-    const field = t.field ?? "Неопределено";
-    byField[field] = (byField[field] ?? 0) + 1;
+    const student = allStudents.find(s => s.id === t.studentId);
+    const specialty = (student as any)?.specialty ?? "Неопределено";
+    byField[specialty] = (byField[specialty] ?? 0) + 1;
     const month = t.createdAt.toISOString().slice(0, 7);
     byMonthMap[month] = (byMonthMap[month] ?? 0) + 1;
   }
-
   const byMonth = Object.entries(byMonthMap).sort(([a], [b]) => a.localeCompare(b)).map(([month, count]) => ({ month, count }));
-
   res.json({ totalCount: allTheses.length, byStatus, byField, byMonth });
 });
 
-router.get("/reports/grades", requireAuth, async (req: AuthRequest, res) => {
+router.get("/grades", requireAuth, async (req: AuthRequest, res) => {
   const allGrades = await db.select().from(gradesTable);
   const allTheses = await db.select().from(thesesTable);
 

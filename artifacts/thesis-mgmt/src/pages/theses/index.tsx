@@ -74,10 +74,10 @@ export default function ThesesList() {
       )}
 
       <div className="flex gap-4 items-center">
-        <div className="relative w-full md:w-96">
+        <div className="relative w-full md:w-[500px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input 
-            placeholder="Търсене по заглавие или ключови думи..." 
+            placeholder="Търсене по заглавие, факултетен номер или ръководител..." 
             className="pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}

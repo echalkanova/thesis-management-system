@@ -340,7 +340,7 @@ export default function Committees() {
       </div>
 
       {/* Assign students to committee — only dept head */}
-      {isDeptHead && (
+      {false && isDeptHead && (
         <Card>
           <CardHeader><CardTitle>Назначи студенти към комисия</CardTitle></CardHeader>
           <CardContent className="space-y-4">
