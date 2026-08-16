@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { Layout } from "@/components/layout";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
+import ResetPassword from "@/pages/reset-password";
 import Register from "@/pages/register";
 import Dashboard from "@/pages/dashboard";
 import ThesesList from "@/pages/theses/index";
@@ -56,6 +57,7 @@ function withLayout(Component: React.ComponentType, roles?: string[]) {
 function Router() {
   return (
     <Switch>
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
 

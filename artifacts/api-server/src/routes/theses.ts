@@ -77,12 +77,18 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
   if (studentId) theses = theses.filter(t => t.studentId === Number(studentId));
   if (supervisorId) theses = theses.filter(t => t.supervisorId === Number(supervisorId));
   if (reviewerId) theses = theses.filter(t => t.reviewerId === Number(reviewerId));
+  const formatted = await Promise.all(theses.map(formatThesis));
   if (search) {
     const s = search.toLowerCase();
-    theses = theses.filter(t => t.title.toLowerCase().includes(s) || (t.description ?? "").toLowerCase().includes(s));
+    const filtered = formatted.filter((t: any) => 
+      t.title.toLowerCase().includes(s) || 
+      (t.description ?? "").toLowerCase().includes(s) ||
+      (t.keywords ?? "").toLowerCase().includes(s) ||
+      `${t.supervisor?.firstName ?? ""} ${t.supervisor?.lastName ?? ""}`.toLowerCase().includes(s)
+    );
+    res.json(filtered);
+    return;
   }
-
-  const formatted = await Promise.all(theses.map(formatThesis));
   res.json(formatted);
 });
 

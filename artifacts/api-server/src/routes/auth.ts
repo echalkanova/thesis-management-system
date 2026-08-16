@@ -115,4 +115,45 @@ router.get("/me", requireAuth, async (req: AuthRequest, res) => {
   res.json(formatUser(user));
 });
 
+router.post("/forgot-password", async (req, res) => {
+  const { email } = req.body;
+  if (!email) { res.status(400).json({ error: "Email is required" }); return; }
+  
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+  if (!user) { res.json({ message: "Ако имейлът съществува, ще получите линк" }); return; }
+  
+  const token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const expiry = new Date(Date.now() + 60 * 60 * 1000);
+  
+  await db.update(usersTable)
+    .set({ resetToken: token, resetTokenExpiry: expiry } as any)
+    .where(eq(usersTable.id, user.id));
+  
+  const { sendPasswordResetEmail } = await import("../email");
+  await sendPasswordResetEmail(user.email, token);
+  
+  res.json({ message: "Ако имейлът съществува, ще получите линк" });
+});
+
+router.post("/reset-password", async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) { res.status(400).json({ error: "Token and password required" }); return; }
+  
+  const [user] = await db.select().from(usersTable)
+    .where(eq((usersTable as any).resetToken, token)).limit(1);
+  
+  if (!user || !(user as any).resetTokenExpiry || new Date((user as any).resetTokenExpiry) < new Date()) {
+    res.status(400).json({ error: "Невалиден или изтекъл линк" }); return;
+  }
+  
+  const { createHmac } = await import("crypto");
+  const hash = createHmac("sha256", process.env.JWT_SECRET ?? "secret").update(password).digest("hex");
+  
+  await db.update(usersTable)
+    .set({ passwordHash: hash, resetToken: null, resetTokenExpiry: null } as any)
+    .where(eq(usersTable.id, user.id));
+  
+  res.json({ message: "Паролата е сменена успешно" });
+});
+
 export default router;

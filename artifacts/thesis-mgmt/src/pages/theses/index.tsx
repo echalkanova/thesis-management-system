@@ -11,12 +11,18 @@ import { formatStatus, getStatusColor } from "@/lib/utils";
 
 export default function ThesesList() {
   const { user } = useAuth();
+  const urlStatus = new URLSearchParams(window.location.search).get("status");
   const [search, setSearch] = useState("");
+  const urlTab = new URLSearchParams(window.location.search).get("tab");
+  const [activeTab, setActiveTab] = useState<"all" | "active" | "defended">(
+    urlTab === "defended" ? "defended" : "all"
+  );
   
     const roleFilter = 
     user?.role === "supervisor" ? { supervisorId: user?.id } :
     user?.role === "reviewer" ? { reviewerId: user?.id } : {};
-  const { data: theses, isLoading } = useListTheses({ search: search || undefined, ...roleFilter } as any, {
+  const combinedFilter = { ...roleFilter };
+  const { data: theses, isLoading } = useListTheses({ search: search || undefined, ...combinedFilter } as any, {
     query: {
       queryKey: getListThesesQueryKey({ search: search || undefined, ...roleFilter } as any)
     }
@@ -49,6 +55,23 @@ export default function ThesesList() {
           );
         })()}
       </div>
+      {!["student"].includes(user?.role ?? "") && (
+        <div className="flex gap-0 border-b border-slate-200">
+          {(["all", "active", "defended"] as const).map(tab => {
+            const labels = { all: "Всички", active: "В процес", defended: "Защитени" };
+            return (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === tab
+                    ? "border-[#0a192f] text-[#0a192f]"
+                    : "border-transparent text-slate-500 hover:text-slate-700"
+                }`}>
+                {labels[tab]}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="flex gap-4 items-center">
         <div className="relative w-full md:w-96">
@@ -67,10 +90,11 @@ export default function ThesesList() {
         <div className="py-8 text-center text-slate-500">Зареждане...</div>
       ) : (
         <div className="grid gap-4">
-          {(user?.role === "department_head" 
-            ? (theses ?? []).filter(t => ["reviewed", "approved_for_defense"].includes(t.status as string))
-            : theses ?? []
-          ).map((thesis) => (
+          {(theses ?? []).filter(t => {
+            if (activeTab === "defended") return ["defended", "graded"].includes(t.status as string);
+            if (activeTab === "active") return !["defended", "graded", "draft"].includes(t.status as string);
+            return true;
+          }).map((thesis) => (
             <Link key={thesis.id} href={`/theses/${thesis.id}`}>
               <Card className={`hover:shadow-md transition-shadow cursor-pointer ${user?.role === "department_head" && (thesis.status as string) === "approved_for_defense" ? "opacity-60" : ""}`}>
                 <CardContent className="p-6">
@@ -82,7 +106,13 @@ export default function ThesesList() {
                         {thesis.field && (
                           <>
                             <span className="text-slate-300">•</span>
-                            <span>{thesis.field}</span>
+                            <span>Технология: <span className="font-medium text-slate-700">{thesis.field}</span></span>
+                          </>
+                        )}
+                        {["department_head", "admin", "reviewer"].includes(user?.role ?? "") && (thesis as any).supervisor && (
+                          <>
+                            <span className="text-slate-300">•</span>
+                            <span>Ръководител: <span className="font-medium text-slate-700">{(thesis as any).supervisor?.firstName} {(thesis as any).supervisor?.lastName}</span></span>
                           </>
                         )}
                       </div>

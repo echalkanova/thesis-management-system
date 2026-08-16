@@ -16,6 +16,8 @@ export const usersTable = pgTable("users", {
   facultyNumber: text("faculty_number").unique(),
   subjectTaught: text("subject_taught"),
   specialty: text("specialty"),
+  resetToken: text("reset_token"),
+  resetTokenExpiry: timestamp("reset_token_expiry", { withTimezone: true }),
   degree: text("degree"),
   maxStudents: integer("max_students").default(10),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

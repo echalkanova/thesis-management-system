@@ -139,6 +139,29 @@ export default function ThesisDetail() {
     queryClient.invalidateQueries({ queryKey: getListThesesQueryKey() });
   };
 
+  const { data: defenseGrade } = useQuery({
+    queryKey: ["defense-grade-thesis", thesisId],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch(`/api/defenses`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) return null;
+      const defenses = await res.json();
+      const myDefense = defenses.find((d: any) => 
+        (d.thesisIds ?? []).includes(thesis?.studentId)
+      );
+      if (!myDefense) return null;
+      const gradesRes = await fetch(`/api/defenses/${myDefense.id}/grades`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!gradesRes.ok) return null;
+      const grades = await gradesRes.json();
+      return grades.find((g: any) => g.studentId === thesis?.studentId) ?? null;
+    },
+    enabled: !!thesis,
+  });
+
   if (isLoading) return <div className="p-8 text-center text-slate-500">Зареждане...</div>;
   if (!thesis) return <div className="p-8 text-center text-slate-500">Дипломната работа не е намерена.</div>;
 
@@ -158,6 +181,8 @@ export default function ThesisDetail() {
   };
 
   const avgGrade = grades && grades.length > 0 ? grades.reduce((s, g) => s + g.value, 0) / grades.length : null;
+  
+
 
   const submitReviewWithFile = async () => {
     const token = localStorage.getItem("thesis_token");
@@ -328,6 +353,16 @@ export default function ThesisDetail() {
                   <span className="text-amber-600 font-medium">{gradeLabel(avgGrade)}</span>
                 </div>
               )}
+
+              {defenseGrade && (
+                <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  <span className="text-2xl font-bold text-amber-700">{Number(defenseGrade.grade).toFixed(2)}</span>
+                  <div>
+                    <span className="text-amber-600 font-medium">{gradeLabel(Number(defenseGrade.grade))}</span>
+                    <p className="text-xs text-amber-900 mt-0.5">Оценка от защита</p>
+                  </div>
+                </div>
+              )}
               {grades?.map(g => (
                 <div key={g.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100" data-testid={`grade-item-${g.id}`}>
                   <div>
@@ -366,7 +401,7 @@ export default function ThesisDetail() {
             </CardContent>
           </Card>
 
-          {!isReviewer && (
+          {!isReviewer && !isDeptHead && (
           <Card>
             <CardHeader><CardTitle>Действия</CardTitle></CardHeader>
             <CardContent className="space-y-2">

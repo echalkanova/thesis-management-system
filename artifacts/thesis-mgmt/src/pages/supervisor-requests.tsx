@@ -25,7 +25,9 @@ export default function SupervisorRequests() {
   const [selectedReviewer, setSelectedReviewer] = useState<Record<number, string>>({});
   const [msgText, setMsgText] = useState<Record<number, string>>({});
   const [msgOpen, setMsgOpen] = useState<Record<number, boolean>>({});
-  const [activeTab, setActiveTab] = useState<"all" | "pending" | "accepted" | "rejected">("all");
+  const [location] = useLocation();
+  const urlTab = new URLSearchParams(window.location.search).get("tab") as "all" | "pending" | "accepted" | "rejected" | null;
+  const [activeTab, setActiveTab] = useState<"all" | "pending" | "accepted" | "rejected">(urlTab ?? "all");
 
   const { data: requests, isLoading } = useQuery({
     queryKey: ["supervisor-requests"],

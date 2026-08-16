@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Calendar, Clock, MapPin, Users, ChevronDown } from "lucide-react";
+import { Plus, Trash2, Calendar, Clock, MapPin, Users, ChevronDown, Star } from "lucide-react";
 
 export default function Defenses() {
   const { user } = useAuth();
@@ -57,6 +57,21 @@ export default function Defenses() {
       return res.json();
     },
     enabled: isStudent,
+  });
+
+  const { data: myGrade } = useQuery({
+    queryKey: ["my-defense-grade", user?.id],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      if (!myDefense) return null;
+      const res = await fetch(`/api/defenses/${(myDefense as any).id}/grades`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) return null;
+      const grades = await res.json();
+      return grades.find((g: any) => g.studentId === user?.id) ?? null;
+    },
+    enabled: !!myDefense && isStudent,
   });
 
   const { data: committees } = useQuery({
@@ -188,7 +203,49 @@ export default function Defenses() {
             </CardContent>
           </Card>
         )}
+
+        {myGrade && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Star className="h-5 w-5 text-amber-500" /> Оценка от защитата
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between p-4 bg-amber-50 rounded-lg border border-amber-200">
+                <div className="flex items-center gap-4">
+                  <div className="text-4xl font-bold text-amber-600">
+                    {Number(myGrade.grade).toFixed(2)}
+                  </div>
+                  <div>
+                    <p className="font-medium text-amber-800">
+                      {Number(myGrade.grade) >= 5.5 ? "Отличен" :
+                       Number(myGrade.grade) >= 4.5 ? "Много добър" :
+                       Number(myGrade.grade) >= 3.5 ? "Добър" :
+                       Number(myGrade.grade) >= 2.5 ? "Среден" : "Слаб"}
+                    </p>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      Нанесена от председателя на комисията
+                      {(myDefense as any).committee?.members?.find((m: any) => m.isChairman) && 
+                        ` - ${(myDefense as any).committee.members.find((m: any) => m.isChairman).firstName} ${(myDefense as any).committee.members.find((m: any) => m.isChairman).lastName}`
+                      }.
+                    </p>
+                  </div>
+                </div>
+                {myGrade.createdAt && (
+                  <div className="text-flex-shrink-0">
+                    <p className="text-sm text-amber-900">Час: {new Date(myGrade.createdAt).toLocaleTimeString("bg", { hour: "2-digit", minute: "2-digit" })}</p>
+                    <p className="text-sm text-amber-900">Дата: {new Date(myGrade.createdAt).toLocaleDateString("bg")}</p>
+                    
+                  </div>
+                )}
+             
+          </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
+      
     );
   }
 

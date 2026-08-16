@@ -537,10 +537,10 @@ function SupervisorDashboard() {
   const recentNotifs = (notifications ?? []).slice(0, 4);
 
   const metrics = [
-    { label: "Чакат одобрение", value: pendingApproval.length, icon: AlertCircle, iconBg: "bg-amber-50", iconColor: "text-amber-600", href: "/theses" },
+    { label: "Чакат одобрение", value: pendingApproval.length, icon: AlertCircle, iconBg: "bg-amber-50", iconColor: "text-amber-600", href: "/supervisor-requests?tab=pending" },
     { label: "Активни дипломни работи", value: active.length, icon: BookOpen, iconBg: "bg-indigo-50", iconColor: "text-indigo-600", href: "/theses" },
     { label: "Запитвания от студенти", value: pendingRequests.length, icon: Inbox, iconBg: "bg-violet-50", iconColor: "text-violet-600", href: "/supervisor-requests" },
-    { label: "Успешно защитени", value: defended.length, icon: GraduationCap, iconBg: "bg-emerald-50", iconColor: "text-emerald-600", href: "/theses" },
+    { label: "Успешно защитени", value: defended.length, icon: GraduationCap, iconBg: "bg-emerald-50", iconColor: "text-emerald-600", href: "/theses?tab=defended" },
   ];
 
   return (
