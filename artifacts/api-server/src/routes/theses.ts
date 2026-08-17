@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, thesesTable, usersTable, notificationsTable, supervisorRequestsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { db, thesesTable, usersTable, notificationsTable, supervisorRequestsTable, departmentsTable } from "@workspace/db";
+import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { pushNotification } from "../sse";
 import { logAction } from "./auditLog";
@@ -69,9 +69,29 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
   if (req.userRole === "student") {
     theses = theses.filter(t => t.studentId === req.userId);
   } else if (req.userRole === "supervisor") {
-    theses = theses.filter(t => t.supervisorId === req.userId);
+    if (reviewerId) {
+    } else {
+      theses = theses.filter(t => t.supervisorId === req.userId);
+    }
   } else if (req.userRole === "reviewer") {
     theses = theses.filter(t => t.reviewerId === req.userId && t.supervisorId !== req.userId);
+  } else if (req.userRole === "department_head") {
+    // Намери катедрата на ръководителя
+    const [deptHead] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+    if (deptHead?.department) {
+      const [dept] = await db.select().from(departmentsTable).where(eq(departmentsTable.name, deptHead.department)).limit(1);
+      if (dept?.specialties?.length) {
+        // Намери студентите от тези специалности
+        const students = await db.select().from(usersTable)
+          .where(inArray((usersTable as any).specialty, dept.specialties));
+        const studentIds = students.map(s => s.id);
+        if (studentIds.length > 0) {
+          theses = theses.filter(t => studentIds.includes(t.studentId));
+        } else {
+          theses = [];
+        }
+      }
+    }
   }
 
   if (status) theses = theses.filter(t => t.status === status);

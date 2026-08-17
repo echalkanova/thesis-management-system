@@ -327,7 +327,7 @@ function ReviewerDashboard() {
       const all = await res.json();
       return all.find((r: any) => r.id === user?.id) ?? null;
     },
-    enabled: user?.role === "reviewer",
+    enabled: user?.role === "reviewer" || user?.role === "supervisor",
   });
 
   if (isLoading) {
@@ -343,13 +343,12 @@ function ReviewerDashboard() {
 
   const theses = myTheses ?? [];
   const pending = theses.filter(t => t.status === "under_review");
-  const completed = theses.filter(t => ["reviewed", "approved_for_defense", "scheduled_for_defense", "defended"].includes(t.status));
+  const completed = theses.filter(t => ["reviewed", "approved_for_defense", "scheduled_for_defense", "defended", "graded"].includes(t.status));
   const recentNotifs = notifications?.slice(0, 4) ?? [];
-
   const metrics = [
-    { label: "За рецензиране", value: pending.length, icon: Hourglass, iconBg: "bg-amber-50", iconColor: "text-amber-600", slots: false, href: "/reviews" },
-    { label: "Приключени рецензии", value: completed.length, icon: ClipboardCheck, iconBg: "bg-emerald-50", iconColor: "text-emerald-600", slots: false, href: "/reviews" },
-    { label: "Общо назначени", value: theses.length, icon: FileText, iconBg: "bg-indigo-50", iconColor: "text-indigo-600", slots: true, href: "/theses" },
+    { label: "За рецензиране", value: pending.length, icon: Hourglass, iconBg: "bg-amber-50", iconColor: "text-amber-600", slots: false, href: "/reviews?tab=unreviewed" },
+    { label: "Приключени рецензии", value: completed.length, icon: ClipboardCheck, iconBg: "bg-emerald-50", iconColor: "text-emerald-600", slots: false, href: "/reviews?tab=reviewed" },
+    { label: "Общо назначени", value: theses.length, icon: FileText, iconBg: "bg-indigo-50", iconColor: "text-indigo-600", slots: true, href: "/reviews" },
   ];
 
   return (
@@ -532,14 +531,14 @@ function SupervisorDashboard() {
   const theses = myTheses ?? [];
   const pendingApproval = theses.filter(t => (t.status as string) === "pending_supervisor_approval");
   const active = theses.filter(t => !["defended", "draft"].includes(t.status));
-  const defended = theses.filter(t => t.status === "defended");
+  const defended = theses.filter(t => ["defended", "graded"].includes(t.status as string));
   const pendingRequests = (supervisorRequests ?? []).filter((r: any) => r.status === "pending");
   const recentNotifs = (notifications ?? []).slice(0, 4);
 
   const metrics = [
     { label: "Чакат одобрение", value: pendingApproval.length, icon: AlertCircle, iconBg: "bg-amber-50", iconColor: "text-amber-600", href: "/supervisor-requests?tab=pending" },
     { label: "Активни дипломни работи", value: active.length, icon: BookOpen, iconBg: "bg-indigo-50", iconColor: "text-indigo-600", href: "/theses" },
-    { label: "Запитвания от студенти", value: pendingRequests.length, icon: Inbox, iconBg: "bg-violet-50", iconColor: "text-violet-600", href: "/supervisor-requests" },
+    { label: "Запитвания от студенти", value: pendingRequests.length, icon: Inbox, iconBg: "bg-violet-50", iconColor: "text-violet-600", href: "/supervisor-requests?tab=pending" },
     { label: "Успешно защитени", value: defended.length, icon: GraduationCap, iconBg: "bg-emerald-50", iconColor: "text-emerald-600", href: "/theses?tab=defended" },
   ];
 
@@ -737,8 +736,8 @@ function AdminDashboard() {
 
   const metrics = [
     { label: "Дипломни работи", value: stats.totalTheses, change: `${stats.totalTheses} общо`, up: true, icon: BookOpen, iconBg: "bg-indigo-50", iconColor: "text-indigo-600", changeColor: "text-emerald-600", href: "/theses" },
-    { label: "Предстоящи защити", value: stats.upcomingDefenses, change: stats.upcomingDefenses > 0 ? `${stats.upcomingDefenses} насрочени` : "Няма насрочени", up: stats.upcomingDefenses > 0, icon: Calendar, iconBg: "bg-violet-50", iconColor: "text-violet-600", changeColor: stats.upcomingDefenses > 0 ? "text-emerald-600" : "text-slate-400", href: "/defenses" },
-    { label: "Чакащи рецензии", value: stats.pendingReviews, change: stats.pendingReviews > 0 ? `${stats.pendingReviews} за рецензия` : "Всички прегледани", up: false, icon: FileText, iconBg: "bg-amber-50", iconColor: "text-amber-600", changeColor: stats.pendingReviews > 0 ? "text-rose-500" : "text-emerald-600", href: "/theses" },
+    { label: "Предстоящи защити", value: stats.upcomingDefenses, change: stats.upcomingDefenses > 0 ? `${stats.upcomingDefenses} насрочени` : "Няма насрочени", up: stats.upcomingDefenses > 0, icon: Calendar, iconBg: "bg-violet-50", iconColor: "text-violet-600", changeColor: stats.upcomingDefenses > 0 ? "text-emerald-600" : "text-slate-400", href: "/defenses?tab=planned" },
+    { label: "Чакащи рецензии", value: stats.pendingReviews, change: stats.pendingReviews > 0 ? `${stats.pendingReviews} за рецензия` : "Всички прегледани", up: false, icon: FileText, iconBg: "bg-amber-50", iconColor: "text-amber-600", changeColor: stats.pendingReviews > 0 ? "text-rose-500" : "text-emerald-600", href: "/reviews?tab=unreviewed" },
     { label: "Среден успех", value: stats.averageGrade > 0 ? stats.averageGrade.toFixed(2) : "—", change: stats.averageGrade > 0 ? gradeLabel(stats.averageGrade) : "Няма оценки", up: stats.averageGrade >= 4, icon: TrendingUp, iconBg: "bg-emerald-50", iconColor: "text-emerald-600", changeColor: stats.averageGrade >= 4 ? "text-emerald-600" : stats.averageGrade > 0 ? "text-rose-500" : "text-slate-400", href: "/reports" },
   ];
 

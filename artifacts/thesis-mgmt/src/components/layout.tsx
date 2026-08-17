@@ -16,6 +16,7 @@ const NAV_LINKS = [
   // Admin
   { href: "/dashboard", label: "Табло", icon: LayoutDashboard, roles: ["admin"] },
   { href: "/theses", label: "Дипломни работи", icon: BookOpen, roles: ["admin"] },
+  { href: "/reviews", label: "Рецензии", icon: FileText, roles: ["admin"] },
   { href: "/committees", label: "Комисии", icon: UsersRound, roles: ["admin"] },
   { href: "/defenses", label: "Защити", icon: Calendar, roles: ["admin"] },
   { href: "/supervisors", label: "Ръководители", icon: UserCheck, roles: ["admin"] },
@@ -39,7 +40,6 @@ const NAV_LINKS = [
   { href: "/reports", label: "Справки", icon: BarChart2, roles: ["supervisor"] },
   // Reviewer
   { href: "/dashboard", label: "Табло", icon: LayoutDashboard, roles: ["reviewer"] },
-  { href: "/theses", label: "Дипломни работи", icon: BookOpen, roles: ["reviewer"] },
   { href: "/reviews", label: "Рецензии", icon: FileText, roles: ["reviewer"] },
   { href: "/defenses", label: "Защити", icon: Calendar, roles: ["reviewer"] },
   // Student

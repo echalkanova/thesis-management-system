@@ -46,7 +46,7 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
   res.json(users.map(formatUser));
 });
 
-// Must be before /:id to avoid route conflict
+
 router.get("/supervisors/list", requireAuth, async (req: AuthRequest, res) => {
   const supervisors = await db.select().from(usersTable)
     .where(inArray(usersTable.role, ["supervisor", "reviewer", "department_head"]));
@@ -73,7 +73,7 @@ router.get("/supervisors/list", requireAuth, async (req: AuthRequest, res) => {
 
 router.get("/reviewers/list", requireAuth, async (req: AuthRequest, res) => {
   const reviewers = await db.select().from(usersTable)
-    .where(eq(usersTable.role, "reviewer"));
+    .where(inArray(usersTable.role, ["reviewer", "supervisor", "department_head"]));
   
   const result = await Promise.all(reviewers.map(async (r) => {
     const assignedTheses = await db.select().from(thesesTable)

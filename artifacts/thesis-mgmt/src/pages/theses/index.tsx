@@ -22,6 +22,7 @@ export default function ThesesList() {
     user?.role === "supervisor" ? { supervisorId: user?.id } :
     user?.role === "reviewer" ? { reviewerId: user?.id } : {};
   const combinedFilter = { ...roleFilter };
+  
   const { data: theses, isLoading } = useListTheses({ search: search || undefined, ...combinedFilter } as any, {
     query: {
       queryKey: getListThesesQueryKey({ search: search || undefined, ...roleFilter } as any)
@@ -58,7 +59,7 @@ export default function ThesesList() {
       {!["student"].includes(user?.role ?? "") && (
         <div className="flex gap-0 border-b border-slate-200">
           {(["all", "active", "defended"] as const).map(tab => {
-            const labels = { all: "Всички", active: "В процес", defended: "Защитени" };
+            const labels = { all: "Всички", active: "В процес", defended: "Завършени" };
             return (
               <button key={tab} onClick={() => setActiveTab(tab)}
                 className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
@@ -92,7 +93,8 @@ export default function ThesesList() {
         <div className="grid gap-4">
           {(theses ?? []).filter(t => {
             if (activeTab === "defended") return ["defended", "graded"].includes(t.status as string);
-            if (activeTab === "active") return !["defended", "graded", "draft"].includes(t.status as string);
+            if (activeTab === "active") return !["draft", "defended", "graded"].includes(t.status as string);
+
             return true;
           }).map((thesis) => (
             <Link key={thesis.id} href={`/theses/${thesis.id}`}>

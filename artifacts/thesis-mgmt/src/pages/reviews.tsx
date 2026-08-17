@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,11 +19,14 @@ const recommendationConfig = {
 
 export default function Reviews() {
   const { user } = useAuth();
+  const urlTab = new URLSearchParams(window.location.search).get("tab") as "unreviewed" | "reviewed" | null;
+  const [activeTab, setActiveTab] = useState<"unreviewed" | "reviewed">(urlTab ?? "unreviewed");
 
   const { data: reviews, isLoading } = useQuery({
     queryKey: ["my-reviews", user?.id],
     queryFn: async () => {
-      const res = await fetch("/api/reviews/my-reviews", { headers: apiHeaders() });
+      const endpoint = user?.role === "admin" ? "/api/reviews" : "/api/reviews/my-reviews";
+      const res = await fetch(endpoint, { headers: apiHeaders() });
       if (!res.ok) return [];
       return res.json();
     },
@@ -35,6 +39,21 @@ export default function Reviews() {
         <h1 className="text-2xl font-bold text-[#0a192f] tracking-tight">Рецензии</h1>
         <p className="text-slate-500 text-sm mt-1">Всички изготвени рецензии</p>
       </div>
+      <div className="flex gap-0 border-b border-slate-200">
+        {(["unreviewed", "reviewed"] as const).map(tab => {
+          const labels = { unreviewed: "Нерецензирани", reviewed: "Рецензирани" };
+          return (
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab
+                  ? "border-[#0a192f] text-[#0a192f]"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              }`}>
+              {labels[tab]}
+            </button>
+          );
+        })}
+      </div>
 
       {isLoading ? (
         <div className="py-8 text-center text-slate-500">Зареждане...</div>
@@ -45,7 +64,11 @@ export default function Reviews() {
         </div>
       ) : (
         <div className="space-y-4">
-          {reviews.map((review: any) => {
+          {reviews.filter((review: any) => {
+            if (activeTab === "reviewed") return review.isPublished;
+            if (activeTab === "unreviewed") return !review.isPublished;
+            return true;
+          }).map((review: any) => {
             const rec = recommendationConfig[review.recommendation as keyof typeof recommendationConfig] ?? recommendationConfig.revise;
             const RecIcon = rec.icon;
             return (

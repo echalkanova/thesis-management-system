@@ -79,7 +79,7 @@ thesisReviewsRouter.get("/", requireAuth, async (req: AuthRequest, res) => {
   const [thesis] = await db.select().from(thesesTable)
     .where(eq(thesesTable.id, thesisId)).limit(1);
 
-  const laterStatuses = ["reviewed", "approved_for_defense", "scheduled_for_defense", "defended"];
+  const laterStatuses = ["reviewed", "approved_for_defense", "scheduled_for_defense", "defended", "graded"];
   const isStudent = req.userRole === "student";
 
   if (isStudent && thesis && !laterStatuses.includes(thesis.status)) {
@@ -162,6 +162,60 @@ thesisReviewsRouter.post("/", requireAuth, upload.single("file"), async (req: Au
 
 export const reviewsRouter = Router();
 
+reviewsRouter.get("/", requireAuth, async (req: AuthRequest, res) => {
+  if (req.userRole !== "admin") {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
+  const allReviews = await db.select().from(reviewsTable);
+  const formatted = await Promise.all(allReviews.map(async (r) => {
+    const [thesis] = await db.select().from(thesesTable)
+      .where(eq(thesesTable.id, r.thesisId)).limit(1);
+    let student = null;
+    if (thesis?.studentId) {
+      const [s] = await db.select().from(usersTable)
+        .where(eq(usersTable.id, thesis.studentId)).limit(1);
+      if (s) student = { id: s.id, firstName: s.firstName, lastName: s.lastName };
+    }
+    return {
+      ...await formatReview(r),
+      thesis: thesis ? {
+        id: thesis.id,
+        title: thesis.title,
+        field: thesis.field ?? null,
+        student,
+      } : null,
+    };
+  }));
+  res.json(formatted);
+});
+
+reviewsRouter.get("/my-reviews", requireAuth, async (req: AuthRequest, res) => {
+  const reviews = await db.select().from(reviewsTable)
+    .where(eq(reviewsTable.reviewerId, req.userId!));
+  
+  const formatted = await Promise.all(reviews.map(async (r) => {
+    const [thesis] = await db.select().from(thesesTable)
+      .where(eq(thesesTable.id, r.thesisId)).limit(1);
+    let student = null;
+    if (thesis?.studentId) {
+      const [s] = await db.select().from(usersTable)
+        .where(eq(usersTable.id, thesis.studentId)).limit(1);
+      if (s) student = { id: s.id, firstName: s.firstName, lastName: s.lastName };
+    }
+    return {
+      ...await formatReview(r),
+      thesis: thesis ? {
+        id: thesis.id,
+        title: thesis.title,
+        field: thesis.field ?? null,
+        student,
+      } : null,
+    };
+  }));
+  
+  res.json(formatted);
+});
+
 reviewsRouter.get("/:id", requireAuth, async (req, res) => {
   const id = Number(req.params.id);
   const [review] = await db.select().from(reviewsTable)
@@ -200,31 +254,6 @@ reviewsRouter.get("/:id/download", requireAuth, async (req, res) => {
   if (!fs.existsSync(filePath)) { res.status(404).json({ error: "File not found on disk" }); return; }
   res.download(filePath);
 
-  reviewsRouter.get("/my-reviews", requireAuth, async (req: AuthRequest, res) => {
-  const reviews = await db.select().from(reviewsTable)
-    .where(eq(reviewsTable.reviewerId, req.userId!));
   
-  const formatted = await Promise.all(reviews.map(async (r) => {
-    const [thesis] = await db.select().from(thesesTable)
-      .where(eq(thesesTable.id, r.thesisId)).limit(1);
-    let student = null;
-    if (thesis?.studentId) {
-      const [s] = await db.select().from(usersTable)
-        .where(eq(usersTable.id, thesis.studentId)).limit(1);
-      if (s) student = { id: s.id, firstName: s.firstName, lastName: s.lastName };
-    }
-    return {
-      ...await formatReview(r),
-      thesis: thesis ? {
-        id: thesis.id,
-        title: thesis.title,
-        field: thesis.field ?? null,
-        student,
-      } : null,
-    };
-  }));
-  
-  res.json(formatted);
-});
 
 });

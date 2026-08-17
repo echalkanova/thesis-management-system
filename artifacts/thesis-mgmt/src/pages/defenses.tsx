@@ -32,7 +32,8 @@ export default function Defenses() {
   const [selectedStudentIds, setSelectedStudentIds] = useState<Record<number, Set<number>>>({});
   const [defenseDropdownOpen, setDefenseDropdownOpen] = useState<Record<number, boolean>>({});
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"all" | "planned" | "conducted">("all");
+  const urlTab = new URLSearchParams(window.location.search).get("tab") as "all" | "planned" | "conducted" | null;
+  const [activeTab, setActiveTab] = useState<"all" | "planned" | "conducted">(urlTab ?? "all");
 
   const token = localStorage.getItem("thesis_token");
   const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useListUsers, getListUsersQueryKey, useUpdateUser, useDeleteUser } from "@workspace/api-client-react";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,7 @@ export default function Users() {
   const [form, setForm] = useState(emptyForm);
   const [deleteUserId, setDeleteUserId] = useState<number | null>(null);
   const [deleteUserName, setDeleteUserName] = useState("");
+  const [lastEditedId, setLastEditedId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState({
     firstName: "", lastName: "", email: "", role: "student",
     facultyNumber: "", faculty: "", department: "", specialty: "",
@@ -68,8 +69,23 @@ export default function Users() {
     ? users?.filter(u => ["supervisor", "reviewer", "department_head"].includes(u.role))
     : users;
 
+    const sortedUsers = lastEditedId
+      ? [(filteredUsers ?? []).find(u => u.id === lastEditedId), ...(filteredUsers ?? []).filter(u => u.id !== lastEditedId)].filter((u): u is typeof u & {} => !!u)
+      : filteredUsers;
+
   const updateUser = useUpdateUser();
   const deleteUser = useDeleteUser();
+
+  const { data: departments } = useQuery({
+    queryKey: ["departments"],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch("/api/departments", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      return res.json();
+    },
+  });
 
   const createUser = useMutation({
     mutationFn: async (data: typeof emptyForm) => {
@@ -147,6 +163,7 @@ export default function Users() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListUsersQueryKey({}) });
         toast({ title: "Профилът е обновен" });
+        setLastEditedId(editUser?.id ?? null);
         setEditUser(null);
       }
     });
@@ -223,6 +240,48 @@ export default function Users() {
                   </SelectContent>
                 </Select>
               </div>
+              {/* Факултет и катедра за преподаватели */}
+              {isTeacher && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Факултет <span className="text-red-500">*</span></Label>
+                    {form.role === "department_head" ? (
+                      <Input value={departments?.find((d: any) => d.name === form.department)?.faculty ?? ""} readOnly className="bg-slate-50 text-slate-600" placeholder="Автоматично от катедрата" />
+                    ) : (
+                      <Select value={form.faculty} onValueChange={v => setForm(prev => ({ ...prev, faculty: v, department: "" }))}>
+                        <SelectTrigger><SelectValue placeholder="Изберете факултет" /></SelectTrigger>
+                        <SelectContent>
+                          {[...new Set(departments?.map((d: any) => d.faculty))].map((fac: any) => (
+                            <SelectItem key={fac} value={fac}>{fac}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Катедра <span className="text-red-500">*</span></Label>
+                    {form.role === "department_head" ? (
+                      <Select value={form.department} onValueChange={v => setForm(prev => ({ ...prev, department: v, faculty: departments?.find((d: any) => d.name === v)?.faculty ?? prev.faculty }))}>
+                        <SelectTrigger><SelectValue placeholder="Изберете катедра" /></SelectTrigger>
+                        <SelectContent>
+                          {departments?.map((d: any) => (
+                            <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Select value={form.department} onValueChange={v => setForm(prev => ({ ...prev, department: v }))}>
+                        <SelectTrigger><SelectValue placeholder="Изберете катедра" /></SelectTrigger>
+                        <SelectContent>
+                          {departments?.filter((d: any) => !form.faculty || d.faculty === form.faculty).map((d: any) => (
+                            <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Студентски полета */}
               {isStudent && (
@@ -232,12 +291,29 @@ export default function Users() {
                     <Input value={form.facultyNumber} onChange={f("facultyNumber")} placeholder="121222001" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Специалност <span className="text-red-500">*</span></Label>
-                    <Input value={form.specialty} onChange={f("specialty")} placeholder="Информатика" />
+                    <Label>Факултет <span className="text-red-500">*</span></Label>
+                    <Select value={form.faculty} onValueChange={v => setForm(prev => ({ ...prev, faculty: v, specialty: "" }))}>
+                      <SelectTrigger><SelectValue placeholder="Изберете факултет" /></SelectTrigger>
+                      <SelectContent>
+                        {[...new Set(departments?.map((d: any) => d.faculty))].map((f: any) => (
+                          <SelectItem key={f} value={f}>{f}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Факултет</Label>
-                    <Input value={form.faculty} onChange={f("faculty")} placeholder="ФМИ" />
+                    <Label>Специалност <span className="text-red-500">*</span></Label>
+                    <Select value={form.specialty} onValueChange={v => setForm(prev => ({ ...prev, specialty: v }))} disabled={!form.faculty}>
+                      <SelectTrigger className={!form.faculty ? "border-red-300" : ""}>
+                        <SelectValue placeholder={!form.faculty ? "Изберете факултет!" : "Изберете специалност"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {departments?.filter((d: any) => d.faculty === form.faculty).flatMap((d: any) => d.specialties).map((s: string) => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {!form.faculty && <p className="text-xs text-red-500">Изберете първо факултет</p>}
                   </div>
                   <div className="space-y-1.5">
                     <Label>Степен <span className="text-red-500">*</span></Label>
@@ -250,43 +326,6 @@ export default function Users() {
                     </Select>
                   </div>
                 </>
-              )}
-
-              {/* Преподавателски полета */}
-              {isTeacher && (
-                <>
-                  <div className="space-y-1.5">
-                    <Label>Дисциплина</Label>
-                    <Input value={form.subjectTaught} onChange={f("subjectTaught")} placeholder="Информационни технологии" />
-                  </div>
-                  {form.role !== "department_head" && (
-                    <div className="space-y-1.5">
-                      <Label>Макс. студенти</Label>
-                      <Input type="number" value={form.maxStudents} onChange={f("maxStudents")} min={1} max={100} />
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* Общи полета */}
-              {form.role !== "admin" && (
-                <div className="border-t pt-3 space-y-3">
-                  {!isStudent && (
-                    <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">Факултет и катедра</p>
-                  )}
-                  {!isStudent && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label>Факултет {isTeacher && <span className="text-red-500">*</span>}</Label>
-                        <Input value={form.faculty} onChange={f("faculty")} placeholder="ФМИ" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Катедра {isTeacher && <span className="text-red-500">*</span>}</Label>
-                        <Input value={form.department} onChange={f("department")} placeholder="ИС" />
-                      </div>
-                    </div>
-                  )}
-                </div>
               )}
 
               <div className="flex gap-2 pt-1">
@@ -350,7 +389,7 @@ export default function Users() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers?.map(u => (
+                {sortedUsers?.map(u => (
                   <TableRow key={u.id} data-testid={`row-user-${u.id}`}>
                     <TableCell className="font-medium">{u.firstName} {u.lastName}</TableCell>
                     <TableCell className="text-slate-500">{u.email}</TableCell>
@@ -403,7 +442,14 @@ export default function Users() {
                                   </div>
                                   <div className="space-y-1.5">
                                     <Label>Специалност</Label>
-                                    <Input value={editForm.specialty} onChange={ef("specialty")} />
+                                    <Select value={editForm.specialty} onValueChange={v => setEditForm(prev => ({ ...prev, specialty: v, faculty: departments?.find((d: any) => d.specialties.includes(v))?.faculty ?? prev.faculty }))}>
+                                      <SelectTrigger><SelectValue placeholder="Изберете специалност" /></SelectTrigger>
+                                      <SelectContent>
+                                        {departments?.flatMap((d: any) => d.specialties).map((s: string) => (
+                                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
                                   </div>
                                   <div className="space-y-1.5">
                                     <Label>Факултет</Label>
@@ -426,22 +472,41 @@ export default function Users() {
                                 <>
                                   <div className="space-y-1.5">
                                     <Label>Факултет</Label>
-                                    <Input value={editForm.faculty} onChange={ef("faculty")} />
+                                    {editForm.role === "department_head" ? (
+                                      <Input value={departments?.find((d: any) => d.name === editForm.department)?.faculty ?? ""} readOnly className="bg-slate-50 text-slate-600" />
+                                    ) : (
+                                      <Select value={editForm.faculty} onValueChange={v => setEditForm(prev => ({ ...prev, faculty: v, department: "" }))}>
+                                        <SelectTrigger><SelectValue placeholder="Изберете факултет" /></SelectTrigger>
+                                        <SelectContent>
+                                          {[...new Set(departments?.map((d: any) => d.faculty))].map((fac: any) => (
+                                            <SelectItem key={fac} value={fac}>{fac}</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    )}
                                   </div>
                                   <div className="space-y-1.5">
                                     <Label>Катедра</Label>
-                                    <Input value={editForm.department} onChange={ef("department")} />
+                                    {editForm.role === "department_head" ? (
+                                      <Select value={editForm.department} onValueChange={v => setEditForm(prev => ({ ...prev, department: v, faculty: departments?.find((d: any) => d.name === v)?.faculty ?? prev.faculty }))}>
+                                        <SelectTrigger><SelectValue placeholder="Изберете катедра" /></SelectTrigger>
+                                        <SelectContent>
+                                          {departments?.map((d: any) => (
+                                            <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    ) : (
+                                      <Select value={editForm.department} onValueChange={v => setEditForm(prev => ({ ...prev, department: v }))}>
+                                        <SelectTrigger><SelectValue placeholder="Изберете катедра" /></SelectTrigger>
+                                        <SelectContent>
+                                          {departments?.filter((d: any) => !editForm.faculty || d.faculty === editForm.faculty).map((d: any) => (
+                                            <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    )}
                                   </div>
-                                  <div className="space-y-1.5">
-                                    <Label>Дисциплина</Label>
-                                    <Input value={editForm.subjectTaught} onChange={ef("subjectTaught")} />
-                                  </div>
-                                  {editForm.role !== "department_head" && (
-                                    <div className="space-y-1.5">
-                                      <Label>Макс. студенти</Label>
-                                      <Input type="number" value={editForm.maxStudents} onChange={ef("maxStudents")} />
-                                    </div>
-                                  )}
                                 </>
                               )}
 
@@ -463,7 +528,7 @@ export default function Users() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {filteredUsers?.length === 0 && (
+                {sortedUsers?.length === 0 && (
                   <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-400">Няма намерени потребители</TableCell></TableRow>
                 )}
               </TableBody>

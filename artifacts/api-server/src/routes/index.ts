@@ -3,6 +3,7 @@ import healthRouter from "./health";
 import authRouter from "./auth";
 import usersRouter from "./users";
 import thesesRouter from "./theses";
+import departmentsRouter from "./departments";
 import { thesisFilesRouter, filesRouter } from "./files";
 import { thesisReviewsRouter, reviewsRouter } from "./reviews";
 import { thesisGradesRouter, gradesRouter } from "./grades";
@@ -33,6 +34,7 @@ router.use("/reports", dashboardRouter);
 router.use("/audit-log", auditLogRouter);
 router.use("/supervisor-requests", supervisorRequestsRouter);
 router.use("/messages", messagesRouter);
+router.use("/departments", departmentsRouter);
 router.use("/committees", committeesRouter);
 
 export default router;

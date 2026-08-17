@@ -11,3 +11,5 @@ export * from "./supervisorRequests";
 export * from "./messages";
 export * from "./defenseStudents";
 export * from "./defenseGrades";
+export * from "./departments";
+export * from "./departments";
