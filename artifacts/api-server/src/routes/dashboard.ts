@@ -91,19 +91,34 @@ router.get("/stats", requireAuth, async (req: AuthRequest, res) => {
 });
 
 router.get("/theses", requireAuth, async (req, res) => {
-  const allTheses = await db.select().from(thesesTable);
+  const { status, specialty } = req.query as Record<string, string>;
+  let allTheses = await db.select().from(thesesTable);
   const allStudents = await db.select().from(usersTable).then(u => u.filter(u => u.role === "student"));
+
+  if (status && status !== "all") {
+    allTheses = allTheses.filter(t => t.status === status);
+  }
+
+  if (specialty && specialty !== "all") {
+    const specialtyStudentIds = allStudents
+      .filter(s => (s as any).specialty === specialty)
+      .map(s => s.id);
+    allTheses = allTheses.filter(t => specialtyStudentIds.includes(t.studentId));
+  }
+
   const byStatus: Record<string, number> = {};
   const byField: Record<string, number> = {};
   const byMonthMap: Record<string, number> = {};
+
   for (const t of allTheses) {
     byStatus[t.status] = (byStatus[t.status] ?? 0) + 1;
     const student = allStudents.find(s => s.id === t.studentId);
-    const specialty = (student as any)?.specialty ?? "Неопределено";
-    byField[specialty] = (byField[specialty] ?? 0) + 1;
+    const spec = (student as any)?.specialty ?? "Неопределено";
+    byField[spec] = (byField[spec] ?? 0) + 1;
     const month = t.createdAt.toISOString().slice(0, 7);
     byMonthMap[month] = (byMonthMap[month] ?? 0) + 1;
   }
+
   const byMonth = Object.entries(byMonthMap).sort(([a], [b]) => a.localeCompare(b)).map(([month, count]) => ({ month, count }));
   res.json({ totalCount: allTheses.length, byStatus, byField, byMonth });
 });

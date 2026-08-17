@@ -140,6 +140,7 @@ export const ThesisStatus = {
   approved: 'approved',
   rejected: 'rejected',
   defended: 'defended',
+  graded: 'graded',
 } as const;
 
 /**

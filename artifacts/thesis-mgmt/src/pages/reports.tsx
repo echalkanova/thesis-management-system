@@ -26,7 +26,24 @@ export default function Reports() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [fieldFilter, setFieldFilter] = useState("all");
 
-  const { data: thesesReport, isLoading: loadingTheses } = useGetThesesReport({}, { query: { queryKey: getGetThesesReportQueryKey({}) } });
+  const { data: thesesReport, isLoading: loadingTheses } = useGetThesesReport(
+    {} as any,
+    { 
+      query: { 
+        queryKey: [getGetThesesReportQueryKey({}), statusFilter, fieldFilter],
+        queryFn: async () => {
+          const token = localStorage.getItem("thesis_token");
+          const params = new URLSearchParams();
+          if (statusFilter !== "all") params.append("status", statusFilter);
+          if (fieldFilter !== "all") params.append("specialty", fieldFilter);
+          const res = await fetch(`/api/reports/theses?${params.toString()}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          return res.json();
+        }
+      } 
+    }
+  );
   const { data: gradesReport, isLoading: loadingGrades } = useGetGradesReport({ query: { queryKey: getGetGradesReportQueryKey() } });
 
   const allStatuses = thesesReport ? Object.keys((thesesReport as any).byStatus as Record<string, number>) : [];
@@ -180,10 +197,14 @@ export default function Reports() {
                   <ResponsiveContainer width="100%" height={250}>
                     <BarChart data={fieldData} layout="vertical" margin={{ top: 5, right: 10, bottom: 5, left: 60 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis type="number" tick={{ fontSize: 11 }} />
-                      <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={100} />
+                      <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                      <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={100} allowDecimals={false} />
                       <Tooltip />
-                      <Bar dataKey="count" name="Брой" fill="#0a192f" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="count" name="Брой" radius={[0, 4, 4, 0]}>
+                        {fieldData.map((entry, index) => (
+                          <Cell key={index} fill={["#0a192f", "#4f46e5", "#0891b2", "#059669", "#d97706", "#dc2626", "#7c3aed", "#db2777"][index % 8]} />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 )}

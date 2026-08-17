@@ -30,6 +30,7 @@ export const formatStatus = (status?: string) => {
     approved_for_defense: 'Допусната до защита',
     scheduled_for_defense: 'Насрочена защита',
     defended: 'Защитена',
+    graded: 'Оценена',
     approved: 'Одобрена',
     rejected: 'Отхвърлена',
   };
@@ -47,6 +48,7 @@ export const getStatusColor = (status?: string) => {
     case 'reviewed': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
     case 'approved_for_defense': return 'bg-green-100 text-green-800 border-green-200';
     case 'scheduled_for_defense': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+    case 'graded': return 'bg-purple-100 text-purple-800 border-purple-200';
     case 'defended': return 'bg-purple-100 text-purple-800 border-purple-200';
     case 'approved': return 'bg-green-100 text-green-800 border-green-200';
     case 'rejected': return 'bg-red-100 text-red-800 border-red-200';

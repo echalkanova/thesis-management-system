@@ -130,11 +130,11 @@ function StudentDashboard() {
                   <div key={step.key} className="flex items-center flex-1 min-w-0">
                     <div className="flex flex-col items-center flex-shrink-0">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
-                        done   ? "bg-indigo-600 border-indigo-600 text-white" :
+                        done || (active && step.key === "graded") ? "bg-indigo-600 border-indigo-600 text-white" :
                         active ? "bg-white border-indigo-600 text-indigo-600" :
                                  "bg-white border-slate-200 text-slate-300"
                       }`}>
-                        {done ? <CheckCircle2 size={16} /> : active ? <CircleDot size={16} /> : <Circle size={16} />}
+                        {done || (active && step.key === "graded") ? <CheckCircle2 size={16} /> : active ? <CircleDot size={16} /> : <Circle size={16} />}
                       </div>
                       <span className={`text-[10px] font-medium mt-1.5 text-center leading-tight ${
                         done ? "text-indigo-600" : active ? "text-slate-800" : "text-slate-400"
@@ -806,7 +806,7 @@ function AdminDashboard() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} allowDecimals={false} />
                 <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 12 }} />
                 <Area type="monotone" dataKey="count" name="Брой" stroke="#6366f1" strokeWidth={2.5} fill="url(#indigoGrad)" dot={false} />
               </AreaChart>
@@ -826,7 +826,7 @@ function AdminDashboard() {
               <BarChart data={byFieldData} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} allowDecimals={false} />
                 <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }} formatter={(v: number) => [v, "Работи"]} />
                 <Bar dataKey="count" name="Брой" fill="#6366f1" radius={[5, 5, 0, 0]} />
               </BarChart>

@@ -23,6 +23,7 @@ function getStepState(stepStatus: string, currentStatus: string): "completed" | 
   const stepIndex = STATUS_ORDER.indexOf(stepStatus);
   const currentIndex = STATUS_ORDER.indexOf(currentStatus);
   if (stepIndex < currentIndex) return "completed";
+  console.log("stepStatus:", stepStatus, "stepIndex:", stepIndex, "currentIndex:", currentIndex, "state:", stepIndex < currentIndex ? "completed" : stepIndex === currentIndex ? "current" : "pending");
   if (stepIndex === currentIndex) return "current";
   return "pending";
 }
@@ -33,6 +34,7 @@ interface ThesisTimelineProps {
 }
 
 export function ThesisTimeline({ currentStatus, finalGrade }: ThesisTimelineProps) {
+  console.log("currentStatus:", currentStatus);
   const progressIndex = STATUS_ORDER.indexOf(currentStatus);
   const progressPct = Math.min(100, (progressIndex / (STATUS_ORDER.length - 1)) * 100);
 
@@ -54,11 +56,11 @@ export function ThesisTimeline({ currentStatus, finalGrade }: ThesisTimelineProp
             <div key={step.status} className="flex items-start gap-3">
               <div className="flex flex-col items-center">
                 <div className={`rounded-full p-0.5 ${
-                  state === "completed" ? "text-green-500" :
+                  state === "completed" || (state === "current" && step.status === "graded") ? "text-green-500" :
                   state === "current" ? "text-[#0a192f]" :
                   "text-muted-foreground"
                 }`}>
-                  {state === "completed" ? (
+                  {state === "completed" || (state === "current" && step.status === "graded") ? (
                     <CheckCircle className="w-5 h-5" />
                   ) : state === "current" ? (
                     <Clock className="w-5 h-5 animate-pulse" />

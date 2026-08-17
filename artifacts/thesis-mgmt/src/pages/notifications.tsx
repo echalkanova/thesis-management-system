@@ -25,16 +25,16 @@ export default function Notifications() {
   const unreadCount = notifications?.filter(n => !n.isRead).length ?? 0;
 
   useEffect(() => {
-    return () => {
-      if (unreadCount > 0) {
-        const token = localStorage.getItem("thesis_token");
-        fetch("/api/notifications/mark-all-read", {
-          method: "POST",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-      }
-    };
-  }, [unreadCount]);
+    if (unreadCount > 0) {
+      const token = localStorage.getItem("thesis_token");
+      fetch("/api/notifications/mark-all-read", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }).then(() => {
+        queryClient.invalidateQueries({ queryKey: getListNotificationsQueryKey() });
+      });
+    }
+  }, []);
 
   const handleMarkAll = () => {
     markAll.mutate(undefined, {

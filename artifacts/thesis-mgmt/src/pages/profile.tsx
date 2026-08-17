@@ -124,7 +124,7 @@ export default function Profile() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Собствено име</Label>
-              {user?.role === "student" ? (
+              {user?.role !== "admin" ? (
                 <Input value={form.firstName} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />
               ) : (
                 <Input id="firstName" name="firstName" value={form.firstName} onChange={handleChange}
@@ -134,7 +134,7 @@ export default function Profile() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Фамилно име</Label>
-              {user?.role === "student" ? (
+              {user?.role !== "admin" ? (
                 <Input value={form.lastName} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />
               ) : (
                 <Input id="lastName" name="lastName" value={form.lastName} onChange={handleChange}
@@ -155,34 +155,35 @@ export default function Profile() {
               <Input value={(user as any).facultyNumber} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />
             </div>
           )}
-          <div className="space-y-1.5">
+          {user?.role === "department_head" && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Катедра</Label>
+              <Input value={form.department ?? "Не е посочена"} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />
+            </div>
+          )}
+          {user?.role !== "admin" && <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
               <Building2 size={11} /> Факултет
             </Label>
-            {user?.role === "student" ? (
-              <Input value={form.faculty ?? "Не е посочен"} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />
-            ) : (
-              <Input id="faculty" name="faculty" value={form.faculty} onChange={handleChange}
-                placeholder="напр. Факултет по математика и информатика"
-                className="border-slate-200"
-                data-testid="input-faculty" />
-            )}
-          </div>
+            <Input value={form.faculty ?? "Не е посочен"} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />
+          </div>}
           
-          {user?.role === "student" && (
+          {user?.role !== "admin" && (
             <>
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Специалност</Label>
                 <Input value={(user as any).specialty ?? "Не е посочена"} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Степен</Label>
-                <Input value={(user as any).degree === "bachelor" ? "Бакалавър" : (user as any).degree === "master" ? "Магистър" : "Не е посочена"} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />
-              </div>
+              {user?.role === "student" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Степен</Label>
+                  <Input value={(user as any).degree === "bachelor" ? "Бакалавър" : (user as any).degree === "master" ? "Магистър" : "Не е посочена"} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />
+                </div>
+              )}
             </>
           )}
 
-          {user?.role !== "student" && (
+          {user?.role === "admin" && user?.role !== "admin" && (
             <div className="space-y-1.5">
               <Label htmlFor="phoneNumber" className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
                 <Phone size={11} /> Телефон
@@ -194,7 +195,7 @@ export default function Profile() {
             </div>
           )}
           
-          {user?.role !== "student" && (
+          {false && (
             <div className="pt-1">
               <Button
                 type="submit"
@@ -210,7 +211,7 @@ export default function Profile() {
           </form>
       </div>
 
-      {user?.role !== "student" && (
+      {false && (
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">

@@ -43,7 +43,7 @@ export default function ThesisDetail() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
 
-  const { data: thesis, isLoading } = useGetThesis(thesisId, { query: { queryKey: getGetThesisQueryKey(thesisId) } });
+  const { data: thesis, isLoading } = useGetThesis(thesisId, { query: { queryKey: getGetThesisQueryKey(thesisId), refetchInterval: 5000 } });
   const { data: files } = useListThesisFiles(thesisId, { query: { queryKey: getListThesisFilesQueryKey(thesisId) } });
   const { data: reviews } = useListThesisReviews(thesisId, { query: { queryKey: getListThesisReviewsQueryKey(thesisId) } });
   const { data: grades } = useListThesisGrades(thesisId, { query: { queryKey: getListThesisGradesQueryKey(thesisId) } });
@@ -238,7 +238,7 @@ export default function ThesisDetail() {
         </div>
       </div>
 
-        {!isDeptHead && <ThesisTimeline currentStatus={thesis.status} finalGrade={(thesis as any).finalGrade} />}
+        {!isDeptHead && <ThesisTimeline currentStatus={String(thesis.status)} finalGrade={(thesis as any).finalGrade} />}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <Card>

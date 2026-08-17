@@ -323,6 +323,9 @@ router.post("/:id/grades", requireAuth, async (req: AuthRequest, res) => {
   );
 
   await logAction(req.userId!, "create_grade", "defense", defenseId, { studentId: Number(studentId), grade: Number(grade) });
+  await db.update(thesesTable)
+    .set({ status: "graded" } as any)
+    .where(eq(thesesTable.studentId, Number(studentId)));
   res.json(result);
 });
 router.post("/:id/mark-defended", requireAuth, async (req: AuthRequest, res) => {
