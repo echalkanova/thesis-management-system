@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 4MWL9K6P5HMo30qIA3c5c3vMWXwKU4oFVxc13Ghh8H6Qh3S7X28cUrqgazeJ4VP
+\restrict 1k0BX1buzxZqE4kupD2YXVYqVEKJL8JydJ9utb6Mqs9c28ayKSAguOydblUNPLV
 
 -- Dumped from database version 16.14 (Ubuntu 16.14-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.14 (Ubuntu 16.14-0ubuntu0.24.04.1)
@@ -253,6 +253,42 @@ ALTER SEQUENCE public.defenses_id_seq OWNER TO postgres;
 --
 
 ALTER SEQUENCE public.defenses_id_seq OWNED BY public.defenses.id;
+
+
+--
+-- Name: departments; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.departments (
+    id integer NOT NULL,
+    name text NOT NULL,
+    faculty text NOT NULL,
+    specialties text[] DEFAULT '{}'::text[] NOT NULL
+);
+
+
+ALTER TABLE public.departments OWNER TO postgres;
+
+--
+-- Name: departments_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.departments_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.departments_id_seq OWNER TO postgres;
+
+--
+-- Name: departments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.departments_id_seq OWNED BY public.departments.id;
 
 
 --
@@ -673,6 +709,13 @@ ALTER TABLE ONLY public.defenses ALTER COLUMN id SET DEFAULT nextval('public.def
 
 
 --
+-- Name: departments id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.departments ALTER COLUMN id SET DEFAULT nextval('public.departments_id_seq'::regclass);
+
+
+--
 -- Name: grades id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -877,6 +920,11 @@ COPY public.audit_log (id, user_id, action, entity_type, entity_id, details, cre
 135	5	login	user	5	{"role": "supervisor", "email": "masenova@uni.bg"}	2026-08-17 14:08:50.5689+00
 136	4	login	user	4	{"role": "admin", "email": "iangelov@uni.bg"}	2026-08-17 14:45:26.502469+00
 137	6	login	user	6	{"role": "supervisor", "email": "givanov@uni.bg"}	2026-08-17 14:54:18.13924+00
+138	4	update_user	user	12	{"name": "Николай Цанев"}	2026-08-17 16:39:39.268952+00
+139	4	update_user	user	12	{"name": "Николай Цанев"}	2026-08-17 16:42:01.615499+00
+140	4	update_user	user	12	{"name": "Николай Цанев"}	2026-08-17 16:44:29.483369+00
+141	4	update_user	user	12	{"name": "Николай Цанев"}	2026-08-17 16:48:14.73066+00
+142	2	login	user	2	{"role": "department_head", "email": "iivanova@uni.bg"}	2026-08-17 18:29:10.645421+00
 \.
 
 
@@ -932,6 +980,26 @@ COPY public.defense_students (id, defense_id, student_id, created_at) FROM stdin
 COPY public.defenses (id, title, scheduled_at, location, room_or_link, room, start_time, end_time, committee_id, thesis_ids, committee_ids, notes, created_at, updated_at) FROM stdin;
 2	Защита 2	2026-08-18 00:00:00+00	\N	710	710	08:30		3	{}	{3}		2026-08-13 20:47:10.627672+00	2026-08-13 20:47:10.627672+00
 1	Защита 1	2026-08-14 08:30:00+00	\N	2103	2103	08:30		9	{7}	{9}		2026-08-13 20:45:51.410387+00	2026-08-13 21:31:00.017+00
+\.
+
+
+--
+-- Data for Name: departments; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.departments (id, name, faculty, specialties) FROM stdin;
+1	Компютърни системи	Факултет „Компютърни системи и технологии" (ФКСТ)	{"Компютърно и софтуерно инженерство"}
+3	Киберсигурност	Факултет „Компютърни системи и технологии" (ФКСТ)	{Киберсигурност}
+4	Интелигентни технологии в индустрията	Факултет „Компютърни системи и технологии" (ФКСТ)	{"Информационни технологии в индустрията"}
+5	Електронна техника	Факултет „Електронна техника и технологии" (ФЕТТ)	{"Електронни информационни системи"}
+6	Микроелектроника	Факултет „Електронна техника и технологии" (ФЕТТ)	{"Микро- и наноелектроника"}
+7	Силова електроника	Факултет „Електронна техника и технологии" (ФЕТТ)	{"Автомобилна електроника"}
+8	Радиокомуникации и видеотехнологии	Факултет по телекомуникации (ФТК)	{Телекомуникации}
+9	Телекомуникационни мрежи	Факултет по телекомуникации (ФТК)	{}
+10	Двигатели, автомобилна техника и транспорт	Факултет по транспорта (ФТ)	{"Автотранспортна техника","Технология и управление на транспорта"}
+11	Въздушен транспорт	Факултет по транспорта (ФТ)	{"Авиационна техника и технологии"}
+12	Железопътна техника и технологии	Факултет по транспорта (ФТ)	{"Транспортна техника и технологии"}
+2	Програмиране и компютърни технологии	Факултет „Компютърни системи и технологии" (ФКСТ)	{"Компютърни системи и информационни технологии"}
 \.
 
 
@@ -1123,13 +1191,13 @@ COPY public.users (id, email, password_hash, first_name, last_name, role, facult
 2	iivanova@uni.bg	9d95a4d77b7829b950f99751c7b296c48dd7dbf7acf7a68c7a002e0b51fd2955	Ива	Иванова	department_head	\N	\N	\N	\N	\N	\N	10	2026-08-09 15:00:05.464964+00	2026-08-09 15:00:05.464964+00	\N	\N	\N	\N
 11	tbozhilov@uni.bg	2fcde602af2919866d703b5d31244af88173408cb99accd50938beaca87609b5	Тодор	Божилов	supervisor	ФМИ	МИ	\N	\N	\N	Математика	10	2026-08-13 19:21:00.670474+00	2026-08-16 16:42:04.909+00	\N	\N	\N	\N
 9	syordanov@uni.bg	655fbed07407132500c90571b5ec7b1edadf12fcc7aedd78a73eb4f674c92912	Станислав	Йорданов	supervisor	ФКС	КС	\N	\N	\N	ИКС	10	2026-08-13 16:45:43.367694+00	2026-08-13 16:45:43.367694+00	\N	\N	\N	\N
-12	ntsanev@uni.bg	ead36637669c81e077453a6a8d8ef739c7a54447d3f4b66b78704d9bdbcbd272	Николай	Цанев	supervisor	ФКСТ	ФКТ	\N	\N	\N	ИИ	10	2026-08-13 20:04:14.075837+00	2026-08-13 20:04:14.075837+00	\N	\N	\N	\N
 7	itodorov@uni.bg	5fd56104297a82c0a6b396e2e7e4b8b31840e076eb6a2f39ab93bd1051629ad6	Иван	Тодоров	student	ФКСТ	\N	\N	\N	121222179	\N	40	2026-08-12 18:37:08.236964+00	2026-08-16 20:56:02.482+00	КСИ	bachelor	\N	\N
 1	kgeorgieva@uni.bg	1d06cc9e21c08231cfb41a1ed7787e83412f72c831e5b8ca042175b332e654f1	Катя	Георгиева	student	ФКС	\N	\N	\N	121222033	\N	40	2026-08-09 14:59:13.902607+00	2026-08-14 16:55:25.475+00	МИ	bachelor	\N	\N
 5	masenova@uni.bg	4b418df1a968db29f995c987d52aafdd5b3cfdb332ce5fd682568cd915cbf035	Мария	Асенова	supervisor	ФМИ	Информатика	\N	\N	\N	МИ	10	2026-08-09 15:08:14.118415+00	2026-08-16 21:47:15.119+00	\N	\N	\N	\N
 10	jdanchev@uni.bg	01283a4c8b41bf13b1095585307879af9d0728d8060bb3928a713e84ed4db971	Живко	Данчев	supervisor	ФМИ	МИ	\N	\N	\N	ИКС	10	2026-08-13 19:20:00.379633+00	2026-08-16 16:05:19.652+00	\N	\N	jyu4n5rustkmsvzxkf8	2026-08-16 17:05:19.652+00
 4	iangelov@uni.bg	bb3dbd297b3427e51b02dcecaa75f0e8de1968f2653baaa6c2dfb69779dcc932	Ivo	Angelov	admin			0891345679	\N	\N	\N	40	2026-08-09 15:03:51.131588+00	2026-08-17 10:22:49.834+00	\N	\N	\N	\N
 6	givanov@uni.bg	d879515e3bb5a9c867d4651de66cfa29fc2800eacd7758922e9050e9e7658128	Георги	Иванов	supervisor	\N	\N	\N	\N	001212012	\N	10	2026-08-09 15:44:34.423248+00	2026-08-16 16:14:18.337+00	\N	\N	zwpsmnttxjmsw0942o	2026-08-16 17:14:18.336+00
+12	ntsanev@uni.bg	ead36637669c81e077453a6a8d8ef739c7a54447d3f4b66b78704d9bdbcbd272	Николай	Цанев	supervisor	Факултет „Компютърни системи и технологии" (ФКСТ)	Киберсигурност	\N	\N	\N	ИИ	10	2026-08-13 20:04:14.075837+00	2026-08-17 16:48:14.728+00	\N	\N	\N	\N
 \.
 
 
@@ -1137,7 +1205,7 @@ COPY public.users (id, email, password_hash, first_name, last_name, role, facult
 -- Name: audit_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.audit_log_id_seq', 137, true);
+SELECT pg_catalog.setval('public.audit_log_id_seq', 142, true);
 
 
 --
@@ -1173,6 +1241,13 @@ SELECT pg_catalog.setval('public.defense_students_id_seq', 1, false);
 --
 
 SELECT pg_catalog.setval('public.defenses_id_seq', 2, true);
+
+
+--
+-- Name: departments_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.departments_id_seq', 12, true);
 
 
 --
@@ -1292,6 +1367,14 @@ ALTER TABLE ONLY public.defense_students
 
 ALTER TABLE ONLY public.defenses
     ADD CONSTRAINT defenses_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: departments departments_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.departments
+    ADD CONSTRAINT departments_pkey PRIMARY KEY (id);
 
 
 --
@@ -1570,5 +1653,5 @@ ALTER TABLE ONLY public.thesis_files
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 4MWL9K6P5HMo30qIA3c5c3vMWXwKU4oFVxc13Ghh8H6Qh3S7X28cUrqgazeJ4VP
+\unrestrict 1k0BX1buzxZqE4kupD2YXVYqVEKJL8JydJ9utb6Mqs9c28ayKSAguOydblUNPLV
 
