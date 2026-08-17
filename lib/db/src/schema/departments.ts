@@ -5,4 +5,6 @@ export const departmentsTable = pgTable("departments", {
   name: text("name").notNull(),
   faculty: text("faculty").notNull(),
   specialties: text("specialties").array().notNull().default([]),
+  facultyNumberPrefix: text("faculty_number_prefix"),
+  facultyNumberPrefixMaster: text("faculty_number_prefix_master"),
 });

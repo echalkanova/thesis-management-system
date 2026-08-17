@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 1k0BX1buzxZqE4kupD2YXVYqVEKJL8JydJ9utb6Mqs9c28ayKSAguOydblUNPLV
+\restrict 0KOihIBbzpQRb3m3fgLMhEQ3OfghmbfGcGwljyl6Bvym1kEgV2FYr11eEAjlMch
 
 -- Dumped from database version 16.14 (Ubuntu 16.14-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.14 (Ubuntu 16.14-0ubuntu0.24.04.1)
@@ -263,7 +263,9 @@ CREATE TABLE public.departments (
     id integer NOT NULL,
     name text NOT NULL,
     faculty text NOT NULL,
-    specialties text[] DEFAULT '{}'::text[] NOT NULL
+    specialties text[] DEFAULT '{}'::text[] NOT NULL,
+    faculty_number_prefix text,
+    faculty_number_prefix_master text
 );
 
 
@@ -819,7 +821,6 @@ COPY public.audit_log (id, user_id, action, entity_type, entity_id, details, cre
 34	2	login	user	2	{"role": "department_head", "email": "iivanova@abv.bg"}	2026-08-12 20:41:52.72273+00
 35	7	login	user	7	{"role": "student", "email": "itodorov@uni.bg"}	2026-08-13 11:46:30.407138+00
 36	1	login	user	1	{"role": "student", "email": "kgeorgieva@uni.bg"}	2026-08-13 12:08:36.530363+00
-37	8	login	user	8	{"role": "student", "email": "mstefanova@uni.bg"}	2026-08-13 12:13:23.491442+00
 38	7	login	user	7	{"role": "student", "email": "itodorov@uni.bg"}	2026-08-13 12:37:01.017137+00
 39	4	login	user	4	{"role": "admin", "email": "iangelov@uni.bg"}	2026-08-13 16:11:02.12329+00
 40	4	login	user	4	{"role": "admin", "email": "iangelov@uni.bg"}	2026-08-13 16:30:26.775246+00
@@ -839,7 +840,6 @@ COPY public.audit_log (id, user_id, action, entity_type, entity_id, details, cre
 54	4	login	user	4	{"role": "admin", "email": "iangelov@uni.bg"}	2026-08-14 12:10:26.768048+00
 55	4	update_user	user	7	{"name": "Иван Тодоров"}	2026-08-14 12:11:17.037869+00
 56	2	login	user	2	{"role": "department_head", "email": "iivanova@uni.bg"}	2026-08-14 14:24:29.708351+00
-57	8	login	user	8	{"role": "student", "email": "mstefanova@uni.bg"}	2026-08-14 14:26:23.913848+00
 58	5	login	user	5	{"role": "reviewer", "email": "masenova@uni.bg"}	2026-08-14 14:39:22.018354+00
 59	5	login	user	5	{"role": "reviewer", "email": "masenova@uni.bg"}	2026-08-14 15:53:00.071268+00
 60	2	login	user	2	{"role": "department_head", "email": "iivanova@uni.bg"}	2026-08-14 15:53:41.703865+00
@@ -904,7 +904,6 @@ COPY public.audit_log (id, user_id, action, entity_type, entity_id, details, cre
 119	7	login	user	7	{"role": "student", "email": "itodorov@uni.bg"}	2026-08-17 11:54:00.056798+00
 120	1	login	user	1	{"role": "student", "email": "kgeorgieva@uni.bg"}	2026-08-17 11:55:41.024299+00
 121	4	login	user	4	{"role": "admin", "email": "iangelov@uni.bg"}	2026-08-17 11:56:11.62339+00
-122	8	login	user	8	{"role": "student", "email": "mstefanova@uni.bg"}	2026-08-17 11:56:38.283216+00
 123	7	login	user	7	{"role": "student", "email": "itodorov@uni.bg"}	2026-08-17 11:57:00.99065+00
 124	5	login	user	5	{"role": "supervisor", "email": "masenova@uni.bg"}	2026-08-17 11:59:39.967626+00
 125	4	login	user	4	{"role": "admin", "email": "iangelov@uni.bg"}	2026-08-17 12:00:05.327711+00
@@ -925,6 +924,73 @@ COPY public.audit_log (id, user_id, action, entity_type, entity_id, details, cre
 140	4	update_user	user	12	{"name": "Николай Цанев"}	2026-08-17 16:44:29.483369+00
 141	4	update_user	user	12	{"name": "Николай Цанев"}	2026-08-17 16:48:14.73066+00
 142	2	login	user	2	{"role": "department_head", "email": "iivanova@uni.bg"}	2026-08-17 18:29:10.645421+00
+143	4	login	user	4	{"role": "admin", "email": "iangelov@uni.bg"}	2026-08-17 18:32:55.240362+00
+144	4	create_user	user	15	{"name": "Добромир Колев", "role": "department_head", "email": "dkolev@uni.bg"}	2026-08-17 18:35:59.207337+00
+145	4	create_user	user	16	{"name": "Михаил Добрев", "role": "student", "email": "mdobrev@uni.bg"}	2026-08-17 18:40:36.403339+00
+146	4	create_user	user	17	{"name": "Ралица Стоименова", "role": "student", "email": "rstoimenova@uni.bg"}	2026-08-17 18:41:16.452716+00
+147	15	login	user	15	{"role": "department_head", "email": "dkolev@uni.bg"}	2026-08-17 18:42:06.676971+00
+148	4	update_user	user	8	{"name": "Мария Стефанова"}	2026-08-17 18:43:04.935686+00
+149	2	login	user	2	{"role": "department_head", "email": "iivanova@uni.bg"}	2026-08-17 18:59:05.297879+00
+150	2	delete_defense	defense	2	{"title": "Защита 2"}	2026-08-17 18:59:27.085219+00
+151	2	delete_committee	committee	3	{"romanNumeral": "I"}	2026-08-17 18:59:52.38446+00
+152	4	delete_user	user	10	{"name": "Живко Данчев", "email": "jdanchev@uni.bg"}	2026-08-17 19:09:15.699197+00
+153	7	login	user	7	{"role": "student", "email": "itodorov@uni.bg"}	2026-08-17 19:09:51.173864+00
+154	4	login	user	4	{"role": "admin", "email": "iangelov@uni.bg"}	2026-08-17 19:10:08.308474+00
+155	4	update_user	user	12	{"name": "Николай Цанев"}	2026-08-17 19:10:24.143571+00
+156	4	update_user	user	15	{"name": "Добромир Колев"}	2026-08-17 19:10:32.495824+00
+157	4	update_user	user	15	{"name": "Добромир Колев"}	2026-08-17 19:10:54.974626+00
+158	4	update_user	user	9	{"name": "Станислав Йорданов"}	2026-08-17 19:11:22.235896+00
+159	4	update_user	user	9	{"name": "Станислав Йорданов"}	2026-08-17 19:11:26.74126+00
+160	4	update_user	user	11	{"name": "Тодор Божилов"}	2026-08-17 19:11:59.107026+00
+161	4	update_user	user	2	{"name": "Ива Иванова"}	2026-08-17 19:12:32.863483+00
+162	4	update_user	user	6	{"name": "Георги Иванов"}	2026-08-17 19:14:06.637864+00
+163	4	create_user	user	18	{"name": "Зорница Христова", "role": "department_head", "email": "zhristova@uni.bg"}	2026-08-17 19:15:16.55784+00
+164	4	create_user	user	19	{"name": "Габриел Антов", "role": "department_head", "email": "gantov@uni.bg"}	2026-08-17 19:16:59.243327+00
+165	4	create_user	user	20	{"name": "Ивайло Георгиев", "role": "department_head", "email": "igeorgiev@uni.bg"}	2026-08-17 19:17:59.919633+00
+166	4	update_user	user	7	{"name": "Иван Тодоров"}	2026-08-17 19:19:36.109402+00
+167	4	update_user	user	1	{"name": "Катя Георгиева"}	2026-08-17 19:19:54.202987+00
+168	4	update_user	user	16	{"name": "Михаил Добрев"}	2026-08-17 19:20:00.083904+00
+169	4	create_user	user	21	{"name": "Йоан Енев", "role": "student", "email": "yenev@uni.bg"}	2026-08-17 19:21:00.16451+00
+170	4	update_user	user	5	{"name": "Мария Асенова"}	2026-08-17 19:21:44.107436+00
+171	4	create_user	user	22	{"name": "Добромира Петрова", "role": "supervisor", "email": "dpetrova@uni.bg"}	2026-08-17 19:22:33.996151+00
+172	15	login	user	15	{"role": "department_head", "email": "dkolev@uni.bg"}	2026-08-17 19:27:29.994141+00
+173	17	login	user	17	{"role": "student", "email": "rstoimenova@uni.bg"}	2026-08-17 19:32:32.017714+00
+174	15	login	user	15	{"role": "department_head", "email": "dkolev@uni.bg"}	2026-08-17 19:34:32.086711+00
+175	15	reject_request	supervisor_request	4	{"studentId": 17, "thesisTitle": "Автоматизация на журнала"}	2026-08-17 19:34:44.532199+00
+176	4	login	user	4	{"role": "admin", "email": "iangelov@uni.bg"}	2026-08-17 19:35:21.890053+00
+177	12	login	user	12	{"role": "supervisor", "email": "ntsanev@uni.bg"}	2026-08-17 19:36:36.651117+00
+178	12	accept_request	supervisor_request	5	{"studentId": 17, "thesisTitle": "Автоматизация на журнала"}	2026-08-17 19:36:51.330424+00
+179	12	accept_request	supervisor_request	5	{"studentId": 17, "thesisTitle": "Автоматизация на журнала"}	2026-08-17 19:36:51.331923+00
+180	17	create_thesis	thesis	3	{"title": "Автоматизация на журнала"}	2026-08-17 19:37:47.507223+00
+181	17	create_thesis	thesis	4	{"title": "Автоматизация на журнала"}	2026-08-17 19:41:35.890188+00
+182	17	submit_thesis	thesis	4	{"title": "Автоматизация на журнала"}	2026-08-17 19:42:11.038969+00
+183	12	return_thesis	thesis	4	{"title": "Автоматизация на журнала", "comment": "Бъди по-конкретна"}	2026-08-17 19:43:02.958773+00
+184	17	submit_thesis	thesis	4	{"title": "Автоматизация на журнала"}	2026-08-17 19:43:33.489419+00
+185	4	login	user	4	{"role": "admin", "email": "iangelov@uni.bg"}	2026-08-17 19:44:47.641776+00
+186	1	login	user	1	{"role": "student", "email": "kgeorgieva@uni.bg"}	2026-08-17 19:45:38.44178+00
+187	4	login	user	4	{"role": "admin", "email": "iangelov@uni.bg"}	2026-08-17 19:46:02.300275+00
+188	21	login	user	21	{"role": "student", "email": "yenev@uni.bg"}	2026-08-17 19:46:57.795345+00
+189	18	login	user	18	{"role": "department_head", "email": "zhristova@uni.bg"}	2026-08-17 19:48:16.562988+00
+190	18	accept_request	supervisor_request	6	{"studentId": 21, "thesisTitle": "GPS system"}	2026-08-17 19:49:09.276532+00
+191	18	accept_request	supervisor_request	6	{"studentId": 21, "thesisTitle": "GPS system"}	2026-08-17 19:49:09.278785+00
+192	21	create_thesis	thesis	5	{"title": "GPS system"}	2026-08-17 19:50:27.302894+00
+193	21	submit_thesis	thesis	5	{"title": "GPS system"}	2026-08-17 19:50:48.872724+00
+194	4	login	user	4	{"role": "admin", "email": "iangelov@uni.bg"}	2026-08-17 20:26:13.390382+00
+195	5	login	user	5	{"role": "supervisor", "email": "masenova@uni.bg"}	2026-08-17 20:30:51.309649+00
+196	18	login	user	18	{"role": "department_head", "email": "zhristova@uni.bg"}	2026-08-17 20:34:27.938067+00
+197	17	login	user	17	{"role": "student", "email": "rstoimenova@uni.bg"}	2026-08-17 20:38:16.215436+00
+198	18	login	user	18	{"role": "department_head", "email": "zhristova@uni.bg"}	2026-08-17 20:38:44.444746+00
+199	17	login	user	17	{"role": "student", "email": "rstoimenova@uni.bg"}	2026-08-17 20:46:16.720629+00
+200	21	login	user	21	{"role": "student", "email": "yenev@uni.bg"}	2026-08-17 20:47:58.642125+00
+201	21	login	user	21	{"role": "student", "email": "yenev@uni.bg"}	2026-08-17 20:52:32.183603+00
+202	4	login	user	4	{"role": "admin", "email": "iangelov@uni.bg"}	2026-08-17 20:55:48.44321+00
+203	4	delete_user	user	8	{"name": "Мария Стефанова", "email": "mstefanova@uni.bg"}	2026-08-17 21:05:29.333208+00
+204	15	login	user	15	{"role": "department_head", "email": "dkolev@uni.bg"}	2026-08-17 21:06:46.650839+00
+205	5	login	user	5	{"role": "supervisor", "email": "masenova@uni.bg"}	2026-08-17 21:12:12.918596+00
+206	2	login	user	2	{"role": "department_head", "email": "iivanova@uni.bg"}	2026-08-17 21:12:27.164189+00
+207	4	login	user	4	{"role": "admin", "email": "iangelov@uni.bg"}	2026-08-17 21:14:49.478774+00
+208	2	login	user	2	{"role": "department_head", "email": "iivanova@uni.bg"}	2026-08-17 21:28:02.485987+00
+209	5	login	user	5	{"role": "supervisor", "email": "masenova@uni.bg"}	2026-08-17 21:28:54.122702+00
 \.
 
 
@@ -933,14 +999,8 @@ COPY public.audit_log (id, user_id, action, entity_type, entity_id, details, cre
 --
 
 COPY public.committee_members (id, committee_id, user_id, is_chairman, created_at) FROM stdin;
-3	3	9	f	2026-08-13 19:22:25.507741+00
-4	3	10	f	2026-08-13 19:22:25.574475+00
-5	3	11	f	2026-08-13 19:22:25.635494+00
-7	3	6	f	2026-08-13 19:40:57.98446+00
-8	3	5	t	2026-08-13 20:02:16.337024+00
 39	9	2	f	2026-08-13 20:36:20.238499+00
 40	9	9	f	2026-08-13 20:36:20.300136+00
-41	9	10	f	2026-08-13 20:36:20.368185+00
 42	9	11	f	2026-08-13 20:36:20.433439+00
 44	9	12	t	2026-08-13 20:36:26.11396+00
 \.
@@ -951,7 +1011,6 @@ COPY public.committee_members (id, committee_id, user_id, is_chairman, created_a
 --
 
 COPY public.committees (id, roman_numeral, description, created_at, updated_at) FROM stdin;
-3	I	\N	2026-08-13 19:21:40.605619+00	2026-08-13 19:21:40.605619+00
 9	II	\N	2026-08-13 20:36:09.831362+00	2026-08-13 20:36:09.831362+00
 \.
 
@@ -978,7 +1037,6 @@ COPY public.defense_students (id, defense_id, student_id, created_at) FROM stdin
 --
 
 COPY public.defenses (id, title, scheduled_at, location, room_or_link, room, start_time, end_time, committee_id, thesis_ids, committee_ids, notes, created_at, updated_at) FROM stdin;
-2	Защита 2	2026-08-18 00:00:00+00	\N	710	710	08:30		3	{}	{3}		2026-08-13 20:47:10.627672+00	2026-08-13 20:47:10.627672+00
 1	Защита 1	2026-08-14 08:30:00+00	\N	2103	2103	08:30		9	{7}	{9}		2026-08-13 20:45:51.410387+00	2026-08-13 21:31:00.017+00
 \.
 
@@ -987,19 +1045,19 @@ COPY public.defenses (id, title, scheduled_at, location, room_or_link, room, sta
 -- Data for Name: departments; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.departments (id, name, faculty, specialties) FROM stdin;
-1	Компютърни системи	Факултет „Компютърни системи и технологии" (ФКСТ)	{"Компютърно и софтуерно инженерство"}
-3	Киберсигурност	Факултет „Компютърни системи и технологии" (ФКСТ)	{Киберсигурност}
-4	Интелигентни технологии в индустрията	Факултет „Компютърни системи и технологии" (ФКСТ)	{"Информационни технологии в индустрията"}
-5	Електронна техника	Факултет „Електронна техника и технологии" (ФЕТТ)	{"Електронни информационни системи"}
-6	Микроелектроника	Факултет „Електронна техника и технологии" (ФЕТТ)	{"Микро- и наноелектроника"}
-7	Силова електроника	Факултет „Електронна техника и технологии" (ФЕТТ)	{"Автомобилна електроника"}
-8	Радиокомуникации и видеотехнологии	Факултет по телекомуникации (ФТК)	{Телекомуникации}
-9	Телекомуникационни мрежи	Факултет по телекомуникации (ФТК)	{}
-10	Двигатели, автомобилна техника и транспорт	Факултет по транспорта (ФТ)	{"Автотранспортна техника","Технология и управление на транспорта"}
-11	Въздушен транспорт	Факултет по транспорта (ФТ)	{"Авиационна техника и технологии"}
-12	Железопътна техника и технологии	Факултет по транспорта (ФТ)	{"Транспортна техника и технологии"}
-2	Програмиране и компютърни технологии	Факултет „Компютърни системи и технологии" (ФКСТ)	{"Компютърни системи и информационни технологии"}
+COPY public.departments (id, name, faculty, specialties, faculty_number_prefix, faculty_number_prefix_master) FROM stdin;
+6	Микроелектроника	Факултет „Електронна техника и технологии" (ФЕТТ)	{"Микро- и наноелектроника"}	201222	202222
+7	Силова електроника	Факултет „Електронна техника и технологии" (ФЕТТ)	{"Автомобилна електроника"}	211222	212222
+8	Радиокомуникации и видеотехнологии	Факултет по телекомуникации (ФТК)	{Телекомуникации}	301222	302222
+9	Телекомуникационни мрежи	Факултет по телекомуникации (ФТК)	{}	301222	302222
+10	Двигатели, автомобилна техника и транспорт	Факултет по транспорта (ФТ)	{"Автотранспортна техника","Технология и управление на транспорта"}	901222	902222
+11	Въздушен транспорт	Факултет по транспорта (ФТ)	{"Авиационна техника и технологии"}	911222	912222
+1	Компютърни системи	Факултет „Компютърни системи и технологии" (ФКСТ)	{"Компютърно и софтуерно инженерство"}	121222	122222
+2	Програмиране и компютърни технологии	Факултет „Компютърни системи и технологии" (ФКСТ)	{"Компютърни системи и информационни технологии"}	121222	122222
+3	Киберсигурност	Факултет „Компютърни системи и технологии" (ФКСТ)	{Киберсигурност}	131222	132222
+4	Интелигентни технологии в индустрията	Факултет „Компютърни системи и технологии" (ФКСТ)	{"Информационни технологии в индустрията"}	131222	132222
+5	Електронна техника	Факултет „Електронна техника и технологии" (ФЕТТ)	{"Електронни информационни системи"}	221222	222222
+12	Железопътна техника и технологии	Факултет по транспорта (ФТ)	{"Транспортна техника и технологии"}	901222	902222
 \.
 
 
@@ -1033,15 +1091,12 @@ COPY public.messages (id, sender_id, receiver_id, content, is_read, created_at) 
 COPY public.notifications (id, user_id, title, message, type, is_read, related_thesis_id, created_at) FROM stdin;
 1	6	Ново запитване за ръководство	Студент иска да бъдете негов ръководител за: "Автоматизация на болничния процес"	info	t	\N	2026-08-12 15:40:30.22481+00
 2	1	Запитването е одобрено!	Вашето запитване за ръководство на "Автоматизация на болничния процес" е одобрено!	success	t	\N	2026-08-12 15:50:33.391142+00
-14	8	Запитването е одобрено!	Вашето запитване за ръководство на "Дронове" е одобрено!	success	t	\N	2026-08-12 20:55:49.288639+00
 26	11	Добавени сте към комисия	Добавени сте като член на Комисия II	info	f	\N	2026-08-13 20:04:35.797671+00
 4	1	Дипломната работа е одобрена	Научният ръководител одобри "Автоматизация на болничния процес"	success	t	1	2026-08-12 16:30:04.016657+00
 34	11	Добавени сте към комисия	Добавени сте като член на Комисия II	info	f	\N	2026-08-13 20:18:15.581208+00
-35	10	Добавени сте към комисия	Добавени сте като член на Комисия II	info	f	\N	2026-08-13 20:18:15.652813+00
-19	10	Добавени сте към комисия	Добавени сте като член на Комисия I	info	f	\N	2026-08-13 19:22:25.576093+00
 20	11	Добавени сте към комисия	Добавени сте като член на Комисия I	info	f	\N	2026-08-13 19:22:25.637365+00
-27	10	Добавени сте към комисия	Добавени сте като член на Комисия II	info	f	\N	2026-08-13 20:04:35.870799+00
-30	10	Добавени сте към комисия	Добавени сте като председател на Комисия II	info	f	\N	2026-08-13 20:04:42.298581+00
+25	12	Добавени сте към комисия	Добавени сте като член на Комисия II	info	t	\N	2026-08-13 20:04:35.588701+00
+33	12	Добавени сте към комисия	Добавени сте като член на Комисия II	info	t	\N	2026-08-13 20:18:15.506345+00
 36	9	Добавени сте към комисия	Добавени сте като член на Комисия II	info	t	\N	2026-08-13 20:18:15.720056+00
 37	2	Добавени сте към комисия	Добавени сте като член на Комисия II	info	t	\N	2026-08-13 20:18:15.796869+00
 13	2	Ново запитване за ръководство	Студент иска да бъдете негов ръководител за: "Дронове"	info	t	\N	2026-08-12 20:36:45.663281+00
@@ -1058,14 +1113,11 @@ COPY public.notifications (id, user_id, title, message, type, is_read, related_t
 7	6	Нова подадена дипломна работа	Студент е подал дипломна работа: "Сайт за автомоболи"	info	t	2	2026-08-12 18:43:28.27276+00
 12	6	Рецензията е изготвена	Рецензията на "Сайт за автомоболи" е готова.	info	t	2	2026-08-12 19:07:53.420523+00
 23	6	Добавени сте към комисия	Добавени сте като председател на Комисия I	info	t	\N	2026-08-13 19:40:57.986853+00
-25	12	Добавени сте към комисия	Добавени сте като член на Комисия II	info	t	\N	2026-08-13 20:04:35.588701+00
-33	12	Добавени сте към комисия	Добавени сте като член на Комисия II	info	t	\N	2026-08-13 20:18:15.506345+00
 32	7	Премахнати сте от комисия	Комисия II е изтрита и вие сте премахнати от нея.	warning	t	\N	2026-08-13 20:17:59.151916+00
 6	7	Запитването е одобрено!	Вашето запитване за ръководство на "Сайт за автомобили" е одобрено!	success	t	\N	2026-08-12 18:42:13.077663+00
 8	7	Дипломната работа е одобрена	Научният ръководител одобри "Сайт за автомоболи"	success	t	2	2026-08-12 18:48:43.246586+00
 10	7	Дипломната работа е изпратена за рецензия	"Сайт за автомоболи" е изпратена за рецензия	info	t	2	2026-08-12 18:48:43.34135+00
 42	11	Добавени сте към комисия	Добавени сте като член на Комисия II	info	f	\N	2026-08-13 20:22:24.758923+00
-43	10	Добавени сте към комисия	Добавени сте като член на Комисия II	info	f	\N	2026-08-13 20:22:24.836438+00
 45	2	Добавени сте към комисия	Добавени сте като член на Комисия II	info	t	\N	2026-08-13 20:22:25.067016+00
 49	2	Добавени сте към комисия	Добавени сте като член на Комисия II	info	t	\N	2026-08-13 20:26:35.789132+00
 57	2	Добавени сте към комисия	Добавени сте като член на Комисия II	info	t	\N	2026-08-13 20:29:52.377203+00
@@ -1075,13 +1127,10 @@ COPY public.notifications (id, user_id, title, message, type, is_read, related_t
 11	7	Рецензията е готова	Вашата дипломна работа "Сайт за автомоболи" получи рецензия.	info	t	2	2026-08-12 19:07:53.418262+00
 31	7	Назначени сте към комисия	Назначени сте към Комисия II	info	t	\N	2026-08-13 20:07:20.86151+00
 39	7	Назначени сте към комисия	Назначени сте към Комисия II	info	t	\N	2026-08-13 20:18:42.390339+00
-51	10	Добавени сте към комисия	Добавени сте като член на Комисия II	info	f	\N	2026-08-13 20:26:35.931801+00
 53	11	Добавени сте към комисия	Добавени сте като член на Комисия II	info	f	\N	2026-08-13 20:26:36.061912+00
 54	11	Добавени сте към комисия	Добавени сте като председател на Комисия II	info	f	\N	2026-08-13 20:26:41.178211+00
-59	10	Добавени сте към комисия	Добавени сте като член на Комисия II	info	f	\N	2026-08-13 20:29:52.533642+00
 60	11	Добавени сте към комисия	Добавени сте като член на Комисия II	info	f	\N	2026-08-13 20:29:52.602611+00
 62	11	Добавени сте към комисия	Добавени сте като председател на Комисия II	info	f	\N	2026-08-13 20:29:55.665634+00
-67	10	Добавени сте към комисия	Добавени сте като член на Комисия II	info	f	\N	2026-08-13 20:36:20.372641+00
 68	11	Добавени сте към комисия	Добавени сте като член на Комисия II	info	f	\N	2026-08-13 20:36:20.434752+00
 44	9	Добавени сте към комисия	Добавени сте като член на Комисия II	info	t	\N	2026-08-13 20:22:25.005234+00
 46	9	Добавени сте към комисия	Добавени сте като председател на Комисия II	info	t	\N	2026-08-13 20:22:29.351331+00
@@ -1130,6 +1179,24 @@ COPY public.notifications (id, user_id, title, message, type, is_read, related_t
 97	7	Нанесена оценка от защита	Вашата оценка от защитата е 6.00 (Отличен)	success	t	\N	2026-08-17 11:28:29.949058+00
 98	7	Успешно защитена дипломна работа	Вашата дипломна работа е маркирана като успешно защитена.	success	t	\N	2026-08-17 11:33:12.320103+00
 99	7	Нанесена оценка от защита	Вашата оценка от защитата е 5.75 (Отличен)	success	t	\N	2026-08-17 11:33:14.568067+00
+100	9	Защита изтрита	Защитата "Защита 2" е изтрита.	warning	f	\N	2026-08-17 18:59:27.07838+00
+102	11	Защита изтрита	Защитата "Защита 2" е изтрита.	warning	f	\N	2026-08-17 18:59:27.081707+00
+103	6	Защита изтрита	Защитата "Защита 2" е изтрита.	warning	f	\N	2026-08-17 18:59:27.082421+00
+104	5	Защита изтрита	Защитата "Защита 2" е изтрита.	warning	f	\N	2026-08-17 18:59:27.083122+00
+105	9	Комисия изтрита	Комисия I е изтрита.	warning	f	\N	2026-08-17 18:59:52.377498+00
+107	11	Комисия изтрита	Комисия I е изтрита.	warning	f	\N	2026-08-17 18:59:52.380064+00
+108	6	Комисия изтрита	Комисия I е изтрита.	warning	f	\N	2026-08-17 18:59:52.381065+00
+109	5	Комисия изтрита	Комисия I е изтрита.	warning	f	\N	2026-08-17 18:59:52.382143+00
+110	15	Ново запитване за ръководство	Студент иска да бъдете негов ръководител за: "Автоматизация на журнала"	info	f	\N	2026-08-17 19:34:16.324175+00
+111	17	Запитването е отхвърлено	За съжаление запитването ви за "Автоматизация на журнала" е отхвърлено.	warning	t	\N	2026-08-17 19:34:44.530563+00
+113	17	Запитването е одобрено!	Вашето запитване за ръководство на "Автоматизация на журнала" е одобрено!	success	f	\N	2026-08-17 19:36:51.328921+00
+115	17	Дипломната работа е върната за корекции	Бъди по-конкретна	warning	f	4	2026-08-17 19:43:02.960459+00
+112	12	Ново запитване за ръководство	Студент иска да бъдете негов ръководител за: "Автоматизация на журнала"	info	t	\N	2026-08-17 19:36:27.573073+00
+114	12	Нова подадена дипломна работа	Студент е предал своята дипломна работа: "Автоматизация на журнала"	info	t	4	2026-08-17 19:42:11.040192+00
+116	12	Нова подадена дипломна работа	Студент е предал своята дипломна работа: "Автоматизация на журнала"	info	t	4	2026-08-17 19:43:33.490654+00
+117	18	Ново запитване за ръководство	Студент иска да бъдете негов ръководител за: "GPS system"	info	f	\N	2026-08-17 19:48:01.32565+00
+118	21	Запитването е одобрено!	Вашето запитване за ръководство на "GPS system" е одобрено!	success	f	\N	2026-08-17 19:49:09.274924+00
+119	18	Нова подадена дипломна работа	Студент е предал своята дипломна работа: "GPS system"	info	f	5	2026-08-17 19:50:48.874199+00
 \.
 
 
@@ -1158,7 +1225,9 @@ COPY public.student_committees (id, student_id, committee_id, assigned_at) FROM 
 COPY public.supervisor_requests (id, student_id, supervisor_id, thesis_title, technologies, description, status, reviewer_id, created_at, updated_at) FROM stdin;
 1	1	6	Автоматизация на болничния процес	React, Node.JS	Автоматизация на болничния процес	accepted	\N	2026-08-12 15:40:30.222973+00	2026-08-12 15:50:33.279+00
 2	7	6	Сайт за автомобили	HTML, CSS	Сайт за автомобили	accepted	\N	2026-08-12 18:41:04.116316+00	2026-08-12 18:42:13.069+00
-3	8	2	Дронове	C, Python	Дронове 	accepted	\N	2026-08-12 20:36:45.6615+00	2026-08-12 20:55:49.285+00
+4	17	15	Автоматизация на журнала	React, Java	Целта на проекта е да се автоматизират процесите на пресата.	rejected	\N	2026-08-17 19:34:16.314713+00	2026-08-17 19:34:44.528+00
+5	17	12	Автоматизация на журнала	Java, React	Целта на проекта е да се автоматизира процеса на журнала.	accepted	\N	2026-08-17 19:36:27.571262+00	2026-08-17 19:36:51.326+00
+6	21	18	GPS system	MySQL, C++	GPS system	accepted	\N	2026-08-17 19:48:01.322275+00	2026-08-17 19:49:09.272+00
 \.
 
 
@@ -1167,8 +1236,11 @@ COPY public.supervisor_requests (id, student_id, supervisor_id, thesis_title, te
 --
 
 COPY public.theses (id, title, description, status, student_id, supervisor_id, reviewer_id, reviewer_selected_at, defense_id, keywords, field, submitted_at, created_at, updated_at, final_grade, grade_calculated_at) FROM stdin;
+4	Автоматизация на журнала	Целта на проекта е да се автоматизира процеса.	submitted	17	12	\N	\N	\N	React, Java	Уеб	2026-08-17 19:43:33.487+00	2026-08-17 19:41:35.887075+00	2026-08-17 19:43:33.487+00	\N	\N
 1	Автоматизация на болничния процес	Автоматизация на болничния процес	approved_by_supervisor	1	6	\N	\N	\N	React, JS	Уеб технология	2026-08-12 16:10:59.903+00	2026-08-12 15:01:27.709063+00	2026-08-12 16:30:04.013+00	\N	\N
+5	GPS system	GPS system	submitted	21	18	\N	\N	\N	C++, MySQL	Уеб	2026-08-17 19:50:48.871+00	2026-08-17 19:50:27.301137+00	2026-08-17 19:50:48.871+00	\N	\N
 2	Сайт за автомоболи		graded	7	6	5	2026-08-12 18:48:43.331+00	\N	HTML, CSS	Уеб технологии	2026-08-12 18:43:28.269+00	2026-08-12 18:37:37.434093+00	2026-08-17 11:33:14.571+00	\N	\N
+3	Автоматизация на журнала		draft	17	12	\N	\N	\N	React, Java	Уеб	\N	2026-08-17 19:37:47.492461+00	2026-08-17 19:37:47.492461+00	\N	\N
 \.
 
 
@@ -1179,6 +1251,9 @@ COPY public.theses (id, title, description, status, student_id, supervisor_id, r
 COPY public.thesis_files (id, thesis_id, file_name, file_url, file_type, file_size, uploaded_by, created_at) FROM stdin;
 2	1	ÐÑÐ¸Ð¼ÐµÑÐ½Ð° ÑÑÑÑÐºÑÑÑÐ° - Ð¿ÑÐ¾ÐµÐºÑ ÐÐÐ.docx	/uploads/1786547316947-297039058.docx	application/vnd.openxmlformats-officedocument.wordprocessingml.document	106169	1	2026-08-12 15:08:36.96559+00
 3	2	Примерна структура - проект НБД.docx	/uploads/1786559882632-824334793.docx	application/vnd.openxmlformats-officedocument.wordprocessingml.document	106169	7	2026-08-12 18:38:02.648112+00
+4	3	документация.docx	/uploads/1786995563359-174465835.docx	application/vnd.openxmlformats-officedocument.wordprocessingml.document	13477	17	2026-08-17 19:39:23.379708+00
+6	4	документация.docx	/uploads/1786995808587-106294981.docx	application/vnd.openxmlformats-officedocument.wordprocessingml.document	13477	17	2026-08-17 19:43:28.588913+00
+7	5	документация.docx	/uploads/1786996245335-205542917.docx	application/vnd.openxmlformats-officedocument.wordprocessingml.document	13477	21	2026-08-17 19:50:45.337862+00
 \.
 
 
@@ -1187,17 +1262,23 @@ COPY public.thesis_files (id, thesis_id, file_name, file_url, file_type, file_si
 --
 
 COPY public.users (id, email, password_hash, first_name, last_name, role, faculty, department, phone_number, avatar_url, faculty_number, subject_taught, max_students, created_at, updated_at, specialty, degree, reset_token, reset_token_expiry) FROM stdin;
-8	mstefanova@uni.bg	8ed16ec60fd929f06bddcebcbe925078c5decb0bec17ccc201f55906c8a7ea2c	Мария	Стефанова	student	\N	\N	\N	\N	121222044	\N	40	2026-08-12 20:34:28.547151+00	2026-08-12 20:34:28.547151+00	\N	\N	\N	\N
-2	iivanova@uni.bg	9d95a4d77b7829b950f99751c7b296c48dd7dbf7acf7a68c7a002e0b51fd2955	Ива	Иванова	department_head	\N	\N	\N	\N	\N	\N	10	2026-08-09 15:00:05.464964+00	2026-08-09 15:00:05.464964+00	\N	\N	\N	\N
-11	tbozhilov@uni.bg	2fcde602af2919866d703b5d31244af88173408cb99accd50938beaca87609b5	Тодор	Божилов	supervisor	ФМИ	МИ	\N	\N	\N	Математика	10	2026-08-13 19:21:00.670474+00	2026-08-16 16:42:04.909+00	\N	\N	\N	\N
-9	syordanov@uni.bg	655fbed07407132500c90571b5ec7b1edadf12fcc7aedd78a73eb4f674c92912	Станислав	Йорданов	supervisor	ФКС	КС	\N	\N	\N	ИКС	10	2026-08-13 16:45:43.367694+00	2026-08-13 16:45:43.367694+00	\N	\N	\N	\N
-7	itodorov@uni.bg	5fd56104297a82c0a6b396e2e7e4b8b31840e076eb6a2f39ab93bd1051629ad6	Иван	Тодоров	student	ФКСТ	\N	\N	\N	121222179	\N	40	2026-08-12 18:37:08.236964+00	2026-08-16 20:56:02.482+00	КСИ	bachelor	\N	\N
-1	kgeorgieva@uni.bg	1d06cc9e21c08231cfb41a1ed7787e83412f72c831e5b8ca042175b332e654f1	Катя	Георгиева	student	ФКС	\N	\N	\N	121222033	\N	40	2026-08-09 14:59:13.902607+00	2026-08-14 16:55:25.475+00	МИ	bachelor	\N	\N
-5	masenova@uni.bg	4b418df1a968db29f995c987d52aafdd5b3cfdb332ce5fd682568cd915cbf035	Мария	Асенова	supervisor	ФМИ	Информатика	\N	\N	\N	МИ	10	2026-08-09 15:08:14.118415+00	2026-08-16 21:47:15.119+00	\N	\N	\N	\N
-10	jdanchev@uni.bg	01283a4c8b41bf13b1095585307879af9d0728d8060bb3928a713e84ed4db971	Живко	Данчев	supervisor	ФМИ	МИ	\N	\N	\N	ИКС	10	2026-08-13 19:20:00.379633+00	2026-08-16 16:05:19.652+00	\N	\N	jyu4n5rustkmsvzxkf8	2026-08-16 17:05:19.652+00
+15	dkolev@uni.bg	0aabae73e31b09aa0329a9d8b6af322c3463af510b994de23d78c4f0601b88c8	Добромир	Колев	department_head	Факултет „Компютърни системи и технологии" (ФКСТ)	Програмиране и компютърни технологии	\N	\N	\N	\N	10	2026-08-17 18:35:59.205435+00	2026-08-17 19:10:54.973+00	\N	\N	\N	\N
+5	masenova@uni.bg	4b418df1a968db29f995c987d52aafdd5b3cfdb332ce5fd682568cd915cbf035	Мария	Асенова	supervisor	Факултет „Електронна техника и технологии" (ФЕТТ)	Силова електроника	\N	\N	\N	МИ	10	2026-08-09 15:08:14.118415+00	2026-08-17 19:21:44.105+00	\N	\N	\N	\N
+9	syordanov@uni.bg	655fbed07407132500c90571b5ec7b1edadf12fcc7aedd78a73eb4f674c92912	Станислав	Йорданов	supervisor	Факултет „Електронна техника и технологии" (ФЕТТ)	Електронна техника	\N	\N	\N	ИКС	10	2026-08-13 16:45:43.367694+00	2026-08-17 19:11:26.739+00	\N	\N	\N	\N
+11	tbozhilov@uni.bg	2fcde602af2919866d703b5d31244af88173408cb99accd50938beaca87609b5	Тодор	Божилов	supervisor	Факултет по телекомуникации (ФТК)	Телекомуникационни мрежи	\N	\N	\N	Математика	10	2026-08-13 19:21:00.670474+00	2026-08-17 19:11:59.105+00	\N	\N	\N	\N
+2	iivanova@uni.bg	9d95a4d77b7829b950f99751c7b296c48dd7dbf7acf7a68c7a002e0b51fd2955	Ива	Иванова	department_head	Факултет по транспорта (ФТ)	Въздушен транспорт	\N	\N	\N	\N	10	2026-08-09 15:00:05.464964+00	2026-08-17 19:12:32.861+00	\N	\N	\N	\N
+22	dpetrova@uni.bg	ab8e5f941972f7a3537e8bd93c81194960028f830cd76b43193f1e4577030958	Добромира	Петрова	supervisor	Факултет по транспорта (ФТ)	Двигатели, автомобилна техника и транспорт	\N	\N	\N	\N	10	2026-08-17 19:22:33.994932+00	2026-08-17 19:22:33.994932+00	\N	\N	\N	\N
+6	givanov@uni.bg	d879515e3bb5a9c867d4651de66cfa29fc2800eacd7758922e9050e9e7658128	Георги	Иванов	supervisor	Факултет „Компютърни системи и технологии" (ФКСТ)	Интелигентни технологии в индустрията	\N	\N	001212012	\N	10	2026-08-09 15:44:34.423248+00	2026-08-17 19:14:06.636+00	\N	\N	zwpsmnttxjmsw0942o	2026-08-16 17:14:18.336+00
+1	kgeorgieva@uni.bg	1d06cc9e21c08231cfb41a1ed7787e83412f72c831e5b8ca042175b332e654f1	Катя	Георгиева	student	Факултет по телекомуникации (ФТК)	\N	\N	\N	301222033	\N	40	2026-08-09 14:59:13.902607+00	2026-08-17 19:19:54.201+00	Телекомуникации	bachelor	\N	\N
+18	zhristova@uni.bg	17b15651b41bb9e957f951962219ab602df65df554f5addae577db0c395c901b	Зорница	Христова	department_head	Факултет по телекомуникации (ФТК)	Телекомуникационни мрежи	\N	\N	\N	\N	10	2026-08-17 19:15:16.556426+00	2026-08-17 19:15:16.556426+00	\N	\N	\N	\N
+21	yenev@uni.bg	3fff122b73243d61d523de678c131fda15d91bd84b968eb23fbca636dab8a814	Йоан	Енев	student	Факултет по телекомуникации (ФТК)	\N	\N	\N	301222098	\N	40	2026-08-17 19:21:00.163236+00	2026-08-17 19:21:00.163236+00	Телекомуникации	bachelor	\N	\N
+19	gantov@uni.bg	1b4dd4fb0267dc3189c58bcaea46102b9fd6641ab44fe5a3a7f15220adf9672c	Габриел	Антов	department_head	Факултет „Електронна техника и технологии" (ФЕТТ)	Микроелектроника	\N	\N	\N	\N	10	2026-08-17 19:16:59.241809+00	2026-08-17 19:16:59.241809+00	\N	\N	\N	\N
 4	iangelov@uni.bg	bb3dbd297b3427e51b02dcecaa75f0e8de1968f2653baaa6c2dfb69779dcc932	Ivo	Angelov	admin			0891345679	\N	\N	\N	40	2026-08-09 15:03:51.131588+00	2026-08-17 10:22:49.834+00	\N	\N	\N	\N
-6	givanov@uni.bg	d879515e3bb5a9c867d4651de66cfa29fc2800eacd7758922e9050e9e7658128	Георги	Иванов	supervisor	\N	\N	\N	\N	001212012	\N	10	2026-08-09 15:44:34.423248+00	2026-08-16 16:14:18.337+00	\N	\N	zwpsmnttxjmsw0942o	2026-08-16 17:14:18.336+00
-12	ntsanev@uni.bg	ead36637669c81e077453a6a8d8ef739c7a54447d3f4b66b78704d9bdbcbd272	Николай	Цанев	supervisor	Факултет „Компютърни системи и технологии" (ФКСТ)	Киберсигурност	\N	\N	\N	ИИ	10	2026-08-13 20:04:14.075837+00	2026-08-17 16:48:14.728+00	\N	\N	\N	\N
+20	igeorgiev@uni.bg	e8aabc4f86dcd122e071fc74740fc6eabd238b88b6c4b11c4adf9766f8678806	Ивайло	Георгиев	department_head	Факултет „Компютърни системи и технологии" (ФКСТ)	Програмиране и компютърни технологии	\N	\N	\N	\N	10	2026-08-17 19:17:59.917201+00	2026-08-17 19:17:59.917201+00	\N	\N	\N	\N
+7	itodorov@uni.bg	5fd56104297a82c0a6b396e2e7e4b8b31840e076eb6a2f39ab93bd1051629ad6	Иван	Тодоров	student	Факултет „Компютърни системи и технологии" (ФКСТ)	\N	\N	\N	121222179	\N	40	2026-08-12 18:37:08.236964+00	2026-08-17 19:19:36.107+00	Компютърно и софтуерно инженерство	bachelor	\N	\N
+12	ntsanev@uni.bg	ead36637669c81e077453a6a8d8ef739c7a54447d3f4b66b78704d9bdbcbd272	Николай	Цанев	supervisor	Факултет „Компютърни системи и технологии" (ФКСТ)	Киберсигурност	\N	\N	\N	ИИ	10	2026-08-13 20:04:14.075837+00	2026-08-17 19:10:24.141+00	\N	\N	\N	\N
+16	mdobrev@uni.bg	48ec13282aa66230b1385107190b0c8f1626ce42e5431c6908857208f5d816c9	Михаил	Добрев	student	Факултет „Компютърни системи и технологии" (ФКСТ)	\N	\N	\N	131222034	\N	40	2026-08-17 18:40:36.401779+00	2026-08-17 19:20:00.082+00	Киберсигурност	bachelor	\N	\N
+17	rstoimenova@uni.bg	85e8fba662c596eb7a38571655b058447e00b16e294c7199946cda756213877a	Ралица	Стоименова	student	Факултет „Компютърни системи и технологии" (ФКСТ)	\N	\N	\N	131222056	\N	40	2026-08-17 18:41:16.451295+00	2026-08-17 18:41:16.451295+00	Информационни технологии в индустрията	bachelor	\N	\N
 \.
 
 
@@ -1205,7 +1286,7 @@ COPY public.users (id, email, password_hash, first_name, last_name, role, facult
 -- Name: audit_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.audit_log_id_seq', 142, true);
+SELECT pg_catalog.setval('public.audit_log_id_seq', 209, true);
 
 
 --
@@ -1268,7 +1349,7 @@ SELECT pg_catalog.setval('public.messages_id_seq', 7, true);
 -- Name: notifications_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.notifications_id_seq', 99, true);
+SELECT pg_catalog.setval('public.notifications_id_seq', 119, true);
 
 
 --
@@ -1289,28 +1370,28 @@ SELECT pg_catalog.setval('public.student_committees_id_seq', 7, true);
 -- Name: supervisor_requests_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.supervisor_requests_id_seq', 3, true);
+SELECT pg_catalog.setval('public.supervisor_requests_id_seq', 6, true);
 
 
 --
 -- Name: theses_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.theses_id_seq', 2, true);
+SELECT pg_catalog.setval('public.theses_id_seq', 5, true);
 
 
 --
 -- Name: thesis_files_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.thesis_files_id_seq', 3, true);
+SELECT pg_catalog.setval('public.thesis_files_id_seq', 7, true);
 
 
 --
 -- Name: users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.users_id_seq', 14, true);
+SELECT pg_catalog.setval('public.users_id_seq', 22, true);
 
 
 --
@@ -1653,5 +1734,5 @@ ALTER TABLE ONLY public.thesis_files
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 1k0BX1buzxZqE4kupD2YXVYqVEKJL8JydJ9utb6Mqs9c28ayKSAguOydblUNPLV
+\unrestrict 0KOihIBbzpQRb3m3fgLMhEQ3OfghmbfGcGwljyl6Bvym1kEgV2FYr11eEAjlMch
 

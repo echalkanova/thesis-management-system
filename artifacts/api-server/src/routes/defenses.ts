@@ -68,10 +68,18 @@ async function formatDefense(defense: typeof defensesTable.$inferSelect) {
   };
 }
 
-// GET all defenses
-router.get("/", requireAuth, async (_req, res) => {
+router.get("/", requireAuth, async (req: AuthRequest, res) => {
   const defenses = await db.select().from(defensesTable);
   const formatted = await Promise.all(defenses.map(formatDefense));
+  
+  if (req.userRole === "department_head" || req.userRole === "supervisor" || req.userRole === "reviewer") {
+    const filtered = formatted.filter((d: any) => 
+      d.committee?.members?.some((m: any) => m.id === req.userId)
+    );
+    res.json(filtered);
+    return;
+  }
+  
   res.json(formatted);
 });
 

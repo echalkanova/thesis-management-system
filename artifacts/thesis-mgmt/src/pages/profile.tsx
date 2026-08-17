@@ -170,10 +170,12 @@ export default function Profile() {
           
           {user?.role !== "admin" && (
             <>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Специалност</Label>
-                <Input value={(user as any).specialty ?? "Не е посочена"} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />
-              </div>
+              {user?.role === "student" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Специалност</Label>
+                  <Input value={(user as any).specialty ?? "Не е посочена"} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />
+                </div>
+              )}
               {user?.role === "student" && (
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Степен</Label>

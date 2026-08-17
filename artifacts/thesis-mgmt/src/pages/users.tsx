@@ -110,9 +110,10 @@ export default function Users() {
       if (!res.ok) throw new Error(json.error ?? "Грешка при създаване");
       return json;
     },
-    onSuccess: () => {
+    onSuccess: (newUser: any) => {
       queryClient.invalidateQueries({ queryKey: getListUsersQueryKey({}) });
       toast({ title: "Потребителят е създаден успешно" });
+      setLastEditedId(newUser?.id ?? null);
       setForm(emptyForm);
       setCreateOpen(false);
     },
@@ -287,10 +288,6 @@ export default function Users() {
               {isStudent && (
                 <>
                   <div className="space-y-1.5">
-                    <Label>Факултетен номер <span className="text-red-500">*</span></Label>
-                    <Input value={form.facultyNumber} onChange={f("facultyNumber")} placeholder="121222001" />
-                  </div>
-                  <div className="space-y-1.5">
                     <Label>Факултет <span className="text-red-500">*</span></Label>
                     <Select value={form.faculty} onValueChange={v => setForm(prev => ({ ...prev, faculty: v, specialty: "" }))}>
                       <SelectTrigger><SelectValue placeholder="Изберете факултет" /></SelectTrigger>
@@ -325,9 +322,34 @@ export default function Users() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="space-y-1.5">
+                    <Label>Факултетен номер <span className="text-red-500">*</span></Label>
+                    <div className="flex items-center gap-1">
+                      <div className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-600 font-mono">
+                        {(() => {
+                          const dept = departments?.find((d: any) => d.specialties.includes(form.specialty));
+                          return (form as any).degree === "master" ? dept?.facultyNumberPrefixMaster ?? "______" : dept?.facultyNumberPrefix ?? "______";
+                        })()}
+                      </div>
+                      <Input 
+                        value={form.facultyNumber.slice(6)} 
+                        onChange={e => {
+                          const suffix = e.target.value.replace(/\D/g, "").slice(0, 3);
+                          const prefix = (form as any).degree === "master"
+                            ? departments?.find((d: any) => d.specialties.includes(form.specialty))?.facultyNumberPrefixMaster ?? ""
+                            : departments?.find((d: any) => d.specialties.includes(form.specialty))?.facultyNumberPrefix ?? "";
+                          setForm(prev => ({ ...prev, facultyNumber: prefix + suffix }));
+                        }}
+                        placeholder="001"
+                        maxLength={3}
+                        className="w-20 font-mono"
+                        disabled={!form.specialty || !(form as any).degree}
+                      />
+                    </div>
+                    {(!form.specialty || !(form as any).degree) && <p className="text-xs text-slate-400">Изберете първо специалност и степен</p>}
+                  </div>
                 </>
-              )}
-
+                )}
               <div className="flex gap-2 pt-1">
                 <Button
                   className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"

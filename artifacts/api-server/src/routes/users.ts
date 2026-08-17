@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, usersTable, supervisorRequestsTable, thesesTable } from "@workspace/db";
-import { eq, inArray } from "drizzle-orm";
+import { db, usersTable, supervisorRequestsTable, thesesTable, notificationsTable } from "@workspace/db";
+import { eq, inArray, sql } from "drizzle-orm";
 import { requireAuth, requireRole, type AuthRequest } from "../middlewares/auth";
 import { logAction } from "./auditLog";
 import { createHmac } from "crypto";
@@ -34,7 +34,14 @@ function formatUser(user: typeof usersTable.$inferSelect) {
 router.get("/", requireAuth, async (req: AuthRequest, res) => {
   const { role, search } = req.query as { role?: string; search?: string };
   let users = await db.select().from(usersTable);
-  if (role) users = users.filter(u => u.role === role);
+  if (role === "reviewer") {
+    // Показва всички преподаватели, назначени като рецензенти
+    const theses = await db.select().from(thesesTable);
+    const reviewerIds = [...new Set(theses.map(t => t.reviewerId).filter(Boolean))];
+    users = users.filter(u => reviewerIds.includes(u.id));
+  } else if (role) {
+    users = users.filter(u => u.role === role);
+  }
   if (search) {
     const s = search.toLowerCase();
     users = users.filter(u =>
@@ -104,6 +111,16 @@ router.post("/", requireAuth, requireRole("admin"), async (req: AuthRequest, res
     res.status(400).json({ error: "Missing required fields" });
     return;
   }
+  if (role === "department_head" && department) {
+    const existing = await db.select().from(usersTable)
+      .where(eq(usersTable.role, "department_head"));
+    const conflict = existing.find(u => u.department === department);
+    if (conflict) {
+      res.status(400).json({ error: `Катедра "${department}" вече има ръководител: ${conflict.firstName} ${conflict.lastName}` });
+      return;
+    }
+  }
+
   const [user] = await db.insert(usersTable).values({
     email,
     passwordHash: hashPassword(password),
@@ -193,10 +210,27 @@ router.post("/:id/change-password", requireAuth, async (req: AuthRequest, res) =
 
 router.delete("/:id", requireAuth, requireRole("admin"), async (req, res) => {
   const id = Number(req.params.id);
-  const [deletedUser] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
-  await db.delete(usersTable).where(eq(usersTable.id, id));
-  await logAction((req as AuthRequest).userId!, "delete_user", "user", id, { name: `${deletedUser?.firstName} ${deletedUser?.lastName}`, email: deletedUser?.email });
-  res.json({ message: "User deleted" });
+  try {
+    const [deletedUser] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+    // Изтрий всички свързани записи
+    await db.delete(notificationsTable).where(eq(notificationsTable.userId, id));
+    await db.execute(sql`DELETE FROM audit_log WHERE user_id = ${id}`);
+    await db.execute(sql`DELETE FROM messages WHERE sender_id = ${id} OR receiver_id = ${id}`);
+    await db.execute(sql`DELETE FROM supervisor_requests WHERE student_id = ${id} OR supervisor_id = ${id} OR reviewer_id = ${id}`);
+    await db.execute(sql`DELETE FROM committee_members WHERE user_id = ${id}`);
+    await db.execute(sql`DELETE FROM student_committees WHERE student_id = ${id}`);
+    await db.execute(sql`DELETE FROM defense_students WHERE student_id = ${id}`);
+    await db.execute(sql`DELETE FROM reviews WHERE reviewer_id = ${id}`);
+    await db.execute(sql`DELETE FROM grades WHERE grader_id = ${id}`);
+    await db.execute(sql`DELETE FROM thesis_files WHERE uploaded_by = ${id}`);
+    await db.execute(sql`DELETE FROM theses WHERE student_id = ${id} OR supervisor_id = ${id} OR reviewer_id = ${id}`);
+    await db.delete(usersTable).where(eq(usersTable.id, id));
+    await logAction((req as AuthRequest).userId!, "delete_user", "user", id, { name: `${deletedUser?.firstName} ${deletedUser?.lastName}`, email: deletedUser?.email });
+    res.json({ message: "User deleted" });
+  } catch (e: any) {
+    console.error("Delete user error:", e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 export default router;

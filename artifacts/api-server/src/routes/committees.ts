@@ -43,10 +43,26 @@ async function formatCommittee(committee: typeof committeesTable.$inferSelect) {
   };
 }
 
-// GET all committees
-router.get("/", requireAuth, async (_req, res) => {
+router.get("/", requireAuth, async (req: AuthRequest, res) => {
   const committees = await db.select().from(committeesTable);
   const formatted = await Promise.all(committees.map(formatCommittee));
+  
+  if (req.userRole === "department_head") {
+    const filtered = formatted.filter((c: any) => 
+      c.members?.some((m: any) => m.id === req.userId)
+    );
+    res.json(filtered);
+    return;
+  }
+  
+  if (req.userRole === "supervisor" || req.userRole === "reviewer") {
+    const filtered = formatted.filter((c: any) => 
+      c.members?.some((m: any) => m.id === req.userId)
+    );
+    res.json(filtered);
+    return;
+  }
+  
   res.json(formatted);
 });
 

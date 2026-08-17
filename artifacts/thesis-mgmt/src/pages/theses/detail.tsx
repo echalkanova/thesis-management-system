@@ -68,6 +68,9 @@ export default function ThesisDetail() {
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [reviewerDialogOpen, setReviewerDialogOpen] = useState(false);
   const [selectedReviewerForThesis, setSelectedReviewerForThesis] = useState("");
+  const [editDesc, setEditDesc] = useState(false);
+  const [descForm, setDescForm] = useState(thesis?.description ?? "");
+  const [keywordsForm, setKeywordsForm] = useState(thesis?.keywords ?? "");
 
   // All useQuery hooks after useState
   const { data: isChairman } = useQuery({
@@ -174,7 +177,7 @@ export default function ThesisDetail() {
   const isAssignedReviewer = thesis.reviewerId === user?.id;
 
   const supervisors = users?.filter(u => u.role === "supervisor") ?? [];
-  const reviewers = users?.filter(u => u.role === "reviewer") ?? [];
+  const reviewers = (reviewerSlots ?? []) as any[];
 
   const getReviewerSlots = (reviewerId: number) => {
     return reviewerSlots?.find((r: any) => r.id === reviewerId);
@@ -242,10 +245,36 @@ export default function ThesisDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <Card>
-            <CardHeader><CardTitle>Описание</CardTitle></CardHeader>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Описание</CardTitle>
+                {isOwner && ["draft", "returned_for_revision"].includes(thesis.status as string) && (
+                  <Button size="sm" variant="outline" className="text-xs" onClick={() => setEditDesc(true)}>Редактирай</Button>
+                )}
+              </div>
+            </CardHeader>
             <CardContent>
-              <p className="text-slate-700 leading-relaxed">{thesis.description || <span className="text-slate-400 italic">Няма добавено описание</span>}</p>
-              {thesis.keywords && <p className="mt-3 text-sm text-slate-500">Ключови думи: <span className="font-medium text-slate-700">{thesis.keywords}</span></p>}
+              {editDesc ? (
+                <div className="space-y-2">
+                  <textarea className="w-full border border-slate-200 rounded-lg p-3 text-sm text-slate-700 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                    value={descForm} onChange={e => setDescForm(e.target.value)} />
+                  <input className="w-full border border-slate-200 rounded-lg p-2 text-sm" placeholder="Ключови думи"
+                    value={keywordsForm} onChange={e => setKeywordsForm(e.target.value)} />
+                  <div className="flex gap-2">
+                    <Button size="sm" className="bg-[#0a192f] text-white" onClick={async () => {
+                      await fetch(`/api/theses/${thesisId}`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("thesis_token")}` }, body: JSON.stringify({ description: descForm, keywords: keywordsForm }) });
+                      queryClient.invalidateQueries({ queryKey: getGetThesisQueryKey(thesisId) });
+                      setEditDesc(false);
+                    }}>Запази</Button>
+                    <Button size="sm" variant="outline" onClick={() => setEditDesc(false)}>Отмени</Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-slate-700 leading-relaxed">{thesis.description || <span className="text-slate-400 italic">Няма добавено описание</span>}</p>
+                  {thesis.keywords && <p className="mt-3 text-sm text-slate-500">Ключови думи: <span className="font-medium text-slate-700">{thesis.keywords}</span></p>}
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -405,16 +434,11 @@ export default function ThesisDetail() {
           <Card>
             <CardHeader><CardTitle>Действия</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              {isStudent && !["draft", "returned_for_revision"].includes(thesis.status) && (
-                <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-green-50 border border-green-100 text-green-700 text-sm font-medium">
-                  ✓ Предадена на научния ръководител.
-                </div>
-              )}
 
               {/* STUDENT: status info while waiting on the supervisor */}
               {isOwner && ["submitted", "pending_supervisor_approval"].includes(thesis.status) && (
                 <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-green-50 border border-green-100 text-green-700 text-sm font-medium" data-testid="status-info-submitted">
-                  ✓ Предадена на научния ръководител
+                  ✓ Предадена на научния ръководител.
                 </div>
               )}
 
@@ -474,7 +498,7 @@ export default function ThesisDetail() {
                     <p className="text-sm text-slate-500">Дипломната работа е одобрена. Изберете рецензент за да я изпратите за рецензия.</p>
                     <Select value={selectedReviewerForThesis} onValueChange={setSelectedReviewerForThesis}>
                       <SelectTrigger><SelectValue placeholder="Изберете рецензент" /></SelectTrigger>
-                      <SelectContent>
+                      <SelectContent side="bottom" className="max-h-60 overflow-y-auto">
                         {reviewers.map(u => {
                           const slots = getReviewerSlots(u.id);
                           const free = slots?.freeSlots ?? null;

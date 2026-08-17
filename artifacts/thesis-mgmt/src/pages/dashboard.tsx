@@ -707,9 +707,37 @@ function SupervisorDashboard() {
 ═══════════════════════════════════════════════════ */
 function AdminDashboard() {
   const { user } = useAuth();
+  const isDeptHead = user?.role === "department_head";
   const { data: stats, isLoading } = useGetDashboardStats({
     query: { queryKey: getGetDashboardStatsQueryKey() }
   });
+  const { data: deptTheses } = useQuery({
+    queryKey: ["dept-head-theses", user?.id],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch("/api/theses", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      return res.json();
+    },
+    enabled: isDeptHead,
+  });
+
+  const deptByStatus = isDeptHead ? (deptTheses ?? []).reduce((acc: any, t: any) => {
+    acc[t.status] = (acc[t.status] ?? 0) + 1;
+    return acc;
+  }, {}) : null;
+
+  const deptStatusData = isDeptHead ? Object.entries(deptByStatus ?? {}).map(([status, count]: any) => ({
+    name: formatStatus(status),
+    count,
+  })) : null;
+
+  const deptUpcomingDefenses = isDeptHead ? deptTheses?.filter((t: any) => t.status === "scheduled_for_defense").length ?? 0 : 0;
+  const deptPendingReviews = isDeptHead ? deptTheses?.filter((t: any) => t.status === "under_review").length ?? 0 : 0;
+  const deptGrades = isDeptHead ? deptTheses?.filter((t: any) => t.status === "graded") ?? [] : [];
+  const deptAvgGrade = deptGrades.length > 0 ? 0 : 0; 
+
   const { data: report } = useGetThesesReport({}, {
     query: { queryKey: getGetThesesReportQueryKey({}) }
   });
@@ -735,9 +763,9 @@ function AdminDashboard() {
   if (!stats) return null;
 
   const metrics = [
-    { label: "Дипломни работи", value: stats.totalTheses, change: `${stats.totalTheses} общо`, up: true, icon: BookOpen, iconBg: "bg-indigo-50", iconColor: "text-indigo-600", changeColor: "text-emerald-600", href: "/theses" },
-    { label: "Предстоящи защити", value: stats.upcomingDefenses, change: stats.upcomingDefenses > 0 ? `${stats.upcomingDefenses} насрочени` : "Няма насрочени", up: stats.upcomingDefenses > 0, icon: Calendar, iconBg: "bg-violet-50", iconColor: "text-violet-600", changeColor: stats.upcomingDefenses > 0 ? "text-emerald-600" : "text-slate-400", href: "/defenses?tab=planned" },
-    { label: "Чакащи рецензии", value: stats.pendingReviews, change: stats.pendingReviews > 0 ? `${stats.pendingReviews} за рецензия` : "Всички прегледани", up: false, icon: FileText, iconBg: "bg-amber-50", iconColor: "text-amber-600", changeColor: stats.pendingReviews > 0 ? "text-rose-500" : "text-emerald-600", href: "/reviews?tab=unreviewed" },
+    { label: "Дипломни работи", value: isDeptHead ? deptTheses?.length ?? 0 : stats.totalTheses, change: `${isDeptHead ? deptTheses?.length ?? 0 : stats.totalTheses} общо`, up: true, icon: BookOpen, iconBg: "bg-indigo-50", iconColor: "text-indigo-600", changeColor: "text-emerald-600", href: "/theses" },
+    { label: "Предстоящи защити", value: isDeptHead ? deptUpcomingDefenses : stats.upcomingDefenses, change: (isDeptHead ? deptUpcomingDefenses : stats.upcomingDefenses) > 0 ? `${isDeptHead ? deptUpcomingDefenses : stats.upcomingDefenses} насрочени` : "Няма насрочени", up: (isDeptHead ? deptUpcomingDefenses : stats.upcomingDefenses) > 0, icon: Calendar, iconBg: "bg-violet-50", iconColor: "text-violet-600", changeColor: (isDeptHead ? deptUpcomingDefenses : stats.upcomingDefenses) > 0 ? "text-emerald-600" : "text-slate-400", href: "/defenses?tab=planned" },
+    { label: "Чакащи рецензии", value: isDeptHead ? deptPendingReviews : stats.pendingReviews, change: (isDeptHead ? deptPendingReviews : stats.pendingReviews) > 0 ? `${isDeptHead ? deptPendingReviews : stats.pendingReviews} за рецензия` : "Всички прегледани", up: false, icon: FileText, iconBg: "bg-amber-50", iconColor: "text-amber-600", changeColor: (isDeptHead ? deptPendingReviews : stats.pendingReviews) > 0 ? "text-rose-500" : "text-emerald-600", href: "/reviews?tab=unreviewed" },
     { label: "Среден успех", value: stats.averageGrade > 0 ? stats.averageGrade.toFixed(2) : "—", change: stats.averageGrade > 0 ? gradeLabel(stats.averageGrade) : "Няма оценки", up: stats.averageGrade >= 4, icon: TrendingUp, iconBg: "bg-emerald-50", iconColor: "text-emerald-600", changeColor: stats.averageGrade >= 4 ? "text-emerald-600" : stats.averageGrade > 0 ? "text-rose-500" : "text-slate-400", href: "/reports" },
   ];
 
@@ -745,7 +773,7 @@ function AdminDashboard() {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Табло</h1>
-        <p className="text-sm text-slate-400 mt-0.5">Добре дошли! Обобщението на дипломния процес е:</p>
+        <p className="text-sm text-slate-400 mt-0.5">{isDeptHead ? `Дипломни работи от вашата катедра` : "Обобщението на дипломния процес е:"}</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -772,12 +800,12 @@ function AdminDashboard() {
         <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
           <h2 className="font-semibold text-slate-800 mb-3">Разпределение по статус</h2>
           <div className="flex flex-wrap gap-2">
-            {Object.entries(stats.thesesByStatus as Record<string, number>)
-              .sort(([, a], [, b]) => b - a)
+            {Object.entries(isDeptHead ? deptByStatus ?? {} : stats.thesesByStatus as Record<string, number>)
+              .sort(([, a], [, b]) => (b as number) - (a as number))
               .map(([status, count]) => (
                 <span key={status} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${STATUS_BADGE_COLORS[status] ?? "bg-slate-100 text-slate-600"}`}>
                   {formatStatus(status)}
-                  <span className="font-bold">{count}</span>
+                  <span className="font-bold">{count as number}</span>
                 </span>
               ))}
           </div>
@@ -841,7 +869,7 @@ function AdminDashboard() {
             <Link href="/theses" className="text-xs text-indigo-600 font-semibold hover:text-indigo-700">Всички →</Link>
           </div>
           <div className="space-y-2">
-            {stats.recentTheses?.slice(0, 5).map(thesis => (
+            {(isDeptHead ? (deptTheses ?? []).slice(0, 5) : stats.recentTheses?.slice(0, 5) ?? []).map((thesis: any) => (
               <Link key={thesis.id} href={`/theses/${thesis.id}`}>
                 <div className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer group">
                   <div className="min-w-0 flex-1">
@@ -907,6 +935,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   if (user?.role === "student") return <StudentDashboard />;
   if (user?.role === "reviewer") return <ReviewerDashboard />;
+  if (user?.role === "department_head") return <AdminDashboard />;
   if (user?.role === "supervisor") return <SupervisorDashboard />;
   return <AdminDashboard />;
 }
