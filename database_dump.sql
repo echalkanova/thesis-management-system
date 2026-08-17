@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 0KOihIBbzpQRb3m3fgLMhEQ3OfghmbfGcGwljyl6Bvym1kEgV2FYr11eEAjlMch
+\restrict bzxWFYNq5Y0hukgd4liiXZ2bGEruWisDj45kbzEwgupdR7W7ZWpWrrgAswzf1PS
 
 -- Dumped from database version 16.14 (Ubuntu 16.14-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.14 (Ubuntu 16.14-0ubuntu0.24.04.1)
@@ -991,6 +991,7 @@ COPY public.audit_log (id, user_id, action, entity_type, entity_id, details, cre
 207	4	login	user	4	{"role": "admin", "email": "iangelov@uni.bg"}	2026-08-17 21:14:49.478774+00
 208	2	login	user	2	{"role": "department_head", "email": "iivanova@uni.bg"}	2026-08-17 21:28:02.485987+00
 209	5	login	user	5	{"role": "supervisor", "email": "masenova@uni.bg"}	2026-08-17 21:28:54.122702+00
+210	15	login	user	15	{"role": "department_head", "email": "dkolev@uni.bg"}	2026-08-17 22:01:37.863992+00
 \.
 
 
@@ -1262,23 +1263,23 @@ COPY public.thesis_files (id, thesis_id, file_name, file_url, file_type, file_si
 --
 
 COPY public.users (id, email, password_hash, first_name, last_name, role, faculty, department, phone_number, avatar_url, faculty_number, subject_taught, max_students, created_at, updated_at, specialty, degree, reset_token, reset_token_expiry) FROM stdin;
-15	dkolev@uni.bg	0aabae73e31b09aa0329a9d8b6af322c3463af510b994de23d78c4f0601b88c8	Добромир	Колев	department_head	Факултет „Компютърни системи и технологии" (ФКСТ)	Програмиране и компютърни технологии	\N	\N	\N	\N	10	2026-08-17 18:35:59.205435+00	2026-08-17 19:10:54.973+00	\N	\N	\N	\N
-5	masenova@uni.bg	4b418df1a968db29f995c987d52aafdd5b3cfdb332ce5fd682568cd915cbf035	Мария	Асенова	supervisor	Факултет „Електронна техника и технологии" (ФЕТТ)	Силова електроника	\N	\N	\N	МИ	10	2026-08-09 15:08:14.118415+00	2026-08-17 19:21:44.105+00	\N	\N	\N	\N
-9	syordanov@uni.bg	655fbed07407132500c90571b5ec7b1edadf12fcc7aedd78a73eb4f674c92912	Станислав	Йорданов	supervisor	Факултет „Електронна техника и технологии" (ФЕТТ)	Електронна техника	\N	\N	\N	ИКС	10	2026-08-13 16:45:43.367694+00	2026-08-17 19:11:26.739+00	\N	\N	\N	\N
-11	tbozhilov@uni.bg	2fcde602af2919866d703b5d31244af88173408cb99accd50938beaca87609b5	Тодор	Божилов	supervisor	Факултет по телекомуникации (ФТК)	Телекомуникационни мрежи	\N	\N	\N	Математика	10	2026-08-13 19:21:00.670474+00	2026-08-17 19:11:59.105+00	\N	\N	\N	\N
-2	iivanova@uni.bg	9d95a4d77b7829b950f99751c7b296c48dd7dbf7acf7a68c7a002e0b51fd2955	Ива	Иванова	department_head	Факултет по транспорта (ФТ)	Въздушен транспорт	\N	\N	\N	\N	10	2026-08-09 15:00:05.464964+00	2026-08-17 19:12:32.861+00	\N	\N	\N	\N
-22	dpetrova@uni.bg	ab8e5f941972f7a3537e8bd93c81194960028f830cd76b43193f1e4577030958	Добромира	Петрова	supervisor	Факултет по транспорта (ФТ)	Двигатели, автомобилна техника и транспорт	\N	\N	\N	\N	10	2026-08-17 19:22:33.994932+00	2026-08-17 19:22:33.994932+00	\N	\N	\N	\N
-6	givanov@uni.bg	d879515e3bb5a9c867d4651de66cfa29fc2800eacd7758922e9050e9e7658128	Георги	Иванов	supervisor	Факултет „Компютърни системи и технологии" (ФКСТ)	Интелигентни технологии в индустрията	\N	\N	001212012	\N	10	2026-08-09 15:44:34.423248+00	2026-08-17 19:14:06.636+00	\N	\N	zwpsmnttxjmsw0942o	2026-08-16 17:14:18.336+00
 1	kgeorgieva@uni.bg	1d06cc9e21c08231cfb41a1ed7787e83412f72c831e5b8ca042175b332e654f1	Катя	Георгиева	student	Факултет по телекомуникации (ФТК)	\N	\N	\N	301222033	\N	40	2026-08-09 14:59:13.902607+00	2026-08-17 19:19:54.201+00	Телекомуникации	bachelor	\N	\N
-18	zhristova@uni.bg	17b15651b41bb9e957f951962219ab602df65df554f5addae577db0c395c901b	Зорница	Христова	department_head	Факултет по телекомуникации (ФТК)	Телекомуникационни мрежи	\N	\N	\N	\N	10	2026-08-17 19:15:16.556426+00	2026-08-17 19:15:16.556426+00	\N	\N	\N	\N
 21	yenev@uni.bg	3fff122b73243d61d523de678c131fda15d91bd84b968eb23fbca636dab8a814	Йоан	Енев	student	Факултет по телекомуникации (ФТК)	\N	\N	\N	301222098	\N	40	2026-08-17 19:21:00.163236+00	2026-08-17 19:21:00.163236+00	Телекомуникации	bachelor	\N	\N
-19	gantov@uni.bg	1b4dd4fb0267dc3189c58bcaea46102b9fd6641ab44fe5a3a7f15220adf9672c	Габриел	Антов	department_head	Факултет „Електронна техника и технологии" (ФЕТТ)	Микроелектроника	\N	\N	\N	\N	10	2026-08-17 19:16:59.241809+00	2026-08-17 19:16:59.241809+00	\N	\N	\N	\N
 4	iangelov@uni.bg	bb3dbd297b3427e51b02dcecaa75f0e8de1968f2653baaa6c2dfb69779dcc932	Ivo	Angelov	admin			0891345679	\N	\N	\N	40	2026-08-09 15:03:51.131588+00	2026-08-17 10:22:49.834+00	\N	\N	\N	\N
-20	igeorgiev@uni.bg	e8aabc4f86dcd122e071fc74740fc6eabd238b88b6c4b11c4adf9766f8678806	Ивайло	Георгиев	department_head	Факултет „Компютърни системи и технологии" (ФКСТ)	Програмиране и компютърни технологии	\N	\N	\N	\N	10	2026-08-17 19:17:59.917201+00	2026-08-17 19:17:59.917201+00	\N	\N	\N	\N
 7	itodorov@uni.bg	5fd56104297a82c0a6b396e2e7e4b8b31840e076eb6a2f39ab93bd1051629ad6	Иван	Тодоров	student	Факултет „Компютърни системи и технологии" (ФКСТ)	\N	\N	\N	121222179	\N	40	2026-08-12 18:37:08.236964+00	2026-08-17 19:19:36.107+00	Компютърно и софтуерно инженерство	bachelor	\N	\N
-12	ntsanev@uni.bg	ead36637669c81e077453a6a8d8ef739c7a54447d3f4b66b78704d9bdbcbd272	Николай	Цанев	supervisor	Факултет „Компютърни системи и технологии" (ФКСТ)	Киберсигурност	\N	\N	\N	ИИ	10	2026-08-13 20:04:14.075837+00	2026-08-17 19:10:24.141+00	\N	\N	\N	\N
 16	mdobrev@uni.bg	48ec13282aa66230b1385107190b0c8f1626ce42e5431c6908857208f5d816c9	Михаил	Добрев	student	Факултет „Компютърни системи и технологии" (ФКСТ)	\N	\N	\N	131222034	\N	40	2026-08-17 18:40:36.401779+00	2026-08-17 19:20:00.082+00	Киберсигурност	bachelor	\N	\N
 17	rstoimenova@uni.bg	85e8fba662c596eb7a38571655b058447e00b16e294c7199946cda756213877a	Ралица	Стоименова	student	Факултет „Компютърни системи и технологии" (ФКСТ)	\N	\N	\N	131222056	\N	40	2026-08-17 18:41:16.451295+00	2026-08-17 18:41:16.451295+00	Информационни технологии в индустрията	bachelor	\N	\N
+15	dkolev@uni.bg	0aabae73e31b09aa0329a9d8b6af322c3463af510b994de23d78c4f0601b88c8	Добромир	Колев	department_head	Факултет „Компютърни системи и технологии" (ФКСТ)	Програмиране и компютърни технологии	\N	\N	\N	\N	10	2026-08-17 18:35:59.205435+00	2026-08-17 19:10:54.973+00	\N	\N	\N	\N
+5	masenova@uni.bg	4b418df1a968db29f995c987d52aafdd5b3cfdb332ce5fd682568cd915cbf035	Мария	Асенова	supervisor	Факултет „Електронна техника и технологии" (ФЕТТ)	Силова електроника	\N	\N	\N	МИ	10	2026-08-09 15:08:14.118415+00	2026-08-17 19:21:44.105+00	\N	\N	\N	\N
+2	iivanova@uni.bg	9d95a4d77b7829b950f99751c7b296c48dd7dbf7acf7a68c7a002e0b51fd2955	Ива	Иванова	department_head	Факултет по транспорта (ФТ)	Въздушен транспорт	\N	\N	\N	\N	10	2026-08-09 15:00:05.464964+00	2026-08-17 19:12:32.861+00	\N	\N	\N	\N
+9	syordanov@uni.bg	655fbed07407132500c90571b5ec7b1edadf12fcc7aedd78a73eb4f674c92912	Станислав	Йорданов	supervisor	Факултет „Електронна техника и технологии" (ФЕТТ)	Електронна техника	\N	\N	\N	ИКС	10	2026-08-13 16:45:43.367694+00	2026-08-17 19:11:26.739+00	\N	\N	\N	\N
+11	tbozhilov@uni.bg	2fcde602af2919866d703b5d31244af88173408cb99accd50938beaca87609b5	Тодор	Божилов	supervisor	Факултет по телекомуникации (ФТК)	Телекомуникационни мрежи	\N	\N	\N	Математика	10	2026-08-13 19:21:00.670474+00	2026-08-17 19:11:59.105+00	\N	\N	\N	\N
+22	dpetrova@uni.bg	ab8e5f941972f7a3537e8bd93c81194960028f830cd76b43193f1e4577030958	Добромира	Петрова	supervisor	Факултет по транспорта (ФТ)	Двигатели, автомобилна техника и транспорт	\N	\N	\N	\N	10	2026-08-17 19:22:33.994932+00	2026-08-17 19:22:33.994932+00	\N	\N	\N	\N
+6	givanov@uni.bg	d879515e3bb5a9c867d4651de66cfa29fc2800eacd7758922e9050e9e7658128	Георги	Иванов	supervisor	Факултет „Компютърни системи и технологии" (ФКСТ)	Интелигентни технологии в индустрията	\N	\N	001212012	\N	10	2026-08-09 15:44:34.423248+00	2026-08-17 19:14:06.636+00	\N	\N	zwpsmnttxjmsw0942o	2026-08-16 17:14:18.336+00
+18	zhristova@uni.bg	17b15651b41bb9e957f951962219ab602df65df554f5addae577db0c395c901b	Зорница	Христова	department_head	Факултет по телекомуникации (ФТК)	Телекомуникационни мрежи	\N	\N	\N	\N	10	2026-08-17 19:15:16.556426+00	2026-08-17 19:15:16.556426+00	\N	\N	\N	\N
+19	gantov@uni.bg	1b4dd4fb0267dc3189c58bcaea46102b9fd6641ab44fe5a3a7f15220adf9672c	Габриел	Антов	department_head	Факултет „Електронна техника и технологии" (ФЕТТ)	Микроелектроника	\N	\N	\N	\N	10	2026-08-17 19:16:59.241809+00	2026-08-17 19:16:59.241809+00	\N	\N	\N	\N
+20	igeorgiev@uni.bg	e8aabc4f86dcd122e071fc74740fc6eabd238b88b6c4b11c4adf9766f8678806	Ивайло	Георгиев	department_head	Факултет „Компютърни системи и технологии" (ФКСТ)	Програмиране и компютърни технологии	\N	\N	\N	\N	10	2026-08-17 19:17:59.917201+00	2026-08-17 19:17:59.917201+00	\N	\N	\N	\N
+12	ntsanev@uni.bg	ead36637669c81e077453a6a8d8ef739c7a54447d3f4b66b78704d9bdbcbd272	Николай	Цанев	supervisor	Факултет „Компютърни системи и технологии" (ФКСТ)	Киберсигурност	\N	\N	\N	ИИ	10	2026-08-13 20:04:14.075837+00	2026-08-17 19:10:24.141+00	\N	\N	\N	\N
 \.
 
 
@@ -1286,7 +1287,7 @@ COPY public.users (id, email, password_hash, first_name, last_name, role, facult
 -- Name: audit_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.audit_log_id_seq', 209, true);
+SELECT pg_catalog.setval('public.audit_log_id_seq', 210, true);
 
 
 --
@@ -1734,5 +1735,5 @@ ALTER TABLE ONLY public.thesis_files
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 0KOihIBbzpQRb3m3fgLMhEQ3OfghmbfGcGwljyl6Bvym1kEgV2FYr11eEAjlMch
+\unrestrict bzxWFYNq5Y0hukgd4liiXZ2bGEruWisDj45kbzEwgupdR7W7ZWpWrrgAswzf1PS
 

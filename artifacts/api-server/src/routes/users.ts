@@ -69,9 +69,11 @@ router.get("/supervisors/list", requireAuth, async (req: AuthRequest, res) => {
       email: s.email,
       subjectTaught: s.subjectTaught ?? null,
       facultyNumber: s.facultyNumber ?? null,
-      maxStudents: s.maxStudents ?? 40,
+      faculty: s.faculty ?? null,
+      department: s.department ?? null,
+      maxStudents: s.maxStudents ?? 10,
       acceptedStudents: acceptedCount,
-      freeSlots: (s.maxStudents ?? 40) - acceptedCount,
+      freeSlots: (s.maxStudents ?? 10) - acceptedCount,
     };
   }));
 

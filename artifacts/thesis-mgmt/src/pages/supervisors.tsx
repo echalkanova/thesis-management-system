@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Users, Mail, BookOpen, Send, Crown, Timer } from "lucide-react";
+import { Users, Mail, BookOpen, Send, Crown, Timer, Building2, GraduationCap } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function Supervisors() {
@@ -25,6 +26,7 @@ export default function Supervisors() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [adminViewSupervisor, setAdminViewSupervisor] = useState<any | null>(null);
   const [adminDialogOpen, setAdminDialogOpen] = useState(false);
+  const [facultyFilter, setFacultyFilter] = useState<string>("all");
 
   const { data: supervisors, isLoading } = useQuery({
     queryKey: ["supervisors-list"],
@@ -132,6 +134,19 @@ export default function Supervisors() {
           : <p className="text-slate-500 text-sm mt-1">Преглед на наличните ръководители и свободните места</p>
         }
       </div>
+      <div className="flex items-center gap-3">
+        <Select value={facultyFilter} onValueChange={setFacultyFilter}>
+          <SelectTrigger className="w-110">
+            <SelectValue placeholder="Филтър по факултет" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Всички</SelectItem>
+            {[...new Set((supervisors ?? []).map((s: any) => s.faculty).filter(Boolean))].map((f: any) => (
+              <SelectItem key={f} value={f}>{f}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {isStudent && acceptedRequest && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4">
@@ -147,12 +162,23 @@ export default function Supervisors() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {(supervisors ?? []).slice().sort((a: any, b: any) => {
+        {(supervisors ?? []).filter((s: any) => facultyFilter === "all" || s.faculty === facultyFilter)
+        .slice().sort((a: any, b: any) => {
           const aIsAccepted = acceptedRequest?.supervisor?.id === a.id;
           const bIsAccepted = acceptedRequest?.supervisor?.id === b.id;
           if (aIsAccepted) return -1;
           if (bIsAccepted) return 1;
-          return 0;
+          // За dept_head - от неговия факултет първи
+          if (user?.role === "department_head") {
+            const userFaculty = (user as any).faculty;
+            const aMatch = a.faculty === userFaculty;
+            const bMatch = b.faculty === userFaculty;
+            if (aMatch && !bMatch) return -1;
+            if (!aMatch && bMatch) return 1;
+          }
+          const facultyCompare = (a.faculty ?? "").localeCompare(b.faculty ?? "", "bg");
+          if (facultyCompare !== 0) return facultyCompare;
+          return (a.department ?? "").localeCompare(b.department ?? "", "bg");
         }).map((s: any) => (
           <Card
             key={s.id}
@@ -187,12 +213,19 @@ export default function Supervisors() {
                 <Mail className="h-4 w-4 text-slate-400" />
                 {s.email}
               </div>
-              {s.subjectTaught && (
+              {s.faculty && (
                 <div className="flex items-center gap-2 text-sm text-slate-600">
-                  <BookOpen className="h-4 w-4 text-slate-400" />
-                  {s.subjectTaught}
+                  <Building2 className="h-4 w-4 text-slate-400" />
+                  {s.faculty}
                 </div>
               )}
+              {s.department && (
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <GraduationCap className="h-4 w-4 text-slate-400" />
+                  {s.department}
+                </div>
+              )}
+              
               <div className="flex items-center gap-2 text-sm text-slate-500">
                 <Users className="h-4 w-4 text-slate-400" />
                 {s.acceptedStudents} / {s.maxStudents} места 
