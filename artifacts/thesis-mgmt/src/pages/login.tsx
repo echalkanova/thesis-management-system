@@ -80,7 +80,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-indigo-50 to-slate-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white via-indigo-50 to-indigo-200 p-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl shadow-indigo-100/50 border border-slate-100 px-8 py-10">
 
         {/* Logo */}

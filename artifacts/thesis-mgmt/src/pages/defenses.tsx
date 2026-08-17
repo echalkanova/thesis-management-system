@@ -32,6 +32,7 @@ export default function Defenses() {
   const [selectedStudentIds, setSelectedStudentIds] = useState<Record<number, Set<number>>>({});
   const [defenseDropdownOpen, setDefenseDropdownOpen] = useState<Record<number, boolean>>({});
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"all" | "planned" | "conducted">("all");
 
   const token = localStorage.getItem("thesis_token");
   const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
@@ -273,7 +274,7 @@ export default function Defenses() {
                 </div>
                 <div className="space-y-2">
                   <Label>Дата *</Label>
-                  <Input type="date" value={form.scheduledAt} onChange={e => setForm(p => ({ ...p, scheduledAt: e.target.value }))} />
+                  <Input type="date" value={form.scheduledAt} min={new Date().toISOString().split("T")[0]} onChange={e => setForm(p => ({ ...p, scheduledAt: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
                   <Label>Начален час</Label>
@@ -342,12 +343,30 @@ export default function Defenses() {
           </Dialog>
         )}
       </div>
-
+      <div className="flex gap-0 border-b border-slate-200">
+        {(["all", "planned", "conducted"] as const).map(tab => {
+          const labels = { all: "Всички", planned: "Планирани", conducted: "Проведени" };
+          return (
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab
+                  ? "border-[#0a192f] text-[#0a192f]"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              }`}>
+              {labels[tab]}
+            </button>
+          );
+        })}
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {!defenses?.length && (
           <Card><CardContent className="py-12 text-center text-slate-400">Няма насрочени защити</CardContent></Card>
         )}
-        {defenses?.map((d: any) => (
+        {(defenses ?? []).filter((d: any) => {
+          if (activeTab === "planned") return new Date(d.scheduledAt) >= new Date();
+          if (activeTab === "conducted") return new Date(d.scheduledAt) < new Date();
+          return true;
+        }).map((d: any) => (
           <Card key={d.id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-6">
               <div className="space-y-5">
