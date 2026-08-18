@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict bzxWFYNq5Y0hukgd4liiXZ2bGEruWisDj45kbzEwgupdR7W7ZWpWrrgAswzf1PS
+\restrict BeOI8RCys6deLvsffbeYaqFkysCmhagoReonIb4ITW1GJQfo3XeCTkmVOhS1Tf3
 
 -- Dumped from database version 16.14 (Ubuntu 16.14-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.14 (Ubuntu 16.14-0ubuntu0.24.04.1)
@@ -992,6 +992,10 @@ COPY public.audit_log (id, user_id, action, entity_type, entity_id, details, cre
 208	2	login	user	2	{"role": "department_head", "email": "iivanova@uni.bg"}	2026-08-17 21:28:02.485987+00
 209	5	login	user	5	{"role": "supervisor", "email": "masenova@uni.bg"}	2026-08-17 21:28:54.122702+00
 210	15	login	user	15	{"role": "department_head", "email": "dkolev@uni.bg"}	2026-08-17 22:01:37.863992+00
+211	7	login	user	7	{"role": "student", "email": "itodorov@uni.bg"}	2026-08-18 14:22:27.657157+00
+212	2	login	user	2	{"role": "department_head", "email": "iivanova@uni.bg"}	2026-08-18 14:40:10.407321+00
+213	15	login	user	15	{"role": "department_head", "email": "dkolev@uni.bg"}	2026-08-18 14:40:32.976928+00
+214	12	login	user	12	{"role": "supervisor", "email": "ntsanev@uni.bg"}	2026-08-18 14:40:50.317652+00
 \.
 
 
@@ -1287,7 +1291,7 @@ COPY public.users (id, email, password_hash, first_name, last_name, role, facult
 -- Name: audit_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.audit_log_id_seq', 210, true);
+SELECT pg_catalog.setval('public.audit_log_id_seq', 214, true);
 
 
 --
@@ -1735,5 +1739,5 @@ ALTER TABLE ONLY public.thesis_files
 -- PostgreSQL database dump complete
 --
 
-\unrestrict bzxWFYNq5Y0hukgd4liiXZ2bGEruWisDj45kbzEwgupdR7W7ZWpWrrgAswzf1PS
+\unrestrict BeOI8RCys6deLvsffbeYaqFkysCmhagoReonIb4ITW1GJQfo3XeCTkmVOhS1Tf3
 
