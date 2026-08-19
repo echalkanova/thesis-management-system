@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict BeOI8RCys6deLvsffbeYaqFkysCmhagoReonIb4ITW1GJQfo3XeCTkmVOhS1Tf3
+\restrict wedTHL4gZkFMEijtF1PqAw4wc0k0IeQwiyFoYy7JRcuOzUzwWUAeQabZ4LKly1z
 
 -- Dumped from database version 16.14 (Ubuntu 16.14-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.14 (Ubuntu 16.14-0ubuntu0.24.04.1)
@@ -996,6 +996,7 @@ COPY public.audit_log (id, user_id, action, entity_type, entity_id, details, cre
 212	2	login	user	2	{"role": "department_head", "email": "iivanova@uni.bg"}	2026-08-18 14:40:10.407321+00
 213	15	login	user	15	{"role": "department_head", "email": "dkolev@uni.bg"}	2026-08-18 14:40:32.976928+00
 214	12	login	user	12	{"role": "supervisor", "email": "ntsanev@uni.bg"}	2026-08-18 14:40:50.317652+00
+215	4	login	user	4	{"role": "admin", "email": "iangelov@uni.bg"}	2026-08-18 15:05:41.471227+00
 \.
 
 
@@ -1291,7 +1292,7 @@ COPY public.users (id, email, password_hash, first_name, last_name, role, facult
 -- Name: audit_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.audit_log_id_seq', 214, true);
+SELECT pg_catalog.setval('public.audit_log_id_seq', 215, true);
 
 
 --
@@ -1739,5 +1740,5 @@ ALTER TABLE ONLY public.thesis_files
 -- PostgreSQL database dump complete
 --
 
-\unrestrict BeOI8RCys6deLvsffbeYaqFkysCmhagoReonIb4ITW1GJQfo3XeCTkmVOhS1Tf3
+\unrestrict wedTHL4gZkFMEijtF1PqAw4wc0k0IeQwiyFoYy7JRcuOzUzwWUAeQabZ4LKly1z
 
