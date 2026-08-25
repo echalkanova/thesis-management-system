@@ -78,9 +78,8 @@ export default function Reviews() {
             if (activeTab === "unreviewed") return !review.isPublished;
             return true;
           }).map((review: any) => {
-            const rec = recommendationConfig[review.recommendation as keyof typeof recommendationConfig] ?? recommendationConfig.revise;
-            const RecIcon = rec.icon;
-            return (
+            const rec = review.recommendation ? (recommendationConfig[review.recommendation as keyof typeof recommendationConfig] ?? recommendationConfig.revise) : null;
+            const RecIcon = rec?.icon;            return (
               <Link key={review.id} href={`/theses/${review.thesisId}`}>
                 <Card className="hover:shadow-md transition-shadow cursor-pointer group">
                   <CardContent className="p-5">
@@ -121,10 +120,12 @@ export default function Reviews() {
 
                       {/* Препоръка */}
                       <div className="flex sm:flex-col items-start sm:items-end gap-2 flex-shrink-0">
+                                                {rec && RecIcon && (
                         <Badge variant="outline" className={`flex items-center gap-1.5 ${rec.className}`}>
                           <RecIcon className="h-3.5 w-3.5" />
                           {rec.label}
                         </Badge>
+                        )}
                         <span className="text-xs text-slate-400">Виж дипломната работа →</span>
                       </div>
                     </div>

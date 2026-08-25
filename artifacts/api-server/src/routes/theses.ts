@@ -115,7 +115,7 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
     res.json(filtered);
     return;
   }
-  res.json(formatted);
+    res.json(formatted.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
 });
 
 router.post("/", requireAuth, async (req: AuthRequest, res) => {
