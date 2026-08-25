@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useGetThesesReport, getGetThesesReportQueryKey, useGetGradesReport, getGetGradesReportQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -25,29 +26,60 @@ const GRADE_COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6"];
 export default function Reports() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [fieldFilter, setFieldFilter] = useState("all");
+  const [facultyFilter, setFacultyFilter] = useState("all");
 
   const { data: thesesReport, isLoading: loadingTheses } = useGetThesesReport(
     {} as any,
-    { 
-      query: { 
-        queryKey: [getGetThesesReportQueryKey({}), statusFilter, fieldFilter],
+    {
+      query: {
+        queryKey: [getGetThesesReportQueryKey({}), statusFilter, fieldFilter, facultyFilter],
         queryFn: async () => {
           const token = localStorage.getItem("thesis_token");
           const params = new URLSearchParams();
           if (statusFilter !== "all") params.append("status", statusFilter);
           if (fieldFilter !== "all") params.append("specialty", fieldFilter);
+          if (facultyFilter !== "all") params.append("faculty", facultyFilter);
           const res = await fetch(`/api/reports/theses?${params.toString()}`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
           });
           return res.json();
         }
-      } 
+      }
     }
   );
-  const { data: gradesReport, isLoading: loadingGrades } = useGetGradesReport({ query: { queryKey: getGetGradesReportQueryKey() } });
 
-  const allStatuses = thesesReport ? Object.keys((thesesReport as any).byStatus as Record<string, number>) : [];
-  const allFields = thesesReport ? Object.keys((thesesReport as any).byField as Record<string, number>).filter(f => f !== "Неопределено") : [];
+  const { data: allThesesReport } = useGetThesesReport({}, {
+    query: { queryKey: getGetThesesReportQueryKey({}) }
+  });
+
+  const { data: gradesReport, isLoading: loadingGrades } = useQuery({
+    queryKey: [getGetGradesReportQueryKey(), statusFilter, fieldFilter, facultyFilter],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      const params = new URLSearchParams();
+      if (fieldFilter !== "all") params.append("specialty", fieldFilter);
+      if (facultyFilter !== "all") params.append("faculty", facultyFilter);
+      const res = await fetch(`/api/reports/grades?${params.toString()}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      return res.json();
+    }
+  });
+  const { data: departments } = useQuery({
+    queryKey: ["departments"],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch("/api/departments", { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      return res.json();
+    },
+  });
+
+  const allStatuses = allThesesReport ? Object.keys((allThesesReport as any).byStatus as Record<string, number>) : [];
+  const allFields = allThesesReport ? Object.keys((allThesesReport as any).byField as Record<string, number>).filter(f => f !== "Неопределено") : [];
+  const allFaculties = departments ? [...new Set(departments.map((d: any) => d.faculty))] as string[] : [];
+    const filteredFields = facultyFilter === "all"
+    ? allFields
+    : (departments?.filter((d: any) => d.faculty === facultyFilter).flatMap((d: any) => d.specialties) ?? []);
 
   const statusData = thesesReport
     ? Object.entries((thesesReport as any).byStatus as Record<string, number>)
@@ -75,8 +107,8 @@ export default function Reports() {
       }))
     : [];
 
-  const clearFilters = () => { setStatusFilter("all"); setFieldFilter("all"); };
-  const hasFilters = statusFilter !== "all" || fieldFilter !== "all";
+  const clearFilters = () => { setStatusFilter("all"); setFieldFilter("all"); setFacultyFilter("all"); };
+  const hasFilters = statusFilter !== "all" || fieldFilter !== "all" || facultyFilter !== "all";
 
   return (
     <div className="space-y-6">
@@ -100,12 +132,24 @@ export default function Reports() {
           </Select>
         </div>
         <div className="space-y-1.5 min-w-[180px]">
+          <Label className="text-xs text-slate-500">Филтър по факултет</Label>
+          <Select value={facultyFilter} onValueChange={v => { setFacultyFilter(v); setFieldFilter("all"); }}>
+            <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Всички факултети" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Всички факултети</SelectItem>
+              {allFaculties.map(f => (
+                <SelectItem key={f} value={f}>{f}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+                <div className="space-y-1.5 min-w-[180px]">
           <Label className="text-xs text-slate-500">Филтър по специалност</Label>
-          <Select value={fieldFilter} onValueChange={setFieldFilter}>
-            <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Всички специалности" /></SelectTrigger>
+          <Select value={fieldFilter} onValueChange={setFieldFilter} disabled={facultyFilter === "all"}>
+            <SelectTrigger className="h-9 text-sm"><SelectValue placeholder={facultyFilter === "all" ? "Изберете факултет първо" : "Всички специалности"} /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Всички специалности</SelectItem>
-              {allFields.map(f => (
+              {filteredFields.map((f: string) => (
                 <SelectItem key={f} value={f}>{f}</SelectItem>
               ))}
             </SelectContent>
@@ -126,9 +170,8 @@ export default function Reports() {
             <Card><CardContent className="p-5 text-center"><div className="text-3xl font-bold text-[#0a192f]">{thesesReport?.totalCount ?? 0}</div><div className="text-sm text-slate-500 mt-1">Общо работи</div></CardContent></Card>
             <Card><CardContent className="p-5 text-center"><div className="text-3xl font-bold text-amber-600">{gradesReport?.averageGrade?.toFixed(2) ?? "—"}</div><div className="text-sm text-slate-500 mt-1">Среден успех</div></CardContent></Card>
             <Card><CardContent className="p-5 text-center"><div className="text-3xl font-bold text-green-600">{gradesReport?.passingRate?.toFixed(1) ?? 0}%</div><div className="text-sm text-slate-500 mt-1">Успеваемост</div></CardContent></Card>
-            <Card><CardContent className="p-5 text-center"><div className="text-3xl font-bold text-purple-600">{(thesesReport?.byStatus as Record<string, number>)?.["defended"] ?? 0}</div><div className="text-sm text-slate-500 mt-1">Защитени</div></CardContent></Card>
+            <Card><CardContent className="p-5 text-center"><div className="text-3xl font-bold text-purple-600">{((thesesReport?.byStatus as Record<string, number>)?.["defended"] ?? 0) + ((thesesReport?.byStatus as Record<string, number>)?.["graded"] ?? 0)}</div><div className="text-sm text-slate-500 mt-1">Защитени</div></CardContent></Card>
           </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader><CardTitle>Дипломни работи по статус{statusFilter !== "all" ? ` — ${formatStatus(statusFilter)}` : ""}</CardTitle></CardHeader>
@@ -181,8 +224,7 @@ export default function Reports() {
                       <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                       <Tooltip />
-                      <Line type="monotone" dataKey="count" name="Брой" stroke="#0a192f" strokeWidth={2} dot={{ r: 4 }} />
-                    </LineChart>
+                      <Line type="monotone" dataKey="count" name="Брой" stroke="#0a192f" strokeWidth={2} dot={false} />                    </LineChart>
                   </ResponsiveContainer>
                 )}
               </CardContent>
@@ -201,7 +243,7 @@ export default function Reports() {
                       <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={100} allowDecimals={false} />
                       <Tooltip />
                       <Bar dataKey="count" name="Брой" radius={[0, 4, 4, 0]}>
-                        {fieldData.map((entry, index) => (
+                        {fieldData.map((_, index) => (
                           <Cell key={index} fill={["#0a192f", "#4f46e5", "#0891b2", "#059669", "#d97706", "#dc2626", "#7c3aed", "#db2777"][index % 8]} />
                         ))}
                       </Bar>

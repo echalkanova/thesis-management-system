@@ -1,6 +1,5 @@
 import { Router } from "express";
-import { db, usersTable, thesesTable, defensesTable, reviewsTable, gradesTable } from "@workspace/db";
-import { eq, sql, gte, lte } from "drizzle-orm";
+import { db, usersTable, thesesTable, defensesTable, reviewsTable, gradesTable, defenseGradesTable } from "@workspace/db";import { eq, sql, gte, lte } from "drizzle-orm";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 
 const router = Router();
@@ -47,7 +46,7 @@ router.get("/stats", requireAuth, async (req: AuthRequest, res) => {
   const allUsers = await db.select().from(usersTable);
   const allDefenses = await db.select().from(defensesTable);
   const allReviews = await db.select().from(reviewsTable);
-  const allGrades = await db.select().from(gradesTable);
+  const allGrades = await db.select().from(defenseGradesTable);
 
   const thesesByStatus: Record<string, number> = {};
   for (const t of allTheses) {
@@ -57,7 +56,7 @@ router.get("/stats", requireAuth, async (req: AuthRequest, res) => {
   const now = new Date();
   const upcomingDefenses = allDefenses.filter(d => d.scheduledAt > now);
   const pendingReviews = allTheses.filter(t => t.status === "submitted" || t.status === "under_review").length;
-  const avgGrade = allGrades.length > 0 ? allGrades.reduce((s, g) => s + g.value, 0) / allGrades.length : 0;
+  const avgGrade = allGrades.length > 0 ? allGrades.reduce((s, g) => s + Number(g.grade), 0) / allGrades.length : 0;
 
   const recentTheses = allTheses.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, 5);
   const recentFormatted = await Promise.all(recentTheses.map(formatThesisSimple));
@@ -91,7 +90,7 @@ router.get("/stats", requireAuth, async (req: AuthRequest, res) => {
 });
 
 router.get("/theses", requireAuth, async (req, res) => {
-  const { status, specialty } = req.query as Record<string, string>;
+  const { status, specialty, faculty } = req.query as Record<string, string>;
   let allTheses = await db.select().from(thesesTable);
   const allStudents = await db.select().from(usersTable).then(u => u.filter(u => u.role === "student"));
 
@@ -104,6 +103,13 @@ router.get("/theses", requireAuth, async (req, res) => {
       .filter(s => (s as any).specialty === specialty)
       .map(s => s.id);
     allTheses = allTheses.filter(t => specialtyStudentIds.includes(t.studentId));
+  }
+
+    if (faculty && faculty !== "all") {
+    const facultyStudentIds = allStudents
+      .filter(s => (s as any).faculty === faculty)
+      .map(s => s.id);
+    allTheses = allTheses.filter(t => facultyStudentIds.includes(t.studentId));
   }
 
   const byStatus: Record<string, number> = {};
@@ -124,24 +130,31 @@ router.get("/theses", requireAuth, async (req, res) => {
 });
 
 router.get("/grades", requireAuth, async (req: AuthRequest, res) => {
-  const allGrades = await db.select().from(gradesTable);
+  const { specialty, faculty } = req.query as Record<string, string>;
+  const allGrades = await db.select().from(defenseGradesTable);
   const allTheses = await db.select().from(thesesTable);
+  const allStudents = await db.select().from(usersTable);
 
-  const avgGrade = allGrades.length > 0 ? allGrades.reduce((s, g) => s + g.value, 0) / allGrades.length : 0;
-
-  const gradeDistribution: Record<string, number> = { "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 };
-  for (const g of allGrades) {
-    const key = String(Math.floor(g.value));
-    if (key in gradeDistribution) gradeDistribution[key]++;
+  let filteredGrades = allGrades;
+  if (specialty && specialty !== "all") {
+    const studentIds = allStudents.filter(s => (s as any).specialty === specialty).map(s => s.id);
+    filteredGrades = allGrades.filter(g => studentIds.includes(g.studentId));
+  } else if (faculty && faculty !== "all") {
+    const studentIds = allStudents.filter(s => (s as any).faculty === faculty).map(s => s.id);
+    filteredGrades = allGrades.filter(g => studentIds.includes(g.studentId));
   }
 
+  const avgGrade = filteredGrades.length > 0 ? filteredGrades.reduce((s, g) => s + Number(g.grade), 0) / filteredGrades.length : 0;
+  const gradeDistribution: Record<string, number> = { "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 };
+  for (const g of filteredGrades) {
+    const key = String(Math.round(Number(g.grade)));
+    if (key in gradeDistribution) gradeDistribution[key]++;
+  }
   const thesesWithGrades = allTheses.filter(t => t.status === "defended");
   const topTheses = thesesWithGrades.slice(0, 5);
   const topFormatted = await Promise.all(topTheses.map(formatThesisSimple));
-
-  const passing = allGrades.filter(g => g.value >= 3).length;
-  const passingRate = allGrades.length > 0 ? (passing / allGrades.length) * 100 : 0;
-
+  const passing = filteredGrades.filter(g => Number(g.grade) >= 3).length;
+  const passingRate = filteredGrades.length > 0 ? (passing / filteredGrades.length) * 100 : 0;
   res.json({
     averageGrade: Math.round(avgGrade * 100) / 100,
     gradeDistribution,
