@@ -35,7 +35,7 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
   const { role, search } = req.query as { role?: string; search?: string };
   let users = await db.select().from(usersTable);
   if (role === "reviewer") {
-    // Показва всички преподаватели, назначени като рецензенти
+    
     const theses = await db.select().from(thesesTable);
     const reviewerIds = [...new Set(theses.map(t => t.reviewerId).filter(Boolean))];
     users = users.filter(u => reviewerIds.includes(u.id));
@@ -44,10 +44,14 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
   }
   if (search) {
     const s = search.toLowerCase();
-    users = users.filter(u =>
+        users = users.filter(u =>
       u.firstName.toLowerCase().includes(s) ||
       u.lastName.toLowerCase().includes(s) ||
-      u.email.toLowerCase().includes(s)
+      u.email.toLowerCase().includes(s) ||
+      (u.faculty ?? "").toLowerCase().includes(s) ||
+      (u.department ?? "").toLowerCase().includes(s) ||
+      ((u as any).specialty ?? "").toLowerCase().includes(s) ||
+      (u.facultyNumber ?? "").toLowerCase().includes(s)
     );
   }
   res.json(users.map(formatUser));

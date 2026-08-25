@@ -60,11 +60,20 @@ export default function Reviews() {
       ) : !reviews?.length ? (
         <div className="text-center py-16 text-slate-400 bg-white rounded-xl border border-slate-200">
           <FileText className="h-10 w-10 mx-auto mb-3 text-slate-300" />
-          <p className="font-medium">Няма изготвени рецензии</p>
+          <p className="font-medium">{activeTab === "unreviewed" ? "Няма нерецензирани дипломни работи" : "Няма изготвени рецензии"}</p>
         </div>
       ) : (
-        <div className="space-y-4">
+                <div className="space-y-4">
           {reviews.filter((review: any) => {
+            if (activeTab === "reviewed") return review.isPublished;
+            if (activeTab === "unreviewed") return !review.isPublished;
+            return true;
+          }).length === 0 ? (
+            <div className="text-center py-16 text-slate-400 bg-white rounded-xl border border-slate-200">
+              <FileText className="h-10 w-10 mx-auto mb-3 text-slate-300" />
+              <p className="font-medium">{activeTab === "unreviewed" ? "Няма нерецензирани дипломни работи" : "Няма изготвени рецензии"}</p>
+            </div>
+          ) : reviews.filter((review: any) => {
             if (activeTab === "reviewed") return review.isPublished;
             if (activeTab === "unreviewed") return !review.isPublished;
             return true;

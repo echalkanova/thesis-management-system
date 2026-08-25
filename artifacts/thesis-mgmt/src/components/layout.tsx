@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/auth";
 import {
   BookOpen, Calendar, LayoutDashboard, Users, FileText,
   BarChart2, LogOut, Bell, UserCircle,
-  ChevronRight, Shield, UserCheck, Inbox, MessageSquare, UsersRound, ChevronDown
+  ChevronRight, Shield, UserCheck, Inbox, MessageSquare, UsersRound, ChevronDown, Building2
 } from "lucide-react";
 import { formatRole } from "@/lib/utils";
 import { ThesisFlowIcon, ThesisFlowWordmark } from "@/components/thesis-flow-logo";
@@ -19,6 +19,7 @@ const NAV_LINKS = [
   { href: "/reviews", label: "Рецензии", icon: FileText, roles: ["admin"] },
   { href: "/committees", label: "Комисии", icon: UsersRound, roles: ["admin"] },
   { href: "/defenses", label: "Защити", icon: Calendar, roles: ["admin"] },
+  { href: "/faculties", label: "Факултети", icon: Building2, roles: ["admin"] },
   { href: "/supervisors", label: "Ръководители", icon: UserCheck, roles: ["admin"] },
   { href: "/reports", label: "Справки", icon: BarChart2, roles: ["admin"] },
   { href: "/users", label: "Потребители", icon: Users, roles: ["admin"] },

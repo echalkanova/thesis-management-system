@@ -142,27 +142,17 @@ export default function ThesisDetail() {
     queryClient.invalidateQueries({ queryKey: getListThesesQueryKey() });
   };
 
-  const { data: defenseGrade } = useQuery({
+    const { data: defenseGrade } = useQuery({
     queryKey: ["defense-grade-thesis", thesisId],
     queryFn: async () => {
       const token = localStorage.getItem("thesis_token");
-      const res = await fetch(`/api/defenses`, {
+      const res = await fetch(`/api/defenses/grade-by-student/${thesis?.studentId}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) return null;
-      const defenses = await res.json();
-      const myDefense = defenses.find((d: any) => 
-        (d.thesisIds ?? []).includes(thesis?.studentId)
-      );
-      if (!myDefense) return null;
-      const gradesRes = await fetch(`/api/defenses/${myDefense.id}/grades`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!gradesRes.ok) return null;
-      const grades = await gradesRes.json();
-      return grades.find((g: any) => g.studentId === thesis?.studentId) ?? null;
+      return res.json();
     },
-    enabled: !!thesis,
+    enabled: !!thesis?.studentId,
   });
 
   if (isLoading) return <div className="p-8 text-center text-slate-500">Зареждане...</div>;
@@ -430,13 +420,13 @@ export default function ThesisDetail() {
             </CardContent>
           </Card>
 
-          {!isReviewer && !isDeptHead && (
+          {!isReviewer && (
           <Card>
             <CardHeader><CardTitle>Действия</CardTitle></CardHeader>
             <CardContent className="space-y-2">
 
               {/* STUDENT: status info while waiting on the supervisor */}
-              {isOwner && ["submitted", "pending_supervisor_approval"].includes(thesis.status) && (
+              {isOwner && !["draft", "returned_for_revision"].includes(thesis.status) && (
                 <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-green-50 border border-green-100 text-green-700 text-sm font-medium" data-testid="status-info-submitted">
                   ✓ Предадена на научния ръководител.
                 </div>

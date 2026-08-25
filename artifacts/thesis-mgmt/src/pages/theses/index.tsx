@@ -44,7 +44,7 @@ export default function ThesesList() {
             !["draft", "returned_for_revision"].includes(t.status)
           );
           return hasApproved ? (
-            <Button disabled className="bg-slate-300 text-slate-500 cursor-not-allowed">
+            <Button disabled className="bg-slate-100 text-slate-400 cursor-not-allowed border-0">
               <Plus className="mr-2 h-4 w-4" /> Създай нова
             </Button>
           ) : (
@@ -74,8 +74,8 @@ export default function ThesesList() {
         </div>
       )}
 
-      <div className="flex gap-4 items-center">
-        <div className="relative w-full md:w-[500px]">
+            <div className="flex gap-4 items-center">
+        {user?.role !== "student" && <div className="relative w-full md:w-[500px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input 
             placeholder="Търсене по заглавие, факултетен номер или ръководител..." 
@@ -84,7 +84,7 @@ export default function ThesesList() {
             onChange={(e) => setSearch(e.target.value)}
             data-testid="input-search-theses"
           />
-        </div>
+        </div>}
       </div>
 
       {isLoading ? (

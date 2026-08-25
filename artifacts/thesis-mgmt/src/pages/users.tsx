@@ -374,7 +374,7 @@ export default function Users() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <Input placeholder="Търсене по име или имейл..." className="pl-9" value={search} onChange={e => setSearch(e.target.value)} data-testid="input-search-users" />
+          <Input placeholder="Търсене по име/имейл/факултет/катедра/специалност" className="pl-9" value={search} onChange={e => setSearch(e.target.value)} data-testid="input-search-users" />
         </div>
         <Select value={roleFilter} onValueChange={setRoleFilter}>
             <SelectTrigger className="w-48" data-testid="select-role-filter">
@@ -388,9 +388,9 @@ export default function Users() {
               Преподаватели
             </div>
             <SelectItem value="teachers">Всички преподаватели</SelectItem>
-            <SelectItem value="department_head">— Ръководител-катедра</SelectItem>
-            <SelectItem value="supervisor">— Научен ръководител</SelectItem>
-            <SelectItem value="reviewer">— Рецензент</SelectItem>
+            <SelectItem value="department_head">Ръководител-катедра</SelectItem>
+            <SelectItem value="supervisor">Научен ръководител</SelectItem>
+            <SelectItem value="reviewer">Рецензент</SelectItem>
           </SelectContent>
           </Select>
       </div>
@@ -406,7 +406,7 @@ export default function Users() {
                   <TableHead>Потребител</TableHead>
                   <TableHead>Имейл</TableHead>
                   <TableHead>Роля</TableHead>
-                  <TableHead>Факултет</TableHead>
+                  <TableHead>Факултет / Катедра / Специалност</TableHead>
                   <TableHead className="text-right">Действия</TableHead>
                 </TableRow>
               </TableHeader>
@@ -420,7 +420,14 @@ export default function Users() {
                         {u.role === "student" ? "Студент" : u.role === "admin" ? "Администратор" : "Преподавател"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-slate-500 text-sm">{u.faculty ?? "-"}</TableCell>
+                      <TableCell className="text-slate-500 text-sm">
+                      <div>{u.faculty ?? "-"}</div>
+                      {u.role === "student" ? (
+                        <div className="text-xs text-slate-400">{(u as any).specialty ?? ""}</div>
+                      ) : (
+                        <div className="text-xs text-slate-400">{(u as any).department ?? ""}</div>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Dialog open={editUser?.id === u.id} onOpenChange={open => !open && setEditUser(null)}>

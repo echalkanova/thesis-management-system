@@ -205,6 +205,7 @@ export default function Defenses() {
             </CardContent>
           </Card>
         )}
+        
 
         {myGrade && (
           <Card>

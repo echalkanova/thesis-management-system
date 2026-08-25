@@ -71,8 +71,14 @@ async function formatDefense(defense: typeof defensesTable.$inferSelect) {
 router.get("/", requireAuth, async (req: AuthRequest, res) => {
   const defenses = await db.select().from(defensesTable);
   const formatted = await Promise.all(defenses.map(formatDefense));
+
+  router.get("/all", requireAuth, async (_req, res) => {
+  const defenses = await db.select().from(defensesTable);
+  const formatted = await Promise.all(defenses.map(formatDefense));
+  res.json(formatted);
+});
   
-  if (req.userRole === "department_head" || req.userRole === "supervisor" || req.userRole === "reviewer") {
+  if (req.userRole === "supervisor" || req.userRole === "reviewer") {
     const filtered = formatted.filter((d: any) => 
       d.committee?.members?.some((m: any) => m.id === req.userId)
     );
@@ -268,7 +274,13 @@ router.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
         `Защитата "${defense.title}" е изтрита.`,
         "warning"
       );
+      for (const studentId of (defense.thesisIds ?? [])) {
+      await db.update(thesesTable)
+        .set({ status: "approved_for_defense" } as any)
+        .where(eq(thesesTable.studentId, studentId));
     }
+    }
+
 
     if (defense.committeeId) {
       const members = await db.select().from(committeeMembersTable)
@@ -294,6 +306,20 @@ router.get("/:id/grades", requireAuth, async (req: AuthRequest, res) => {
   const grades = await db.select().from(defenseGradesTable)
     .where(eq(defenseGradesTable.defenseId, defenseId));
   res.json(grades);
+});
+
+router.get("/grade-by-student/:studentId", requireAuth, async (req: AuthRequest, res) => {
+  const studentId = Number(req.params.studentId);
+  const defenses = await db.select().from(defensesTable);
+  for (const defense of defenses) {
+    if ((defense.thesisIds ?? []).includes(studentId)) {
+      const grades = await db.select().from(defenseGradesTable)
+        .where(eq(defenseGradesTable.defenseId, defense.id));
+      const grade = grades.find(g => g.studentId === studentId);
+      if (grade) { res.json(grade); return; }
+    }
+  }
+  res.json(null);
 });
 
 

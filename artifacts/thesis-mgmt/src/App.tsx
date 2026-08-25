@@ -22,6 +22,7 @@ import Profile from "@/pages/profile";
 import Notifications from "@/pages/notifications";
 import Reports from "@/pages/reports";
 import AuditLog from "@/pages/audit-log";
+import Faculties from "@/pages/faculties";
 import Supervisors from "@/pages/supervisors";
 import SupervisorRequests from "@/pages/supervisor-requests";
 import Messages from "@/pages/messages";
@@ -78,6 +79,7 @@ function Router() {
       <Route path="/notifications" component={withLayout(Notifications)} />
       <Route path="/reports" component={withLayout(Reports, ["admin", "supervisor", "department_head"])} />
       <Route path="/audit-log" component={withLayout(AuditLog, ["admin"])} />
+      <Route path="/faculties" component={withLayout(Faculties, ["admin"])} />
       <Route path="/supervisors" component={withLayout(Supervisors)} />
       <Route path="/supervisor-requests" component={withLayout(SupervisorRequests, ["supervisor", "department_head", "admin"])} />
       <Route path="/messages/:userId" component={withLayout(Messages)} />

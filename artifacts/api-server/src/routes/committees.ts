@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, committeesTable, committeeMembersTable, studentCommitteesTable, usersTable, thesesTable, notificationsTable, reviewsTable } from "@workspace/db";
+import { db, committeesTable, committeeMembersTable, studentCommitteesTable, usersTable, thesesTable, notificationsTable, reviewsTable, defensesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { pushNotification } from "../sse";
@@ -47,13 +47,6 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
   const committees = await db.select().from(committeesTable);
   const formatted = await Promise.all(committees.map(formatCommittee));
   
-  if (req.userRole === "department_head") {
-    const filtered = formatted.filter((c: any) => 
-      c.members?.some((m: any) => m.id === req.userId)
-    );
-    res.json(filtered);
-    return;
-  }
   
   if (req.userRole === "supervisor" || req.userRole === "reviewer") {
     const filtered = formatted.filter((c: any) => 
@@ -340,12 +333,17 @@ router.get("/my-committee", requireAuth, async (req: AuthRequest, res) => {
   if (req.userRole !== "student") {
     res.status(403).json({ error: "Only students" }); return;
   }
-  const [assignment] = await db.select().from(studentCommitteesTable)
-    .where(eq(studentCommitteesTable.studentId, req.userId!));
-  if (!assignment) { res.json(null); return; }
+  
+  // Намери защитата, в която е добавен студентът
+  const defenses = await db.select().from(defensesTable);
+  const myDefense = defenses.find(d => (d.thesisIds ?? []).includes(req.userId!));
+  
+  if (!myDefense || !myDefense.committeeId) { res.json(null); return; }
+  
   const [committee] = await db.select().from(committeesTable)
-    .where(eq(committeesTable.id, assignment.committeeId)).limit(1);
+    .where(eq(committeesTable.id, myDefense.committeeId)).limit(1);
   if (!committee) { res.json(null); return; }
+  
   res.json(await formatCommittee(committee));
 });
 

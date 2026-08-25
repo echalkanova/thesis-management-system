@@ -97,7 +97,7 @@ thesisReviewsRouter.get("/", requireAuth, async (req: AuthRequest, res) => {
 thesisReviewsRouter.post("/", requireAuth, upload.single("file"), async (req: AuthRequest, res) => {
   const thesisId = Number(req.params.id);
 
-  if (req.userRole !== "reviewer" && req.userRole !== "admin") {
+    if (!["reviewer", "supervisor", "department_head", "admin"].includes(req.userRole ?? "")) {
     res.status(403).json({ error: "Only reviewers can submit reviews" });
     return;
   }
@@ -186,12 +186,16 @@ reviewsRouter.get("/", requireAuth, async (req: AuthRequest, res) => {
       } : null,
     };
   }));
-  res.json(formatted);
+    res.json(formatted.sort((a: any, b: any) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()));
 });
 
 reviewsRouter.get("/my-reviews", requireAuth, async (req: AuthRequest, res) => {
   const reviews = await db.select().from(reviewsTable)
     .where(eq(reviewsTable.reviewerId, req.userId!));
+  
+  
+  const thesesForReview = await db.select().from(thesesTable)
+    .where(eq(thesesTable.reviewerId, req.userId!));
   
   const formatted = await Promise.all(reviews.map(async (r) => {
     const [thesis] = await db.select().from(thesesTable)
@@ -204,16 +208,34 @@ reviewsRouter.get("/my-reviews", requireAuth, async (req: AuthRequest, res) => {
     }
     return {
       ...await formatReview(r),
-      thesis: thesis ? {
-        id: thesis.id,
-        title: thesis.title,
-        field: thesis.field ?? null,
-        student,
-      } : null,
+      thesis: thesis ? { id: thesis.id, title: thesis.title, field: thesis.field ?? null, student } : null,
     };
   }));
-  
-  res.json(formatted);
+
+  // Добави тези без рецензия като pending
+  const reviewedThesisIds = reviews.map(r => r.thesisId);
+  const pendingTheses = await Promise.all(
+    thesesForReview
+      .filter(t => !reviewedThesisIds.includes(t.id) && t.status === 'under_review')
+      .map(async t => {
+        const [s] = await db.select().from(usersTable).where(eq(usersTable.id, t.studentId)).limit(1);
+        return {
+          id: null,
+          thesisId: t.id,
+          reviewerId: req.userId,
+          content: null,
+          fileUrl: null,
+          recommendation: null,
+          isPublished: false,
+          createdAt: null,
+          updatedAt: null,
+          reviewer: null,
+          thesis: { id: t.id, title: t.title, field: t.field ?? null, student: s ? { id: s.id, firstName: s.firstName, lastName: s.lastName } : null }
+        };
+      })
+  );
+
+    res.json([...formatted, ...pendingTheses].sort((a: any, b: any) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()));
 });
 
 reviewsRouter.get("/:id", requireAuth, async (req, res) => {

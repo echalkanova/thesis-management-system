@@ -313,6 +313,18 @@ function ReviewerDashboard() {
     { query: { queryKey: getListThesesQueryKey({ reviewerId: user?.id } as any) } }
   );
 
+    const { data: myReviewTheses } = useQuery({
+    queryKey: ["reviewer-theses", user?.id],
+    queryFn: async () => {
+      const token = localStorage.getItem("thesis_token");
+      const res = await fetch(`/api/theses?reviewerId=${user?.id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      return res.json();
+    },
+      enabled: true,
+  });
+
   const { data: notifications } = useListNotifications(
     { query: { queryKey: getListNotificationsQueryKey() } }
   );
@@ -327,7 +339,7 @@ function ReviewerDashboard() {
       const all = await res.json();
       return all.find((r: any) => r.id === user?.id) ?? null;
     },
-    enabled: user?.role === "reviewer" || user?.role === "supervisor",
+      enabled: ["reviewer", "supervisor", "department_head"].includes(user?.role ?? ""),
   });
 
   if (isLoading) {
@@ -341,14 +353,14 @@ function ReviewerDashboard() {
     );
   }
 
-  const theses = myTheses ?? [];
-  const pending = theses.filter(t => t.status === "under_review");
-  const completed = theses.filter(t => ["reviewed", "approved_for_defense", "scheduled_for_defense", "defended", "graded"].includes(t.status));
+  const theses = (myReviewTheses ?? myTheses ?? []) as any[];  
+  const pending = theses.filter((t: any) => t.status === "under_review");
+  const completed = theses.filter((t: any) => ["reviewed", "approved_for_defense", "scheduled_for_defense", "defended", "graded"].includes(t.status));
   const recentNotifs = notifications?.slice(0, 4) ?? [];
   const metrics = [
     { label: "За рецензиране", value: pending.length, icon: Hourglass, iconBg: "bg-amber-50", iconColor: "text-amber-600", slots: false, href: "/reviews?tab=unreviewed" },
     { label: "Приключени рецензии", value: completed.length, icon: ClipboardCheck, iconBg: "bg-emerald-50", iconColor: "text-emerald-600", slots: false, href: "/reviews?tab=reviewed" },
-    { label: "Общо назначени", value: theses.length, icon: FileText, iconBg: "bg-indigo-50", iconColor: "text-indigo-600", slots: true, href: "/reviews" },
+    { label: "Общо назначени", value: theses.length, icon: FileText, iconBg: "bg-indigo-50", iconColor: "text-indigo-600", slots: true, href: null },
   ];
 
   return (
@@ -361,13 +373,12 @@ function ReviewerDashboard() {
       <div className="grid grid-cols-3 gap-4">
         {metrics.map((metric) => {
           const { label, value, icon: Icon, iconBg, iconColor, slots, href } = metric;
-          return (
-            <Link key={label} href={href ?? "/dashboard"}>
-            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+          const card = (
+            <div className={`bg-white rounded-2xl p-5 border border-slate-100 shadow-sm transition-shadow ${href ? "hover:shadow-md cursor-pointer" : ""}`}>
               <div className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center mb-4`}>
                 <Icon size={20} className={iconColor} />
               </div>
-              
+
               {slots && reviewerInfo ? (
                 <div className="mb-0.5">
                   <span className="text-3xl font-bold text-slate-800">{value}</span>
@@ -379,7 +390,11 @@ function ReviewerDashboard() {
               )}
               <div className="text-xs text-slate-400">{label}</div>
             </div>
-            </Link>
+          );
+          return href ? (
+            <Link key={label} href={href}>{card}</Link>
+          ) : (
+            <div key={label}>{card}</div>
           );
         })}
       </div>
@@ -395,7 +410,7 @@ function ReviewerDashboard() {
           </div>
         ) : (
           <div className="space-y-2">
-            {pending.slice(0, 5).map(thesis => (
+            {pending.slice(0, 5).map((thesis: any) => (
               <Link key={thesis.id} href={`/theses/${thesis.id}`}>
                 <div className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer group">
                   <div className="min-w-0 flex-1">
@@ -422,7 +437,7 @@ function ReviewerDashboard() {
           </div>
         ) : (
           <div className="space-y-2">
-            {completed.slice(0, 5).map(thesis => (
+            {completed.slice(0, 5).map((thesis: any) => (
               <Link key={thesis.id} href={`/theses/${thesis.id}`}>
                 <div className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer group">
                   <div className="min-w-0 flex-1">
@@ -908,7 +923,7 @@ function AdminDashboard() {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-sm text-slate-800 truncate">{defense.title}</p>
                       <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-                        {console.log('defense:', defense)}<Clock size={11} />{(defense as any).startTime || (defense as any).start_time || d.toLocaleTimeString("bg", { hour: "2-digit", minute: "2-digit" })}
+                        <Clock size={11} />{(defense as any).startTime || (defense as any).start_time || d.toLocaleTimeString("bg", { hour: "2-digit", minute: "2-digit" })}
                         {defense.roomOrLink && <><MapPin size={11} /><span className="truncate">{defense.roomOrLink}</span></>}
                       </div>
                     </div>

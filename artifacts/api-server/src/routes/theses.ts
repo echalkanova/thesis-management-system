@@ -75,7 +75,13 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
     }
   } else if (req.userRole === "reviewer") {
     theses = theses.filter(t => t.reviewerId === req.userId && t.supervisorId !== req.userId);
-  } else if (req.userRole === "department_head") {
+    } else if (req.userRole === "department_head") {
+    if (reviewerId) {
+      theses = theses.filter(t => t.reviewerId === Number(reviewerId));
+      res.json(await Promise.all(theses.map(formatThesis)));
+      return;
+    }
+    
     // Намери катедрата на ръководителя
     const [deptHead] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
     if (deptHead?.department) {
@@ -219,7 +225,7 @@ router.post("/:id/submit", requireAuth, async (req: AuthRequest, res) => {
 
 // Approve by supervisor
 router.post("/:id/approve", requireAuth, async (req: AuthRequest, res) => {
-  if (req.userRole !== "supervisor") {
+    if (!["supervisor", "department_head"].includes(req.userRole ?? "")) {
     res.status(403).json({ error: "Only supervisors can approve" });
     return;
   }
@@ -245,7 +251,7 @@ router.post("/:id/approve", requireAuth, async (req: AuthRequest, res) => {
 
 // Return for revision by supervisor
 router.post("/:id/return", requireAuth, async (req: AuthRequest, res) => {
-  if (req.userRole !== "supervisor") {
+    if (!["supervisor", "department_head"].includes(req.userRole ?? "")) {
     res.status(403).json({ error: "Only supervisors can return thesis" });
     return;
   }
@@ -355,7 +361,7 @@ router.patch("/:id/status", requireAuth, async (req: AuthRequest, res) => {
 
 // Select reviewer after supervisor approval (supervisor only)
 router.post("/:id/select-reviewer", requireAuth, async (req: AuthRequest, res) => {
-  if (req.userRole !== "supervisor") {
+    if (!["supervisor", "department_head"].includes(req.userRole ?? "")) {
     res.status(403).json({ error: "Only supervisors can select reviewer" });
     return;
   }
