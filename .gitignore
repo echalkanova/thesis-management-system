@@ -49,3 +49,5 @@ Thumbs.db
 .local/
 artifacts/api-server/.env
 .env
+artifacts/api-server/uploads/
+add_students.sql
