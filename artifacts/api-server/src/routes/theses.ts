@@ -82,15 +82,13 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
       return;
     }
     
-    // Намери катедрата на ръководителя
-    const [deptHead] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+        const [deptHead] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
     if (deptHead?.department) {
       const [dept] = await db.select().from(departmentsTable).where(eq(departmentsTable.name, deptHead.department)).limit(1);
       if (dept?.specialties?.length) {
-        // Намери студентите от тези специалности
-        const students = await db.select().from(usersTable)
-          .where(inArray((usersTable as any).specialty, dept.specialties));
-        const studentIds = students.map(s => s.id);
+        const students = await db.select().from(usersTable).where(eq(usersTable.role, "student"));
+        const deptStudents = students.filter(s => dept.specialties.includes((s as any).specialty));
+        const studentIds = deptStudents.map(s => s.id);
         if (studentIds.length > 0) {
           theses = theses.filter(t => studentIds.includes(t.studentId));
         } else {
@@ -306,6 +304,16 @@ router.post("/:id/approve-for-defense", requireAuth, async (req: AuthRequest, re
   const id = Number(req.params.id);
   const [thesis] = await db.select().from(thesesTable).where(eq(thesesTable.id, id)).limit(1);
   if (!thesis) { res.status(404).json({ error: "Thesis not found" }); return; }
+  if (req.userRole === "department_head") {
+    const [deptHead] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+    const [student] = await db.select().from(usersTable).where(eq(usersTable.id, thesis.studentId)).limit(1);
+    const [dept] = await db.select().from(departmentsTable).where(eq(departmentsTable.name, deptHead?.department ?? "")).limit(1);
+    const studentSpecialty = (student as any)?.specialty;
+    if (!dept?.specialties?.includes(studentSpecialty)) {
+      res.status(403).json({ error: "Можете да допускате само студенти от вашата катедра" });
+      return;
+    }
+  }
   if (thesis.status !== "reviewed") {
     res.status(400).json({ error: "Thesis must be reviewed first" });
     return;

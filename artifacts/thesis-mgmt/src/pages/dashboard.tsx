@@ -730,12 +730,13 @@ function AdminDashboard() {
     queryKey: ["dept-head-theses", user?.id],
     queryFn: async () => {
       const token = localStorage.getItem("thesis_token");
-      const res = await fetch("/api/theses", {
+      const res = await fetch(`/api/theses?faculty=${encodeURIComponent((user as any)?.faculty ?? "")}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       return res.json();
     },
     enabled: isDeptHead,
+    staleTime: 0,
   });
 
   const deptByStatus = isDeptHead ? (deptTheses ?? []).reduce((acc: any, t: any) => {

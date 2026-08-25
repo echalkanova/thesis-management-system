@@ -158,4 +158,24 @@ router.post("/reset-password", async (req, res) => {
   res.json({ message: "Паролата е сменена успешно" });
 });
 
+router.post("/switch-role", requireAuth, async (req: AuthRequest, res) => {
+  const { role } = req.body;
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+  
+  // Провери дали ролята е валидна за потребителя
+  const allowedRoles: Record<string, string[]> = {
+    supervisor: ["supervisor", "reviewer"],
+    reviewer: ["reviewer", "supervisor"],
+    department_head: ["department_head", "supervisor", "reviewer"],
+  };
+  const allowed = allowedRoles[user.role] ?? [user.role];
+  if (!allowed.includes(role)) {
+    res.status(403).json({ error: "Нямате право да превключвате към тази роля" }); return;
+  }
+  
+  const token = signToken({ userId: user.id, role });
+  res.json({ token });
+});
+
 export default router;

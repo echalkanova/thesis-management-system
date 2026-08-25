@@ -42,11 +42,21 @@ async function formatThesisSimple(thesis: typeof thesesTable.$inferSelect) {
 }
 
 router.get("/stats", requireAuth, async (req: AuthRequest, res) => {
-  const allTheses = await db.select().from(thesesTable);
+  let allTheses = await db.select().from(thesesTable);
   const allUsers = await db.select().from(usersTable);
   const allDefenses = await db.select().from(defensesTable);
   const allReviews = await db.select().from(reviewsTable);
-  const allGrades = await db.select().from(defenseGradesTable);
+  let allGrades = await db.select().from(defenseGradesTable);
+
+  if (req.userRole === "department_head") {
+    const [deptHead] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+    if (deptHead?.faculty) {
+      const deptStudents = allUsers.filter(u => u.role === "student" && (u as any).faculty === deptHead.faculty);
+      const deptStudentIds = deptStudents.map(s => s.id);
+      allTheses = allTheses.filter(t => deptStudentIds.includes(t.studentId));
+      allGrades = allGrades.filter(g => deptStudentIds.includes(g.studentId));
+    }
+  }
 
   const thesesByStatus: Record<string, number> = {};
   for (const t of allTheses) {
@@ -110,6 +120,15 @@ router.get("/theses", requireAuth, async (req, res) => {
       .filter(s => (s as any).faculty === faculty)
       .map(s => s.id);
     allTheses = allTheses.filter(t => facultyStudentIds.includes(t.studentId));
+  }
+
+  
+  if ((req as any).userRole === "department_head" && !faculty && !specialty) {
+    const [deptHead] = await db.select().from(usersTable).where(eq(usersTable.id, (req as any).userId)).limit(1);
+    if (deptHead?.faculty) {
+      const deptStudentIds = allStudents.filter(s => (s as any).faculty === deptHead.faculty).map(s => s.id);
+      allTheses = allTheses.filter(t => deptStudentIds.includes(t.studentId));
+    }
   }
 
   const byStatus: Record<string, number> = {};

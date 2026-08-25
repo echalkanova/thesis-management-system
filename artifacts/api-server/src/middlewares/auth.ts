@@ -46,7 +46,7 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
     return;
   }
   req.userId = payload.userId;
-  req.userRole = user[0].role;
+  req.userRole = (req.headers['x-active-role'] as string) || (payload as any).role || user[0].role;
   next();
 }
 

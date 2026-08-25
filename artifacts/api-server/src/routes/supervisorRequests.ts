@@ -106,7 +106,7 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
     };
   }));
 
-  res.json(formatted);
+    res.json(formatted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
 });
 
 router.post("/:id/accept", requireAuth, async (req: AuthRequest, res) => {

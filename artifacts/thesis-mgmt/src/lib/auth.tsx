@@ -105,17 +105,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const alternativeRoles = getAlternativeRoles(originalRole ?? undefined);
   const canSwitchRole = alternativeRoles.length > 0;
 
-  const switchRole = (targetRole?: string) => {
+      const switchRole = async (targetRole?: string) => {
     if (!canSwitchRole || !originalRole) return;
-    if (targetRole) {
-      setActiveRole(targetRole);
-    } else {
-      // Toggle между оригиналната роля и първата алтернативна
-      setActiveRole(prev =>
-        prev === originalRole ? alternativeRoles[0] : originalRole
-      );
+    const newRole = targetRole ?? (activeRole === originalRole ? alternativeRoles[0] : originalRole);
+    console.log("Switching to role:", newRole);
+    
+    const currentToken = localStorage.getItem("thesis_token");
+    const res = await fetch("/api/auth/switch-role", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${currentToken}` },
+      body: JSON.stringify({ role: newRole }),
+    });
+    console.log("Switch role response:", res.status);
+    if (res.ok) {
+      const data = await res.json();
+      console.log("New token role:", JSON.parse(atob(data.token.split('.')[1])));
+      localStorage.setItem("thesis_token", data.token);
+      setToken(data.token);
     }
+    setActiveRole(newRole);
   };
+
 
   // effectiveUser използва activeRole като роля
   const effectiveUser = user && activeRole
