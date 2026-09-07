@@ -14,6 +14,7 @@ export const defensesTable = pgTable("defenses", {
   endTime: text("end_time"),
   committeeId: integer("committee_id").references(() => committeesTable.id),
   thesisIds: integer("thesis_ids").array().notNull().default([]),
+  committeeIds: integer("committee_ids").array().notNull().default([]),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
