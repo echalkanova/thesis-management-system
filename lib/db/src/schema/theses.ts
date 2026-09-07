@@ -2,6 +2,7 @@ import { pgTable, serial, text, integer, timestamp, real } from "drizzle-orm/pg-
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
+import { defensesTable } from "./defenses";
 
 export const thesesTable = pgTable("theses", {
   id: serial("id").primaryKey(),
@@ -18,12 +19,13 @@ export const thesesTable = pgTable("theses", {
     | "approved_for_defense"
     | "scheduled_for_defense"
     | "defended"
+    | "graded"
   >(),
   studentId: integer("student_id").notNull().references(() => usersTable.id),
   supervisorId: integer("supervisor_id").references(() => usersTable.id),
   reviewerId: integer("reviewer_id").references(() => usersTable.id),
   reviewerSelectedAt: timestamp("reviewer_selected_at", { withTimezone: true }),
-  defenseId: integer("defense_id"),
+  defenseId: integer("defense_id").references(() => defensesTable.id, { onDelete: "set null" }),
   keywords: text("keywords"),
   field: text("field"),
   submittedAt: timestamp("submitted_at", { withTimezone: true }),

@@ -2,6 +2,7 @@ import { pgTable, serial, text, integer, boolean, timestamp } from "drizzle-orm/
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
+import { thesesTable } from "./theses";
 
 export const notificationsTable = pgTable("notifications", {
   id: serial("id").primaryKey(),
@@ -10,7 +11,7 @@ export const notificationsTable = pgTable("notifications", {
   message: text("message").notNull(),
   type: text("type").notNull().default("info"),
   isRead: boolean("is_read").notNull().default(false),
-  relatedThesisId: integer("related_thesis_id"),
+  relatedThesisId: integer("related_thesis_id").references(() => thesesTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

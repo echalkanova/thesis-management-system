@@ -1,6 +1,7 @@
-import { pgTable, serial, text, integer, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { committeesTable } from "./committees";
 
 export const defensesTable = pgTable("defenses", {
   id: serial("id").primaryKey(),
@@ -11,9 +12,8 @@ export const defensesTable = pgTable("defenses", {
   room: text("room"),
   startTime: text("start_time"),
   endTime: text("end_time"),
-  committeeId: integer("committee_id"),
+  committeeId: integer("committee_id").references(() => committeesTable.id),
   thesisIds: integer("thesis_ids").array().notNull().default([]),
-  committeeIds: integer("committee_ids").array().notNull().default([]),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
