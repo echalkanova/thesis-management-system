@@ -63,8 +63,7 @@ async function sendNotification(userId: number, title: string, message: string, 
 }
 
 router.get("/", requireAuth, async (req: AuthRequest, res) => {
-  const { status, studentId, supervisorId, reviewerId, search } = req.query as Record<string, string>;
-  let theses = await db.select().from(thesesTable);
+  const { status, studentId, supervisorId, reviewerId, search, department } = req.query as Record<string, string>;  let theses = await db.select().from(thesesTable);
 
   if (req.userRole === "student") {
     theses = theses.filter(t => t.studentId === req.userId);
@@ -103,6 +102,16 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
   if (supervisorId) theses = theses.filter(t => t.supervisorId === Number(supervisorId));
   if (reviewerId) theses = theses.filter(t => t.reviewerId === Number(reviewerId));
   const formatted = await Promise.all(theses.map(formatThesis));
+  if (department && department !== "all") {
+    const [dept] = await db.select().from(departmentsTable).where(eq(departmentsTable.name, department)).limit(1);
+    if (dept?.specialties?.length) {
+      const students = await db.select().from(usersTable).where(eq(usersTable.role, "student"));
+      const deptStudents = students.filter(s => dept.specialties.includes((s as any).specialty));
+      const studentIds = deptStudents.map(s => s.id);
+      theses = studentIds.length > 0 ? theses.filter(t => studentIds.includes(t.studentId)) : [];
+    }
+  }
+
   if (search) {
     const s = search.toLowerCase();
     const filtered = formatted.filter((t: any) => 

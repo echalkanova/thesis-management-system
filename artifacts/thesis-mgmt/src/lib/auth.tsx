@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import type { User, RegisterInputRole } from "@workspace/api-client-react";
 import { login as apiLogin, logout as apiLogout, getMe, setAuthTokenGetter } from "@workspace/api-client-react";
@@ -41,10 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(() => localStorage.getItem("thesis_token"));
   const [isLoading, setIsLoading] = useState(true);
-  // activeRole е текущата активна роля (може да е различна от user.role)
   const [activeRole, setActiveRole] = useState<string | null>(null);
-  // originalRole е истинската роля от БД
   const [originalRole, setOriginalRole] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     setAuthTokenGetter(() => localStorage.getItem("thesis_token"));
@@ -57,8 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const userData = await getMe();
         setUser(userData);
-        setActiveRole(userData.role);
         setOriginalRole(userData.role);
+        setActiveRole(prev => prev ?? userData.role);
       } catch {
         setToken(null);
         localStorage.removeItem("thesis_token");
@@ -124,10 +124,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(data.token);
     }
     setActiveRole(newRole);
+    queryClient.invalidateQueries();
   };
 
 
-  // effectiveUser използва activeRole като роля
   const effectiveUser = user && activeRole
     ? { ...user, role: activeRole as RegisterInputRole }
     : user;

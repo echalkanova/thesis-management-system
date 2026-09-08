@@ -106,8 +106,7 @@ export default function Reviews() {
                           )}
                           <div className="flex items-center gap-1.5">
                             <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                            <span>{new Date(review.createdAt).toLocaleDateString("bg", { day: "2-digit", month: "long", year: "numeric" })}</span>
-                          </div>
+                            <span>{review.createdAt ? new Date(review.createdAt).toLocaleDateString("bg", { day: "2-digit", month: "long", year: "numeric" }) : "Очаква рецензия"}</span>                          </div>
                         </div>
 
                         {/* Съдържание */}
