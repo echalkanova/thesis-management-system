@@ -196,7 +196,7 @@ router.post("/:id/add-student", requireAuth, async (req: AuthRequest, res) => {
 
   if (!defense) { res.status(404).json({ error: "Defense not found" }); return; }
   
-  // Провери конфликт с ръководител/рецензент
+
   const [thesis] = await db.select().from(thesesTable)
     .where(eq(thesesTable.studentId, studentId)).limit(1);
   
@@ -332,6 +332,21 @@ router.post("/:id/grades", requireAuth, async (req: AuthRequest, res) => {
   }
   if (grade < 2 || grade > 6) {
     res.status(400).json({ error: "Оценката трябва да е между 2 и 6" }); return;
+  }
+
+  const [defense] = await db.select().from(defensesTable)
+    .where(eq(defensesTable.id, defenseId)).limit(1);
+  if (!defense) { res.status(404).json({ error: "Защитата не е намерена" }); return; }
+  if (defense.committeeId) {
+    const [member] = await db.select().from(committeeMembersTable)
+      .where(and(
+        eq(committeeMembersTable.committeeId, defense.committeeId),
+        eq(committeeMembersTable.userId, req.userId!)
+      )).limit(1);
+    if (!member?.isChairman) {
+      res.status(403).json({ error: "Само председателят на комисията може да нанася оценки" });
+      return;
+    }
   }
 
   const existing = await db.select().from(defenseGradesTable)

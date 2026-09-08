@@ -230,7 +230,6 @@ router.post("/:id/submit", requireAuth, async (req: AuthRequest, res) => {
   res.json(await formatThesis(updated));
 });
 
-// Approve by supervisor
 router.post("/:id/approve", requireAuth, async (req: AuthRequest, res) => {
     if (!["supervisor", "department_head"].includes(req.userRole ?? "")) {
     res.status(403).json({ error: "Only supervisors can approve" });
@@ -256,7 +255,7 @@ router.post("/:id/approve", requireAuth, async (req: AuthRequest, res) => {
   res.json(await formatThesis(updated));
 });
 
-// Return for revision by supervisor
+
 router.post("/:id/return", requireAuth, async (req: AuthRequest, res) => {
     if (!["supervisor", "department_head"].includes(req.userRole ?? "")) {
     res.status(403).json({ error: "Only supervisors can return thesis" });
@@ -357,7 +356,7 @@ router.post("/:id/mark-defended", requireAuth, async (req: AuthRequest, res) => 
   res.json(await formatThesis(updated));
 });
 
-// Admin: update status manually
+
 router.patch("/:id/status", requireAuth, async (req: AuthRequest, res) => {
   if (req.userRole !== "admin") {
     res.status(403).json({ error: "Only admin can manually change status" });
@@ -376,7 +375,6 @@ router.patch("/:id/status", requireAuth, async (req: AuthRequest, res) => {
   res.json(await formatThesis(updated));
 });
 
-// Select reviewer after supervisor approval (supervisor only)
 router.post("/:id/select-reviewer", requireAuth, async (req: AuthRequest, res) => {
     if (!["supervisor", "department_head"].includes(req.userRole ?? "")) {
     res.status(403).json({ error: "Only supervisors can select reviewer" });

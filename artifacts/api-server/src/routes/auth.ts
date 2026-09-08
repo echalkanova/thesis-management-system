@@ -41,7 +41,6 @@ router.post("/register", async (req, res) => {
   const { email, password, firstName, lastName, role, faculty, department, phoneNumber } = parsed.data;
   const facultyNumber: string | undefined = (req.body as any).facultyNumber;
 
-  // Faculty number validation — only required for student and supervisor
   const effectiveRole = role ?? "student";
   const needsFacultyNumber = effectiveRole === "student" || effectiveRole === "supervisor";
   if (needsFacultyNumber && (!facultyNumber || facultyNumber.trim() === "")) {
@@ -163,7 +162,7 @@ router.post("/switch-role", requireAuth, async (req: AuthRequest, res) => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   
-  // Провери дали ролята е валидна за потребителя
+  
   const allowedRoles: Record<string, string[]> = {
     supervisor: ["supervisor", "reviewer"],
     reviewer: ["reviewer", "supervisor"],

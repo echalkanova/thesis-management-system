@@ -19,7 +19,6 @@ export function formatNotification(n: typeof notificationsTable.$inferSelect) {
   };
 }
 
-/* SSE stream — token passed as query param because EventSource can't set headers */
 router.get("/stream", async (req, res) => {
   const token = req.query.token as string | undefined;
   if (!token) { res.status(401).end(); return; }
@@ -37,7 +36,6 @@ router.get("/stream", async (req, res) => {
   });
   res.flushHeaders();
 
-  /* Heartbeat every 25 s to survive proxy timeouts */
   const heartbeat = setInterval(() => {
     try { res.write(": ping\n\n"); } catch { clearInterval(heartbeat); }
   }, 25_000);

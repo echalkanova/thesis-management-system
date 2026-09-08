@@ -72,7 +72,6 @@ export default function ThesisDetail() {
   const [descForm, setDescForm] = useState(thesis?.description ?? "");
   const [keywordsForm, setKeywordsForm] = useState(thesis?.keywords ?? "");
 
-  // All useQuery hooks after useState
   const { data: isChairman } = useQuery({
     queryKey: ["is-chairman", thesisId, user?.id],
     queryFn: async () => {
@@ -175,7 +174,6 @@ export default function ThesisDetail() {
 
   const avgGrade = grades && grades.length > 0 ? grades.reduce((s, g) => s + g.value, 0) / grades.length : null;
   
-
 
   const submitReviewWithFile = async () => {
     const token = localStorage.getItem("thesis_token");
