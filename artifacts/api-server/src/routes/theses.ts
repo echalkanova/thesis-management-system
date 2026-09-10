@@ -138,13 +138,16 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
     return;
   }
 
-  // Inherit the supervisor/reviewer from an already-accepted supervisor
-  // request, so theses created after acceptance aren't left unassigned.
-  const [acceptedRequest] = await db.select().from(supervisorRequestsTable)
+    const [acceptedRequest] = await db.select().from(supervisorRequestsTable)
     .where(and(
       eq(supervisorRequestsTable.studentId, req.userId!),
       eq(supervisorRequestsTable.status, "accepted"),
     )).limit(1);
+
+  if (!acceptedRequest) {
+    res.status(400).json({ error: "Не можете да създадете дипломна работа без предварително приет научен ръководител! Моля, изпратете запитване до ръководител." });
+    return;
+  }
 
   const [thesis] = await db.insert(thesesTable).values({
     title,
@@ -303,7 +306,7 @@ router.post("/:id/send-to-review", requireAuth, async (req: AuthRequest, res) =>
   res.json(await formatThesis(updated));
 });
 
-// Approve for defense (admin)
+
 router.post("/:id/approve-for-defense", requireAuth, async (req: AuthRequest, res) => {
   if (!["admin", "department_head"].includes(req.userRole ?? "")) {
     res.status(403).json({ error: "Only admin or department head can approve for defense" });

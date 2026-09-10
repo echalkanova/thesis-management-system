@@ -85,10 +85,11 @@ router.get("/supervisors/list", requireAuth, async (req: AuthRequest, res) => {
 });
 
 router.get("/reviewers/list", requireAuth, async (req: AuthRequest, res) => {
-  const reviewers = await db.select().from(usersTable)
+    const reviewers = await db.select().from(usersTable)
     .where(inArray(usersTable.role, ["reviewer", "supervisor", "department_head"]));
+  const filtered = reviewers.filter(r => r.id !== req.userId);
   
-  const result = await Promise.all(reviewers.map(async (r) => {
+  const result = await Promise.all(filtered.map(async (r) => {
     const assignedTheses = await db.select().from(thesesTable)
       .where(eq(thesesTable.reviewerId, r.id));
     const activeCount = assignedTheses.filter((t: any) => 
@@ -162,9 +163,16 @@ router.patch("/:id", requireAuth, async (req: AuthRequest, res) => {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
-  const { firstName, lastName, faculty, department, phoneNumber, avatarUrl, role, subjectTaught, maxStudents, facultyNumber, specialty, degree, password } = req.body;
-  const updates: Partial<typeof usersTable.$inferInsert> = {};
+  const { firstName, lastName, email, faculty, department, phoneNumber, avatarUrl, role, subjectTaught, maxStudents, facultyNumber, specialty, degree, password } = req.body;  const updates: Partial<typeof usersTable.$inferInsert> = {};
   if (firstName !== undefined) updates.firstName = firstName;
+    if (email !== undefined && req.userRole === "admin") {
+    const existing = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+    if (existing[0] && existing[0].id !== id) {
+      res.status(400).json({ error: "Този имейл вече е зает" });
+      return;
+    }
+    updates.email = email;
+  }
   if (lastName !== undefined) updates.lastName = lastName;
   if (faculty !== undefined) updates.faculty = faculty;
   if (department !== undefined) updates.department = department;

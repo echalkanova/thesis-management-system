@@ -361,14 +361,18 @@ export default function Defenses() {
         })}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {!defenses?.length && (
-          <Card><CardContent className="py-12 text-center text-slate-400">Няма насрочени защити</CardContent></Card>
-        )}
-        {(defenses ?? []).filter((d: any) => {
-          if (activeTab === "planned") return new Date(d.scheduledAt) >= new Date();
-          if (activeTab === "conducted") return new Date(d.scheduledAt) < new Date();
-          return true;
-        }).map((d: any) => (
+                {(() => {
+          const filtered = (defenses ?? []).filter((d: any) => {
+            if (activeTab === "planned") return new Date(d.scheduledAt) >= new Date();
+            if (activeTab === "conducted") return new Date(d.scheduledAt) < new Date();
+            return true;
+          });
+          if (!filtered.length) return (
+            <Card className="col-span-full"><CardContent className="py-12 text-center text-slate-400">
+              {activeTab === "planned" ? "Няма планирани защити" : activeTab === "conducted" ? "Няма проведени защити" : "Няма насрочени защити"}
+            </CardContent></Card>
+          );
+          return filtered.map((d: any) => (
           <Card key={d.id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-6">
               <div className="space-y-5">
@@ -500,7 +504,8 @@ export default function Defenses() {
               )}
             </CardContent>
           </Card>
-        ))}
+             ));
+        })()}
       </div>
     </div>
   );

@@ -71,6 +71,7 @@ export default function ThesisDetail() {
   const [editDesc, setEditDesc] = useState(false);
   const [descForm, setDescForm] = useState(thesis?.description ?? "");
   const [keywordsForm, setKeywordsForm] = useState(thesis?.keywords ?? "");
+  const [reviewerSearch, setReviewerSearch] = useState("");
 
   const { data: isChairman } = useQuery({
     queryKey: ["is-chairman", thesisId, user?.id],
@@ -304,13 +305,29 @@ export default function ThesisDetail() {
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-4 w-4" /> Рецензии ({reviews?.length ?? 0})</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              {reviews?.map(r => (
+                            {reviews?.map(r => (
                 <div key={r.id} className="p-4 bg-slate-50 rounded-lg border border-slate-100" data-testid={`review-item-${r.id}`}>
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-medium text-sm text-[#0a192f]">{r.reviewer?.firstName} {r.reviewer?.lastName}</span>
-                    <Badge variant="outline" className={r.recommendation === "approve" ? "bg-green-50 text-green-700 border-green-200" : r.recommendation === "reject" ? "bg-red-50 text-red-700 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"}>
-                      {r.recommendation === "approve" ? "Одобрявам" : r.recommendation === "reject" ? "Не одобрявам" : "Препоръчвам корекции"}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className={r.recommendation === "approve" ? "bg-green-50 text-green-700 border-green-200" : r.recommendation === "reject" ? "bg-red-50 text-red-700 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"}>
+                        {r.recommendation === "approve" ? "Одобрявам" : r.recommendation === "reject" ? "Не одобрявам" : "Препоръчвам корекции"}
+                      </Badge>
+                      {(isAdmin || (isAssignedReviewer && r.reviewer?.id === user?.id)) && (
+                        <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-600 h-7 w-7"
+                          onClick={async () => {
+                            const token = localStorage.getItem("thesis_token");
+                            await fetch(`/api/reviews/${r.id}`, {
+                              method: "DELETE",
+                              headers: token ? { Authorization: `Bearer ${token}` } : {},
+                            });
+                            queryClient.invalidateQueries({ queryKey: getListThesisReviewsQueryKey(thesisId) });
+                            queryClient.invalidateQueries({ queryKey: getGetThesisQueryKey(thesisId) });
+                          }}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <p className="text-sm text-slate-700 leading-relaxed">{r.content}</p>
                   {(r as any).fileUrl && (
@@ -480,48 +497,58 @@ export default function ThesisDetail() {
 
               {/* SUPERVISOR: Select reviewer dialog */}
               <Dialog open={reviewerDialogOpen} onOpenChange={setReviewerDialogOpen}>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>Изберете рецензент</DialogTitle></DialogHeader>
-                  <div className="space-y-4 pt-2">
-                    <p className="text-sm text-slate-500">Дипломната работа е одобрена. Изберете рецензент за да я изпратите за рецензия.</p>
-                    <Select value={selectedReviewerForThesis} onValueChange={setSelectedReviewerForThesis}>
-                      <SelectTrigger><SelectValue placeholder="Изберете рецензент" /></SelectTrigger>
-                      <SelectContent side="bottom" className="max-h-60 overflow-y-auto">
-                        {reviewers.map(u => {
-                          const slots = getReviewerSlots(u.id);
-                          const free = slots?.freeSlots ?? null;
-                          const max = slots?.maxStudents ?? null;
-                          return (
-                            <SelectItem key={u.id} value={String(u.id)} disabled={free === 0}>
-                              <span>{u.firstName} {u.lastName}</span>
-                              {free !== null && (
-                                <span className="ml-2 text-xs">
-                                  {free === 0 ? (
-                                    <span className="text-red-500">(Няма свободни места)</span>
-                                  ) : free === max ? (
-                                    <span className="text-green-600">({free} свободни места)</span>
-                                  ) : (
-                                    <>
-                                      <span className="text-green-600">({free}</span>
-                                      <span className="text-slate-400">/{max})</span>
-                                    </>
-                                  )}
-                                </span>
-                              )}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                    <Button className="w-full bg-[#0a192f] text-white"
-                      disabled={!selectedReviewerForThesis || actionPending === "select-reviewer"}
-                      onClick={() => thesisAction("approve")
-                        .then(() => thesisAction("select-reviewer", { reviewerId: Number(selectedReviewerForThesis) }))
-                        .then(() => { toast({ title: "Дипломната работа е одобрена и изпратена за рецензия" }); setReviewerDialogOpen(false); setSelectedReviewerForThesis(""); })
-                        .catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}>
-                      {actionPending === "select-reviewer" ? "Изпращане..." : "Потвърди и изпрати за рецензия"}
-                    </Button>
-                  </div>
+  <DialogContent>
+    <DialogHeader><DialogTitle>Изберете рецензент</DialogTitle></DialogHeader>
+    <div className="space-y-4 pt-2">
+      <p className="text-sm text-slate-500">Дипломната работа е одобрена. Изберете рецензент за да я изпратите за рецензия.</p>
+      <div className="space-y-2">
+        <Input
+          placeholder="Търсене по име..."
+          value={reviewerSearch}
+          onChange={e => setReviewerSearch(e.target.value)}
+          className="h-9 text-sm"
+        />
+        <Select value={selectedReviewerForThesis} onValueChange={setSelectedReviewerForThesis}>
+          <SelectTrigger><SelectValue placeholder="Изберете рецензент" /></SelectTrigger>
+          <SelectContent side="bottom" className="max-h-60 overflow-y-auto">
+            {reviewers.filter(u =>
+              `${u.firstName} ${u.lastName}`.toLowerCase().includes(reviewerSearch.toLowerCase())
+            ).map(u => {
+              const slots = getReviewerSlots(u.id);
+              const free = slots?.freeSlots ?? null;
+              const max = slots?.maxStudents ?? null;
+              return (
+                <SelectItem key={u.id} value={String(u.id)} disabled={free === 0}>
+                  <span>{u.firstName} {u.lastName}</span>
+                  {free !== null && (
+                    <span className="ml-2 text-xs">
+                      {free === 0 ? (
+                        <span className="text-red-500">(Няма свободни места)</span>
+                      ) : free === max ? (
+                        <span className="text-green-600">({free} свободни места)</span>
+                      ) : (
+                        <>
+                          <span className="text-green-600">({free}</span>
+                          <span className="text-slate-400">/{max})</span>
+                        </>
+                      )}
+                    </span>
+                  )}
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      </div>
+      <Button className="w-full bg-[#0a192f] text-white"
+        disabled={!selectedReviewerForThesis || actionPending === "select-reviewer"}
+        onClick={() => thesisAction("approve")
+          .then(() => thesisAction("select-reviewer", { reviewerId: Number(selectedReviewerForThesis) }))
+          .then(() => { toast({ title: "Дипломната работа е одобрена и изпратена за рецензия" }); setReviewerDialogOpen(false); setSelectedReviewerForThesis(""); setReviewerSearch(""); })
+          .catch(e => toast({ title: "Грешка", description: e.message, variant: "destructive" }))}>
+        {actionPending === "select-reviewer" ? "Изпращане..." : "Потвърди и изпрати за рецензия"}
+      </Button>
+    </div>
                 </DialogContent>
               </Dialog>
 

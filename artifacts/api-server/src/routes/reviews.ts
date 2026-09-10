@@ -14,7 +14,10 @@ if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
     filename: (_req, file, cb) => {
-    cb(null, file.originalname);
+    const ext = path.extname(file.originalname);
+    const name = Buffer.from(file.originalname, 'latin1').toString('utf8');
+    const safeName = name.replace(/[^a-zA-Z0-9а-яА-Я\s._-]/g, '_');
+    cb(null, safeName);
   },
 });
 
@@ -275,6 +278,23 @@ reviewsRouter.get("/:id/download", requireAuth, async (req, res) => {
   if (!fs.existsSync(filePath)) { res.status(404).json({ error: "File not found on disk" }); return; }
   res.download(filePath);
 
-  
-
 });
+reviewsRouter.delete("/:id", requireAuth, async (req: AuthRequest, res) => {
+  const id = Number(req.params.id);
+  const [review] = await db.select().from(reviewsTable).where(eq(reviewsTable.id, id)).limit(1);
+  if (!review) { res.status(404).json({ error: "Рецензията не е намерена" }); return; }
+  
+  if (req.userRole !== "admin" && review.reviewerId !== req.userId) {
+    res.status(403).json({ error: "Нямате право да изтриете тази рецензия" }); return;
+  }
+
+  await db.delete(reviewsTable).where(eq(reviewsTable.id, id));
+  
+    await db.update(thesesTable)
+    .set({ status: "under_review" } as any)
+    .where(eq(thesesTable.id, review.thesisId));
+
+  await logAction(req.userId!, "delete_review", "review", id, { thesisId: review.thesisId });
+  res.json({ success: true });
+});
+

@@ -449,6 +449,10 @@ export default function Users() {
                                   <Input value={editForm.lastName} onChange={ef("lastName")} />
                                 </div>
                               </div>
+                                                            <div className="space-y-1.5">
+                                <Label>Имейл</Label>
+                                <Input type="email" value={editForm.email} onChange={ef("email")} />
+                              </div>
                               <div className="space-y-1.5">
                                 <Label>Нова парола (незадължително)</Label>
                                 <Input type="password" value={editForm.newPassword} onChange={ef("newPassword")} placeholder="Оставете празно, ако не искате да смените" />

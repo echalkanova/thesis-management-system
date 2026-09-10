@@ -33,8 +33,12 @@ export default function NewThesis() {
           toast({ title: "Успех", description: "Дипломната работа е създадена." });
           setLocation(`/theses/${thesis.id}`);
         },
-        onError: () => {
-          toast({ title: "Грешка", description: "Неуспешно създаване.", variant: "destructive" });
+          onError: (error: any) => {
+          const errMsg = error?.response?.data?.error 
+            || error?.body?.error 
+            || error?.data?.error
+            || "Неуспешно създаване.";
+          toast({ title: "Грешка", description: errMsg, variant: "destructive" });
         },
       }
     );
