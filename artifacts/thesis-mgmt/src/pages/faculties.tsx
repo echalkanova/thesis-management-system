@@ -249,10 +249,6 @@ export default function Faculties() {
                   <Label>Префикс (бакалавър)</Label>
                   <Input value={newDeptPrefix} onChange={(e) => setNewDeptPrefix(e.target.value)} placeholder="напр. 121222" />
                 </div>
-                <div className="space-y-2">
-                  <Label>Префикс (магистър)</Label>
-                  <Input value={newDeptPrefixMaster} onChange={(e) => setNewDeptPrefixMaster(e.target.value)} placeholder="напр. 122222" />
-                </div>
               </div>
               <Button
                 className="w-full bg-[#0a192f] text-white"
@@ -320,8 +316,7 @@ export default function Faculties() {
                           <CardContent className="space-y-3">
                             {(dept.facultyNumberPrefix || dept.facultyNumberPrefixMaster) && (
                               <div className="text-xs text-slate-500">
-                                Префикси: {dept.facultyNumberPrefix ?? "—"} (бак.) / {dept.facultyNumberPrefixMaster ?? "—"} (маг.)
-                              </div>
+                                Префикс: {dept.facultyNumberPrefix ?? "—"}                              </div>
                             )}
                             <div className="space-y-2">
                               <Label className="text-xs text-slate-500 flex items-center gap-1">
@@ -384,10 +379,6 @@ export default function Faculties() {
                               <div className="space-y-2">
                                 <Label>Префикс (бакалавър)</Label>
                                 <Input value={addDeptPrefix} onChange={(e) => setAddDeptPrefix(e.target.value)} placeholder="напр. 121222" />
-                              </div>
-                              <div className="space-y-2">
-                                <Label>Префикс (магистър)</Label>
-                                <Input value={addDeptPrefixMaster} onChange={(e) => setAddDeptPrefixMaster(e.target.value)} placeholder="напр. 122222" />
                               </div>
                             </div>
                             <Button
@@ -458,10 +449,6 @@ export default function Faculties() {
               <div className="space-y-2">
                 <Label>Префикс (бакалавър)</Label>
                 <Input value={editDeptPrefix} onChange={(e) => setEditDeptPrefix(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Префикс (магистър)</Label>
-                <Input value={editDeptPrefixMaster} onChange={(e) => setEditDeptPrefixMaster(e.target.value)} />
               </div>
             </div>
             <Button

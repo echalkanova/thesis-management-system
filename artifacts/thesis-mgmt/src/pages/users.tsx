@@ -325,27 +325,25 @@ export default function Users() {
                     <Label>Факултетен номер <span className="text-red-500">*</span></Label>
                     <div className="flex items-center gap-1">
                       <div className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-600 font-mono">
-                        {(() => {
+                                                {(() => {
                           const dept = departments?.find((d: any) => d.specialties.includes(form.specialty));
-                          return (form as any).degree === "master" ? dept?.facultyNumberPrefixMaster ?? "______" : dept?.facultyNumberPrefix ?? "______";
+                          return dept?.facultyNumberPrefix ?? "______";
                         })()}
                       </div>
                       <Input 
                         value={form.facultyNumber.slice(6)} 
                         onChange={e => {
                           const suffix = e.target.value.replace(/\D/g, "").slice(0, 3);
-                          const prefix = (form as any).degree === "master"
-                            ? departments?.find((d: any) => d.specialties.includes(form.specialty))?.facultyNumberPrefixMaster ?? ""
-                            : departments?.find((d: any) => d.specialties.includes(form.specialty))?.facultyNumberPrefix ?? "";
+                          const prefix = departments?.find((d: any) => d.specialties.includes(form.specialty))?.facultyNumberPrefix ?? "";
                           setForm(prev => ({ ...prev, facultyNumber: prefix + suffix }));
                         }}
                         placeholder="001"
                         maxLength={3}
                         className="w-20 font-mono"
-                        disabled={!form.specialty || !(form as any).degree}
+                        disabled={!form.specialty}
                       />
                     </div>
-                    {(!form.specialty || !(form as any).degree) && <p className="text-xs text-slate-400">Изберете първо специалност и степен</p>}
+                    {!form.specialty && <p className="text-xs text-slate-400">Изберете първо специалност</p>}
                   </div>
                 </>
                 )}
