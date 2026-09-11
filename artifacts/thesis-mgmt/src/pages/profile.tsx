@@ -179,8 +179,7 @@ export default function Profile() {
               {user?.role === "student" && (
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Степен</Label>
-                  <Input value={(user as any).degree === "bachelor" ? "Бакалавър" : (user as any).degree === "master" ? "Магистър" : "Не е посочена"} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />
-                </div>
+<Input value={(user as any).degree === "bachelor" ? "Бакалавър" : "Не е посочена"} readOnly className="border-slate-200 bg-slate-50 text-slate-600" />                </div>
               )}
             </>
           )}

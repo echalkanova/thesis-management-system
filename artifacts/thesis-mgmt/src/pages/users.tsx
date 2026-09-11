@@ -318,7 +318,6 @@ export default function Users() {
                       <SelectTrigger><SelectValue placeholder="Изберете степен" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="bachelor">Бакалавър</SelectItem>
-                        <SelectItem value="master">Магистър</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -494,7 +493,6 @@ export default function Users() {
                                       <SelectTrigger><SelectValue placeholder="Изберете степен" /></SelectTrigger>
                                       <SelectContent>
                                         <SelectItem value="bachelor">Бакалавър</SelectItem>
-                                        <SelectItem value="master">Магистър</SelectItem>
                                       </SelectContent>
                                     </Select>
                                   </div>
